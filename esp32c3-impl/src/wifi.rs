@@ -1,16 +1,20 @@
 use anyhow::{bail, Result};
-use embedded_svc::wifi::{
-    AccessPointConfiguration, AuthMethod, ClientConfiguration, Configuration,
-};
+use embedded_svc::wifi::{AuthMethod, ClientConfiguration, Configuration};
 use esp_idf_hal::peripheral;
-use esp_idf_svc::{eventloop::EspSystemEventLoop, wifi::BlockingWifi, wifi::EspWifi};
+use esp_idf_svc::{
+    eventloop::EspSystemEventLoop,
+    nvs::{EspNvsPartition, NvsDefault},
+    wifi::BlockingWifi,
+    wifi::EspWifi,
+};
 use log::info;
 
-pub fn wifi(
+pub fn connect_to_wifi(
     ssid: &str,
     pass: &str,
     modem: impl peripheral::Peripheral<P = esp_idf_hal::modem::Modem> + 'static,
     sysloop: EspSystemEventLoop,
+    nvs: Option<EspNvsPartition<NvsDefault>>,
 ) -> Result<Box<EspWifi<'static>>> {
     let mut auth_method = AuthMethod::WPA2Personal;
     if ssid.is_empty() {
@@ -20,7 +24,7 @@ pub fn wifi(
         auth_method = AuthMethod::None;
         info!("Wifi password is empty");
     }
-    let mut esp_wifi = EspWifi::new(modem, sysloop.clone(), None)?;
+    let mut esp_wifi = EspWifi::new(modem, sysloop.clone(), nvs)?;
 
     let mut wifi = BlockingWifi::wrap(&mut esp_wifi, sysloop)?;
 
@@ -34,9 +38,12 @@ pub fn wifi(
 
     let ap_infos = wifi.scan()?;
 
-    let ours = ap_infos.into_iter().find(|a| a.ssid == ssid);
+    info!("Find access point info as follow: ");
+    ap_infos.iter().for_each(|ap| info!("{:?}", ap));
 
-    let channel = if let Some(ours) = ours {
+    let outs_ap = ap_infos.into_iter().find(|a| a.ssid == ssid);
+
+    let channel = if let Some(ours) = outs_ap {
         info!(
             "Found configured access point {} on channel {}",
             ssid, ours.channel
@@ -50,20 +57,14 @@ pub fn wifi(
         None
     };
 
-    wifi.set_configuration(&Configuration::Mixed(
-        ClientConfiguration {
-            ssid: ssid.into(),
-            password: pass.into(),
-            channel,
-            auth_method,
-            ..Default::default()
-        },
-        AccessPointConfiguration {
-            ssid: "aptest".into(),
-            channel: channel.unwrap_or(1),
-            ..Default::default()
-        },
-    ))?;
+    wifi.set_configuration(&Configuration::Client(ClientConfiguration {
+        ssid: ssid.into(),
+        bssid: None,
+        password: pass.into(),
+        channel,
+        auth_method,
+        ..Default::default()
+    }))?;
 
     info!("Connecting wifi...");
 

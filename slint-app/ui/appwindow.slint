@@ -174,55 +174,22 @@ component Desktop inherits Rectangle {
     }
 }
 
-component AnimateDemo inherits Rectangle {
-    width: 240px;
-    height: 240px;
-    property <int> counter: 50;
-    property <color> my-color: #ff0000;
-
-    animate counter, my-color { 
-        duration: 1s;
-        easing: ease-in-out;
-    }
-    VerticalBox {
-        Text {
-            color: root.my-color;
-            text: "计数器: \{root.counter}";
-        }
-        Slider { 
-            max-width: parent.width;
-            value: root.counter;
-            minimum: 0;
-            maximum: 100;
-        }
-        Button {
-            text: "0";
-            clicked => {
-                counter = 0;
-                my-color = #00ff00;
-            }
-        }
-        Button {
-            text: "50";
-            clicked => {
-                counter = 50;
-                my-color = #ff0000;
-            }
-        }
-        Button {
-            text: "100";
-            clicked => {
-                counter = 100;
-                my-color = #0000ff;
-            }
-        }
-     }
-}
-
 export component AppWindow inherits Window {
     width: 240px;
     height: 240px;
-    Desktop {
 
+    in property <string> time: "00:00:00";
+    in property <int> cnt: 0;
+    VerticalLayout {
+        Text {
+            text: time;
+            wrap: TextWrap.word-wrap;
+            font-size: 20px;
+        }
+
+        Text {
+            text: "计数:  "+cnt;
+            font-size: 20px;
+        }
     }
 }

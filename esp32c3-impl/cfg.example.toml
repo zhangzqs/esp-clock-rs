@@ -1,3 +1,4 @@
 [esp32c3-impl]
 wifi_ssid = ""
 wifi_password = ""
+ntp_server = "ntp.aliyun.com"

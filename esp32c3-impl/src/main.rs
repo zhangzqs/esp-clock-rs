@@ -30,6 +30,8 @@ pub struct MyConfig {
     wifi_ssid: &'static str,
     #[default("")]
     wifi_password: &'static str,
+    #[default("ntp.aliyun.com")]
+    ntp_server: &'static str,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -43,7 +45,7 @@ fn main() -> anyhow::Result<()> {
     let _wifi = connect_to_wifi(MY_CONFIG.wifi_ssid, MY_CONFIG.wifi_password, peripherals.modem, sysloop, Some(nvs))?;
 
     let _sntp = EspSntp::new(&SntpConf {
-        servers: ["openwrt.zzq"],
+        servers: [MY_CONFIG.ntp_server],
         ..Default::default()
     })?;
 

@@ -1,5 +1,5 @@
 use display_interface_spi::SPIInterface;
-use embedded_graphics::{text::Text, prelude::*};
+use embedded_graphics::{text::Text, prelude::*, primitives::Rectangle, pixelcolor::Rgb565};
 use embedded_hal::spi::MODE_3;
 use esp_idf_hal::{
     delay::Ets,
@@ -74,6 +74,22 @@ fn main() -> anyhow::Result<()> {
         .init(&mut delay, Some(rst))
         .unwrap();
     info!("display init done");
+
+    // 显示绿色表示初始化完成
+    display.fill_solid(&Rectangle {
+        top_left: Point::new(0, 0),
+        size: Size::new(240, 240),
+    }, Rgb565::GREEN).unwrap();
+
+    // 连接wifi并NTP校时
+    let nvs = EspDefaultNvsPartition::take()?;
+    let sysloop = EspSystemEventLoop::take()?;
+    let _wifi = connect_to_wifi(MY_CONFIG.wifi_ssid, MY_CONFIG.wifi_password, peripherals.modem, sysloop, Some(nvs))?;
+
+    let _sntp = EspSntp::new(&SntpConf {
+        servers: [MY_CONFIG.ntp_server],
+        ..Default::default()
+    })?;
 
     // 按键驱动
     let mut btn = button_driver::Button::new(btn_pin, Default::default());

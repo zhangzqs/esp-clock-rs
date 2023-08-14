@@ -8,7 +8,7 @@ mod line_buffer_provider;
 
 fn main() -> anyhow::Result<()>{
     let window = platform::MyPlatform::init()?;
-    let _ui = slint_app::create_app();
+    let _app = slint_app::MyApp::new();
     let mut display = SimulatorDisplay::new(Size::new(240, 240));
     let output_settings = OutputSettingsBuilder::new().build();
     let mut simulator_window = Window::new("Desktop Simulator", &output_settings);

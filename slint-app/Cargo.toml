@@ -5,6 +5,8 @@ edition = "2021"
 
 [dependencies]
 slint = { version = "1.0.0", default-features = false, features = ["compat-1-0", "unsafe-single-threaded"] }
+log = { version = "0.4.17", default-features = false }
+time = "0.3.25"
 
 
 [build-dependencies]

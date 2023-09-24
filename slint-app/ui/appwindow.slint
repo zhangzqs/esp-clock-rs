@@ -1,4 +1,5 @@
 import { Button, VerticalBox , Slider, HorizontalBox, GroupBox, GridBox} from "std-widgets.slint";
+import "./font/microsoft-yahei.ttf";
 
 export struct DateTime {
     year: int,
@@ -434,7 +435,9 @@ component PerformanceMoniter inherits Rectangle {
     }
 }
 
-export component AppWindow inherits Rectangle {
+export component AppWindow inherits Window {
+    default-font-family: "Microsoft YaHei";
+    
     width: 240px;
     height: 240px;
 

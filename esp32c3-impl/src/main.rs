@@ -1,26 +1,31 @@
 use display_interface_spi::SPIInterface;
-use embedded_graphics::{text::Text, prelude::*, primitives::Rectangle, pixelcolor::Rgb565};
+use embedded_graphics::{pixelcolor::Rgb565, prelude::*, primitives::Rectangle, text::Text};
 use embedded_hal::spi::MODE_3;
 use esp_idf_hal::{
     delay::Ets,
     gpio::{AnyIOPin, Gpio8, PinDriver},
     prelude::*,
-    spi::{Dma, SpiDeviceDriver, SpiDriverConfig, config::Config},
+    spi::{config::Config, Dma, SpiDeviceDriver, SpiDriverConfig},
 };
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
     nvs::EspDefaultNvsPartition,
-    sntp::{EspSntp, SntpConf},
+    sntp::{self, EspSntp, OperatingMode, SntpConf, SyncMode},
+    systime::EspSystemTime,
 };
 use esp_idf_sys as _;
 use log::*;
 use mipidsi::{Builder, ColorInversion, Orientation};
-use slint::{platform::software_renderer::{MinimalSoftwareWindow, Rgb565Pixel}, SharedString, ComponentHandle};
+use slint::{
+    platform::software_renderer::{MinimalSoftwareWindow, Rgb565Pixel},
+    ComponentHandle, SharedString,
+};
 use slint_app::DateTime;
 
-use std::rc::Rc;
+use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
+use std::{rc::Rc, sync::Arc};
 
 use crate::wifi::connect_to_wifi;
 
@@ -76,19 +81,41 @@ fn main() -> anyhow::Result<()> {
     info!("display init done");
 
     // 显示绿色表示初始化完成
-    display.fill_solid(&Rectangle {
-        top_left: Point::new(0, 0),
-        size: Size::new(240, 240),
-    }, Rgb565::GREEN).unwrap();
+    display
+        .fill_solid(
+            &Rectangle {
+                top_left: Point::new(0, 0),
+                size: Size::new(240, 240),
+            },
+            Rgb565::GREEN,
+        )
+        .unwrap();
 
     // 连接wifi并NTP校时
     let nvs = EspDefaultNvsPartition::take()?;
     let sysloop = EspSystemEventLoop::take()?;
-    let _wifi = connect_to_wifi(MY_CONFIG.wifi_ssid, MY_CONFIG.wifi_password, peripherals.modem, sysloop, Some(nvs))?;
 
-    let _sntp = EspSntp::new(&SntpConf {
-        servers: [MY_CONFIG.ntp_server],
-        ..Default::default()
+    let wifi = Arc::new(Mutex::new(None));
+    let sntp = Arc::new(Mutex::new(None));
+
+    let w1 = wifi.clone();
+    let s1 = sntp.clone();
+    thread::Builder::new().stack_size(4096).spawn(move || {
+        let _wifi = connect_to_wifi(
+            MY_CONFIG.wifi_ssid,
+            MY_CONFIG.wifi_password,
+            peripherals.modem,
+            sysloop,
+            Some(nvs),
+        );
+        w1.lock().unwrap().replace(_wifi.unwrap());
+
+        let _sntp = EspSntp::new(&SntpConf {
+            servers: [MY_CONFIG.ntp_server],
+            sync_mode: SyncMode::Immediate,
+            operating_mode: OperatingMode::Poll,
+        });
+        s1.lock().unwrap().replace(_sntp.unwrap());
     })?;
 
     // 按键驱动
@@ -96,14 +123,20 @@ fn main() -> anyhow::Result<()> {
 
     // 初始化slint
     let window: Rc<MinimalSoftwareWindow> = MinimalSoftwareWindow::new(Default::default());
-    slint::platform::set_platform(Box::new(draw::MyPlatform {window: window.clone()}))
+    slint::platform::set_platform(Box::new(draw::MyPlatform {
+        window: window.clone(),
+    }))
     .unwrap();
 
     let app = slint_app::MyApp::new();
     let line_buffer = &mut [Rgb565Pixel::default(); 240];
-    
+
+    let mut has_boot = false;
     // 主线程循环
     loop {
+        // 这段sleep可以使得IDLE任务有时间喂狗，否则容易触发看门狗导致重启
+        thread::sleep(Duration::from_millis(16));
+
         slint::platform::update_timers_and_animations();
         window.draw_if_needed(|renderer| {
             let provider = draw::MyLineBufferProvider {
@@ -115,6 +148,12 @@ fn main() -> anyhow::Result<()> {
         // 如果有未完成的动画计算，则继续完成动画计算
         if window.has_active_animations() {
             continue;
+        }
+
+        // 如果未启动，且wifi已连接，则跳转首页
+        if !has_boot && wifi.clone().lock().unwrap().is_some() {
+            app.go_to_home_page();
+            has_boot = true;
         }
 
         // 按键事件处理
@@ -129,8 +168,5 @@ fn main() -> anyhow::Result<()> {
             }
         }
         btn.reset();
-
-        // 这段sleep可以使得IDLE任务有时间喂狗，否则容易触发看门狗导致重启
-        thread::sleep(Duration::from_millis(16));
     }
 }

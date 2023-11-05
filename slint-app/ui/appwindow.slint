@@ -435,6 +435,19 @@ component PerformanceMoniter inherits Rectangle {
     }
 }
 
+component GenshinBoot inherits Rectangle {
+    background: white;
+
+    Rectangle {
+        Image {
+            width: 150px;
+            source: @image-url("images/boot.png");
+            image-fit: contain;
+            image-rendering: smooth;
+        }
+    }
+}
+
 export component AppWindow inherits Window {
     default-font-family: "Microsoft YaHei";
     
@@ -442,9 +455,12 @@ export component AppWindow inherits Window {
     height: 240px;
 
     in property <DateTime> date-time;
-    in property <int> page-id: 0;
+    in property <int> page-id: -1;
     out property <int> page-size: 3;
 
+    if page-id == -1: GenshinBoot {
+    }
+    
     if page-id == 0: Desktop {
         date-time: date-time;
     }

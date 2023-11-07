@@ -100,7 +100,7 @@ where
             )
             .unwrap();
         let mut resp = req.submit().unwrap();
-        let mut buf = [0u8; 1024];
+        let mut buf = [0u8; 30];
         let mut buf_read = resp.read(&mut buf).unwrap();
         let ip = std::str::from_utf8(&buf[..buf_read]).unwrap().trim();
         println!("got ip: {}", ip);

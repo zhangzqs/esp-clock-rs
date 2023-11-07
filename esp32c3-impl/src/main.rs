@@ -9,6 +9,7 @@ use esp_idf_hal::{
 };
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
+    http::client::EspHttpConnection,
     nvs::EspDefaultNvsPartition,
     sntp::{self, EspSntp, OperatingMode, SntpConf, SyncMode},
     systime::EspSystemTime,
@@ -128,7 +129,8 @@ fn main() -> anyhow::Result<()> {
     }))
     .unwrap();
 
-    let app = slint_app::MyApp::new();
+    let mut conn = EspHttpConnection::new(&Default::default())?;
+    let app = slint_app::MyApp::new(slint_app::MyAppDeps { http_conn: conn });
     let line_buffer = &mut [Rgb565Pixel::default(); 240];
 
     let mut has_boot = false;

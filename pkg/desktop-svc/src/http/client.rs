@@ -23,7 +23,7 @@ fn method_type_convert(method: Method) -> reqwest::Method {
     }
 }
 
-struct HttpClientAdapterConnection {
+pub struct HttpClientAdapterConnection {
     client: reqwest::blocking::Client,
     request: Option<reqwest::blocking::RequestBuilder>,
     response: Option<reqwest::blocking::Response>,
@@ -31,7 +31,7 @@ struct HttpClientAdapterConnection {
 }
 
 impl HttpClientAdapterConnection {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             client: reqwest::blocking::Client::new(),
             request: None,
@@ -78,7 +78,7 @@ impl Status for HttpClientAdapterConnection {
 }
 
 #[derive(Debug)]
-enum HttpClientAdapterConnectionError {
+pub enum HttpClientAdapterConnectionError {
     ReqwestError(reqwest::Error),
     Other(Box<dyn std::error::Error>),
 }

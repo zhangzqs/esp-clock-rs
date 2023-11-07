@@ -241,6 +241,7 @@ component NetworkMoniter inherits Rectangle {
     width: 240px;
     height: 240px;
     background: black;
+    in property <string> ip: "127.0.0.1";
 
     VerticalLayout {
         padding: 8px;
@@ -313,7 +314,15 @@ component NetworkMoniter inherits Rectangle {
             background: white;
         }
         Rectangle {
-            height: 70%;
+            height: 20px;
+            Text {
+                color: white;
+                text: "我的IP地址: \{ip}";
+                font-size: 15px;
+            }
+        }
+        Rectangle {
+            height: 50%;
             Text {
                 horizontal-alignment: center;
                 vertical-alignment: center;
@@ -455,6 +464,7 @@ export component AppWindow inherits Window {
     height: 240px;
 
     in property <DateTime> date-time;
+    in property <string> ip;
     in property <int> page-id: -1;
     out property <int> page-size: 3;
 
@@ -466,6 +476,7 @@ export component AppWindow inherits Window {
     }
 
     if page-id == 1: NetworkMoniter {
+        ip: ip;
     }
 
     if page-id == 2: PerformanceMoniter {

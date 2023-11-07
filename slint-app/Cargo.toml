@@ -7,6 +7,7 @@ edition = "2021"
 slint = { version = "1.0.0", default-features = false, features = ["compat-1-0", "unsafe-single-threaded"] }
 log = { version = "0.4.17", default-features = false }
 time = "0.3.25"
+embedded-svc = "0.26.2"
 
 
 [build-dependencies]

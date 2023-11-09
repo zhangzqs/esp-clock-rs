@@ -210,4 +210,19 @@ mod tests {
         // Drain the remaining response bytes
         while resp.read(&mut buf).unwrap() > 0 {}
     }
+
+    #[test]
+    fn test_http_client_adapter_repeat() {
+        let conn = HttpClientAdapterConnection::new();
+        // Prepare headers and URL
+        let headers = [("accept", "text/plain")];
+        let url: &str = "http://ifconfig.net/";
+        let mut client = Client::<HttpClientAdapterConnection>::wrap(conn);
+        let req = client.request(Method::Get, url, &headers).unwrap();
+        let mut resp = req.submit().unwrap();
+        println!("<- {} {}", resp.status(), resp.status_message().unwrap());
+        let req = client.request(Method::Get, url, &headers).unwrap();
+        let mut resp = req.submit().unwrap();
+        println!("<- {} {}", resp.status(), resp.status_message().unwrap());
+    }
 }

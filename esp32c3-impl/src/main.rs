@@ -10,7 +10,7 @@ use esp_idf_hal::{
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
     http::client::EspHttpConnection,
-    nvs::EspDefaultNvsPartition,
+    nvs::{EspDefaultNvsPartition, EspNvs},
     sntp::{self, EspSntp, OperatingMode, SntpConf, SyncMode},
     systime::EspSystemTime,
 };
@@ -23,9 +23,9 @@ use slint::{
 };
 use slint_app::DateTime;
 
-use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
+use std::{cell::UnsafeCell, sync::Mutex};
 use std::{rc::Rc, sync::Arc};
 
 use crate::wifi::connect_to_wifi;
@@ -41,6 +41,10 @@ pub struct MyConfig {
     #[default("ntp.aliyun.com")]
     ntp_server: &'static str,
 }
+
+struct MyConn(pub EspHttpConnection);
+
+unsafe impl Send for MyConn {}
 
 fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();
@@ -94,6 +98,11 @@ fn main() -> anyhow::Result<()> {
 
     // 连接wifi并NTP校时
     let nvs = EspDefaultNvsPartition::take()?;
+
+    let mut nvs_a = EspNvs::new(nvs.clone(), "test_ns", true)?;
+    let cnt = nvs_a.get_i32("test_key").unwrap().unwrap_or(0);
+    info!("cnt: {}", cnt);
+    nvs_a.set_i32("test_key", cnt + 1).unwrap();
     let sysloop = EspSystemEventLoop::take()?;
 
     let wifi = Arc::new(Mutex::new(None));
@@ -129,10 +138,10 @@ fn main() -> anyhow::Result<()> {
     }))
     .unwrap();
 
-    let mut conn = EspHttpConnection::new(&Default::default())?;
+    let conn = EspHttpConnection::new(&Default::default())?;
     let app = slint_app::MyApp::new(slint_app::MyAppDeps { http_conn: conn });
-    let line_buffer = &mut [Rgb565Pixel::default(); 240];
 
+    let line_buffer = &mut [Rgb565Pixel::default(); 240];
     let mut has_boot = false;
     // 主线程循环
     loop {

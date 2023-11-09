@@ -745,6 +745,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "force-send-sync"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32688dcc448aa684426ecc398f9af78c55b0769515ccd12baa565daf6f32feb6"
+
+[[package]]
 name = "foreign-types"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2179,6 +2185,7 @@ name = "slint-app"
 version = "0.1.0"
 dependencies = [
  "embedded-svc",
+ "force-send-sync",
  "log",
  "slint",
  "slint-build",

@@ -1,7 +1,10 @@
-use embedded_svc::http::Method;
+use embedded_svc::http::{
+    client::{Client, Connection},
+    Method,
+};
+use force_send_sync::Send;
 use log::info;
 use slint::Weak;
-use std::ops::{Deref, DerefMut};
 use std::sync::{mpsc, Arc, Mutex};
 use std::{thread, time::Duration};
 use time::{OffsetDateTime, UtcOffset};
@@ -10,24 +13,21 @@ slint::include_modules!();
 
 pub struct MyAppDeps<C>
 where
-    C: embedded_svc::http::client::Connection,
+    C: Connection + 'static,
 {
     pub http_conn: C,
 }
 
-pub struct MyApp<C>
-where
-    C: embedded_svc::http::client::Connection,
-{
+pub struct MyApp<C> {
     app_window: AppWindow,
     timer: slint::Timer,
     page_timer: slint::Timer,
-    http_conn: Arc<Mutex<C>>,
+    http_client: Arc<Mutex<Send<Client<C>>>>,
 }
 
 impl<C> MyApp<C>
 where
-    C: embedded_svc::http::client::Connection,
+    C: Connection + 'static,
 {
     pub fn get_app_window_as_weak(&self) -> Weak<AppWindow> {
         self.app_window.as_weak()
@@ -82,32 +82,35 @@ where
                 t
             },
             app_window: app_window,
-            http_conn: Arc::new(Mutex::new(deps.http_conn)),
+            http_client: Arc::new(Mutex::new(unsafe {
+                Send::new(Client::wrap(deps.http_conn))
+            })),
         };
         app
     }
 
     pub fn update_ip(&self) {
         println!("update_ip");
-        let mut conn = self.http_conn.lock().unwrap();
-        let conn = conn.deref_mut();
-        let mut client = embedded_svc::http::client::Client::wrap(conn);
-        let req = client
-            .request(
-                Method::Get,
-                "http://ifconfig.net/",
-                &[("accept", "text/plain")],
-            )
-            .unwrap();
-        let mut resp = req.submit().unwrap();
-        let mut buf = [0u8; 30];
-        let mut buf_read = resp.read(&mut buf).unwrap();
-        let ip = std::str::from_utf8(&buf[..buf_read]).unwrap().trim();
-        println!("got ip: {}", ip);
+        let c = self.http_client.clone();
         let u = self.app_window.as_weak();
-        if let Some(ui) = u.upgrade() {
-            ui.set_ip(ip.into());
-        }
+        thread::spawn(move || {
+            let mut client = c.lock().unwrap();
+            let req = client
+                .request(
+                    Method::Get,
+                    "http://ifconfig.net/",
+                    &[("accept", "text/plain")],
+                )
+                .unwrap();
+            let mut resp = req.submit().unwrap();
+            let mut buf = [0u8; 30];
+            let mut buf_read = resp.read(&mut buf).unwrap();
+            let ip = std::str::from_utf8(&buf[..buf_read]).unwrap().trim();
+            println!("got ip: {}", ip);
+            if let Some(ui) = u.upgrade() {
+                ui.set_ip(ip.into());
+            }
+        });
     }
 
     pub fn go_to_next_page(&self) {

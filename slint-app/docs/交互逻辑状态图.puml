@@ -1,0 +1,41 @@
+@startuml 菜单交互状态图
+
+state 桌面 {
+    state 桌面入口 <<entryPoint>>
+    桌面入口 --> 桌面1: 单击
+    桌面1 --> 桌面2: 长按
+    桌面2 --> 桌面3: 长按
+    桌面3 --> 桌面1: 长按
+
+    state 桌面出口 <<entryPoint>>
+    桌面1 --> 桌面出口: 单击
+    桌面2 --> 桌面出口: 单击
+    桌面3 --> 桌面出口: 单击
+}
+
+[*] --> 桌面入口: 开机
+桌面 --> 菜单: 单击
+
+
+state app1 {
+    
+}
+
+state appn {
+}
+
+state 菜单 {
+    state "菜单项1_返回桌面" as menu1
+    state "菜单项2_app1" as menu2
+    state "菜单项..." as menu3
+    menu1 --> menu2: 长按
+    menu2 --> menu3: 长按
+    menu3 --> menu1: 长按
+
+    menu1 --> 桌面: 单击
+    menu2 --> app1: 单击
+    menu3 --> appn: 单击
+}
+
+
+@enduml

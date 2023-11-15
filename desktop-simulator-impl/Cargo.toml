@@ -12,3 +12,6 @@ embedded-graphics = "0.8.0"
 embedded-graphics-simulator = "0.5.0"
 desktop-svc = { path = "../pkg/desktop-svc" }
 embedded-svc = "0.26.2"
+env_logger = "0.10.1"
+log = "0.4.20"
+button-driver = { version = "0.1.2", features = ["std"] }

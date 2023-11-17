@@ -1,27 +1,28 @@
-use std::cell::{RefCell, RefMut};
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
-
-use log::{info, error};
-use slint::platform::EventLoopProxy;
-use slint::EventLoopError;
-use slint::{
-    platform::{software_renderer::MinimalSoftwareWindow, Platform, WindowAdapter},
-    PlatformError,
+use std::{
+    cell::RefCell,
+    ops::Range,
+    rc::Rc,
+    sync::{Arc, Mutex},
+    thread,
 };
 
-use std::ops::Range;
+use log::{error, info};
+
+use slint::{
+    platform::{
+        software_renderer::{LineBufferProvider, MinimalSoftwareWindow, Rgb565Pixel},
+        EventLoopProxy, Platform, WindowAdapter,
+    },
+    EventLoopError, PlatformError,
+};
 
 use embedded_graphics::{
     pixelcolor::{raw::RawU16, Rgb565},
     prelude::*,
     primitives::Rectangle,
 };
-use slint::platform::software_renderer::{LineBufferProvider, Rgb565Pixel};
 
-pub struct MyLineBufferProvider<T>
+struct MyLineBufferProvider<T>
 where
     T: DrawTarget<Color = Rgb565>,
 {
@@ -74,7 +75,7 @@ enum EventQueueElement {
     Invoke(Box<dyn FnOnce() + Send>),
 }
 
-pub struct MyPlatform<T, F>
+pub struct EmbeddedSoftwarePlatform<T, F>
 where
     T: DrawTarget<Color = Rgb565>,
     F: FnMut(bool) -> Result<(), PlatformError> + 'static,
@@ -86,14 +87,14 @@ where
     event_loop_queue: Arc<Mutex<Vec<EventQueueElement>>>,
 }
 
-impl<T, F> MyPlatform<T, F>
+impl<T, F> EmbeddedSoftwarePlatform<T, F>
 where
     T: DrawTarget<Color = Rgb565>,
     F: FnMut(bool) -> Result<(), PlatformError> + 'static,
 {
-    pub fn new(display: Rc<RefCell<T>>, event_loop_callback: Option<F>) -> MyPlatform<T, F> {
+    pub fn new(display: Rc<RefCell<T>>, event_loop_callback: Option<F>) -> EmbeddedSoftwarePlatform<T, F> {
         let window = MinimalSoftwareWindow::new(Default::default());
-        MyPlatform {
+        EmbeddedSoftwarePlatform {
             window: window.clone(),
             start_time: std::time::Instant::now(),
             event_loop_callback: event_loop_callback.map(|f| Rc::new(RefCell::new(f))),
@@ -103,7 +104,7 @@ where
     }
 }
 
-impl<T, F> Platform for MyPlatform<T, F>
+impl<T, F> Platform for EmbeddedSoftwarePlatform<T, F>
 where
     T: DrawTarget<Color = Rgb565>,
     F: FnMut(bool) -> Result<(), PlatformError> + 'static,
@@ -150,9 +151,9 @@ where
             if window.has_active_animations() {
                 continue;
             }
-            // if let Some(d) = slint::platform::duration_until_next_timer_update() {
-            //     thread::sleep(d);
-            // }
+            if let Some(d) = slint::platform::duration_until_next_timer_update() {
+                thread::sleep(d);
+            }
         }
     }
 }

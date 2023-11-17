@@ -4,21 +4,15 @@ use anyhow::anyhow;
 use desktop_svc::http::client::HttpClientAdapterConnection;
 use embedded_graphics::prelude::*;
 use embedded_graphics_simulator::{
-    sdl2::{Keycode, MouseButton},
-    OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
+    sdl2::Keycode, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
 };
-use embedded_svc::http::client::Client as HttpClient;
+
 use log::info;
-use slint::{
-    platform::{PointerEventButton, WindowEvent},
-    LogicalPosition,
-};
+
 use slint_app::{MyApp, MyAppDeps};
 
 use button_driver::{Button, ButtonConfig, PinWrapper};
-
-use crate::platform::MyPlatform;
-mod platform;
+use embedded_software_slint_backend::EmbeddedSoftwarePlatform;
 
 #[derive(Clone)]
 struct MyButtonPin(Rc<RefCell<bool>>);
@@ -49,15 +43,11 @@ fn main() -> anyhow::Result<()> {
             ..Default::default()
         },
     );
-    let on_button_click: Rc<RefCell<Option<Box<dyn Fn()>>>> = Rc::new(RefCell::new(None));
-    let on_button_double_click: Rc<RefCell<Option<Box<dyn Fn()>>>> = Rc::new(RefCell::new(None));
     {
         let window_update_ref: Rc<RefCell<Window>> = window.clone();
         let display_update_ref = display.clone();
-        let on_button_click = on_button_click.clone();
-        let on_button_double_click = on_button_double_click.clone();
 
-        let platform = MyPlatform::new(
+        let platform = EmbeddedSoftwarePlatform::new(
             display,
             Some(Box::new(move |has_redraw| {
                 let mut window = window_update_ref.borrow_mut();
@@ -69,6 +59,8 @@ fn main() -> anyhow::Result<()> {
                     match event {
                         SimulatorEvent::KeyUp { keycode, .. } => match keycode {
                             Keycode::Space => {
+                                info!("Key up: {:?}", keycode);
+
                                 *button_state.borrow_mut() = false;
                             }
                             _ => {}
@@ -83,21 +75,7 @@ fn main() -> anyhow::Result<()> {
                         _ => {}
                     }
                 }
-                button.tick();
-                if button.is_clicked() {
-                    info!("Click");
-                    on_button_click.borrow_mut().as_ref().map(|f| f());
-                } else if button.is_double_clicked() {
-                    info!("Double click");
-                    on_button_double_click.borrow_mut().as_ref().map(|f| f());
-                } else if button.is_triple_clicked() {
-                    info!("Triple click");
-                } else if let Some(dur) = button.current_holding_time() {
-                    info!("Held for {dur:?}");
-                } else if let Some(dur) = button.held_time() {
-                    info!("Total holding time {dur:?}");
-                }
-                button.reset();
+
                 Ok(())
             })),
         );
@@ -108,18 +86,30 @@ fn main() -> anyhow::Result<()> {
         http_conn: HttpClientAdapterConnection::new(),
     }));
 
-    {
-        let app = app.clone();
-        on_button_click
-            .borrow_mut()
-            .replace(Box::new(move || app.on_one_button_click()));
-    }
-    {
-        let app = app.clone();
-        on_button_double_click
-            .borrow_mut()
-            .replace(Box::new(move || app.on_one_button_double_click()));
-    }
+    // 分发按键事件
+    let app = app.clone();
+    let button_event_timer = slint::Timer::default();
+    button_event_timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(10),
+        move || {
+            button.tick();
+            if button.is_clicked() {
+                info!("Click");
+                app.on_one_button_click();
+            } else if button.is_double_clicked() {
+                info!("Double click");
+                app.on_one_button_double_click();
+            } else if button.is_triple_clicked() {
+                info!("Triple click");
+            } else if let Some(dur) = button.current_holding_time() {
+                info!("Held for {dur:?}");
+            } else if let Some(dur) = button.held_time() {
+                info!("Total holding time {dur:?}");
+            }
+            button.reset();
+        },
+    );
 
     slint::run_event_loop().map_err(|e| anyhow!("{}", e))?;
     Ok(())

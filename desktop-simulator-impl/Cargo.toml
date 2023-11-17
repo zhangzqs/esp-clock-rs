@@ -6,12 +6,13 @@ edition = "2021"
 
 [dependencies]
 slint = { version = "1.0.0", default-features = false, features = ["compat-1-0", "unsafe-single-threaded"] }
-slint-app = { path = "../slint-app" }
 anyhow = "1.0.44"
 embedded-graphics = "0.8.0"
 embedded-graphics-simulator = "0.5.0"
-desktop-svc = { path = "../pkg/desktop-svc" }
 embedded-svc = "0.26.2"
 env_logger = "0.10.1"
 log = "0.4.20"
 button-driver = { version = "0.1.2", features = ["std"] }
+desktop-svc = { path = "../libs/desktop-svc" }
+embedded-software-slint-backend = { path = "../libs/embedded-software-slint-backend" }
+slint-app = { path = "../slint-app" }

@@ -1,5 +1,6 @@
-use std::{thread, time::Duration, sync::Arc, rc::Rc, borrow::BorrowMut, cell::RefCell};
+use std::{cell::RefCell, rc::Rc, time::Duration};
 
+use anyhow::anyhow;
 use desktop_svc::http::client::HttpClientAdapterConnection;
 use embedded_graphics::prelude::*;
 use embedded_graphics_simulator::{
@@ -7,16 +8,16 @@ use embedded_graphics_simulator::{
     OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
 };
 use embedded_svc::http::client::Client as HttpClient;
-use line_buffer_provider::MyLineBufferProvider;
 use log::info;
 use slint::{
     platform::{PointerEventButton, WindowEvent},
     LogicalPosition,
 };
-use slint_app::MyAppDeps;
+use slint_app::{MyApp, MyAppDeps};
 
 use button_driver::{Button, ButtonConfig, PinWrapper};
-mod line_buffer_provider;
+
+use crate::platform::MyPlatform;
 mod platform;
 
 #[derive(Clone)]
@@ -31,95 +32,95 @@ impl PinWrapper for MyButtonPin {
 fn main() -> anyhow::Result<()> {
     env_logger::init();
     info!("Starting desktop simulator");
-    let window = platform::MyPlatform::init()?;
-    let conn = HttpClientAdapterConnection::new();
-    let _app = slint_app::MyApp::new(MyAppDeps { http_conn: conn });
-    let mut display = SimulatorDisplay::new(Size::new(240, 240));
-    let output_settings = OutputSettingsBuilder::new().build();
-    let mut simulator_window = Window::new("Desktop Simulator", &output_settings);
-    
-    let u = _app.get_app_window_as_weak();
-    thread::spawn(move || {
-        thread::sleep(Duration::from_secs(1));
-        if let Some(ui) = u.upgrade() {
-            ui.invoke_boot();
-        }
-        thread::sleep(Duration::from_secs(3));
-        if let Some(ui) = u.upgrade() {
-            ui.invoke_goto_home();
-        }
-    });
 
+    let display = Rc::new(RefCell::new(SimulatorDisplay::new(Size::new(240, 240))));
+    let output_settings = OutputSettingsBuilder::new().build();
+    let window = Rc::new(RefCell::new(Window::new(
+        "Desktop Simulator",
+        &output_settings,
+    )));
+
+    let button_state = Rc::new(RefCell::new(false));
     // 假设代表按键状态，默认为松开，值为false
-    let br = Rc::new(RefCell::new(false));
-    let mut button = Button::new(MyButtonPin(br.clone()), ButtonConfig{
-        mode: button_driver::Mode::PullDown, // 当按键松开时，是低电平
-        ..Default::default()
-    });
-    loop {
-        slint::platform::update_timers_and_animations();
-        let redraw = window.draw_if_needed(|renderer| {
-            let provider = MyLineBufferProvider::new(&mut display);
-            renderer.render_by_line(provider);
-        });
-        if redraw {
-            simulator_window.update(&display);
-        }
-        if window.has_active_animations() {
-            continue;
-        }
-        for event in simulator_window.events() {
-            match event {
-                SimulatorEvent::KeyUp { keycode,.. }=>match keycode {
-                    Keycode::Space => {
-                        br.clone().borrow_mut().replace(false);
-                    }
-                    _=>{}
+    let mut button = Button::new(
+        MyButtonPin(button_state.clone()),
+        ButtonConfig {
+            mode: button_driver::Mode::PullDown, // 当按键松开时，是低电平
+            ..Default::default()
+        },
+    );
+    let on_button_click: Rc<RefCell<Option<Box<dyn Fn()>>>> = Rc::new(RefCell::new(None));
+    let on_button_double_click: Rc<RefCell<Option<Box<dyn Fn()>>>> = Rc::new(RefCell::new(None));
+    {
+        let window_update_ref: Rc<RefCell<Window>> = window.clone();
+        let display_update_ref = display.clone();
+        let on_button_click = on_button_click.clone();
+        let on_button_double_click = on_button_double_click.clone();
+
+        let platform = MyPlatform::new(
+            display,
+            Some(Box::new(move |has_redraw| {
+                let mut window = window_update_ref.borrow_mut();
+                let display = display_update_ref.borrow();
+                if has_redraw {
+                    window.update(&display);
                 }
-                SimulatorEvent::KeyDown {
-                    keycode,..
-                } => match keycode {
-                    Keycode::Space => {
-                        br.clone().borrow_mut().replace(true);
+                for event in window.events() {
+                    match event {
+                        SimulatorEvent::KeyUp { keycode, .. } => match keycode {
+                            Keycode::Space => {
+                                *button_state.borrow_mut() = false;
+                            }
+                            _ => {}
+                        },
+                        SimulatorEvent::KeyDown { keycode, .. } => match keycode {
+                            Keycode::Space => {
+                                *button_state.borrow_mut() = true;
+                            }
+                            _ => {}
+                        },
+                        SimulatorEvent::Quit => slint::quit_event_loop().unwrap(),
+                        _ => {}
                     }
-                    _ => {}
-                },
-                SimulatorEvent::Quit => return Ok(()),
-                SimulatorEvent::MouseButtonUp { mouse_btn, point } => match mouse_btn {
-                    MouseButton::Left => {
-                        window.dispatch_event(WindowEvent::PointerReleased {
-                            position: LogicalPosition::new(point.x as _, point.y as _),
-                            button: PointerEventButton::Left,
-                        });
-                    }
-                    _ => {}
-                },
-                SimulatorEvent::MouseButtonDown { mouse_btn, point } => match mouse_btn {
-                    MouseButton::Left => {
-                        window.dispatch_event(WindowEvent::PointerPressed {
-                            position: LogicalPosition::new(point.x as _, point.y as _),
-                            button: PointerEventButton::Left,
-                        });
-                    }
-                    _ => {}
-                },
-                _ => {}
-            }
-        }
-        button.tick();
-        if button.is_clicked() {
-            info!("Click");
-            _app.on_one_button_click();
-        } else if button.is_double_clicked() {
-            info!("Double click");
-            _app.on_one_button_double_click();
-        } else if button.is_triple_clicked() {
-            info!("Triple click");
-        } else if let Some(dur) = button.current_holding_time() {
-            info!("Held for {dur:?}");
-        } else if let Some(dur) = button.held_time() {
-            info!("Total holding time {dur:?}");
-        }
-        button.reset();
+                }
+                button.tick();
+                if button.is_clicked() {
+                    info!("Click");
+                    on_button_click.borrow_mut().as_ref().map(|f| f());
+                } else if button.is_double_clicked() {
+                    info!("Double click");
+                    on_button_double_click.borrow_mut().as_ref().map(|f| f());
+                } else if button.is_triple_clicked() {
+                    info!("Triple click");
+                } else if let Some(dur) = button.current_holding_time() {
+                    info!("Held for {dur:?}");
+                } else if let Some(dur) = button.held_time() {
+                    info!("Total holding time {dur:?}");
+                }
+                button.reset();
+                Ok(())
+            })),
+        );
+        slint::platform::set_platform(Box::new(platform)).unwrap();
     }
+
+    let app = Rc::new(MyApp::new(MyAppDeps {
+        http_conn: HttpClientAdapterConnection::new(),
+    }));
+
+    {
+        let app = app.clone();
+        on_button_click
+            .borrow_mut()
+            .replace(Box::new(move || app.on_one_button_click()));
+    }
+    {
+        let app = app.clone();
+        on_button_double_click
+            .borrow_mut()
+            .replace(Box::new(move || app.on_one_button_double_click()));
+    }
+
+    slint::run_event_loop().map_err(|e| anyhow!("{}", e))?;
+    Ok(())
 }

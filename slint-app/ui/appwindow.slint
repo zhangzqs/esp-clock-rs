@@ -1,484 +1,113 @@
-import { Button, VerticalBox , Slider, HorizontalBox, GroupBox, GridBox} from "std-widgets.slint";
+import { Boot } from "boot/boot.slint";
+import { Home, HomeData, Location } from "home/home.slint";
+import { Menu } from "menu/menu.slint";
 import "./font/microsoft-yahei.ttf";
+import { Button } from "std-widgets.slint";
+import { Weather, WeatherLogic } from "home/weather/weather.slint";
 
-export struct DateTime {
-    year: int,
-    month: int,
-    day: int,
-    hour: int,
-    minute: int,
-    second: int,
-    week: int,
+export { Weather, WeatherLogic, Location }
+
+export enum Page {
+    Boot,
+    Home,
+    Menu,
 }
 
-export component Desktop inherits Rectangle {
-    width: 240px;
-    height: 240px;
-    background: black;
+component MultiPage inherits Rectangle {
+    in-out property <HomeData> home-data;
 
-    in property <DateTime> date-time: {
-        year: 2019,
-        month: 1,
-        day: 1,
-        hour: 0,
-        minute: 0,
-        second: 0,
-        week: 1,
-    };
+    property <Page> current-page: Page.Boot;
 
-    // 将一个整数n转化为2位的字符串，不足2位的前面补0
-    function cvt-n-to-two(n: int) -> string {
-        if (n < 10) {
-            return "0" + n;
-        } else {
-            return n;
+    boot := Boot {
+        visible: current-page == Page.Boot;
+    }
+    home := Home {
+        visible: current-page == Page.Home;
+        data: home-data;
+    }
+    menu := Menu {
+        visible: current-page == Page.Menu;
+        entry-list: [
+            {
+                id: "home",
+                name: "首页",
+                icon: @image-url("menu/home.svg"),
+            },
+            {
+                id: "weather",
+                name: "天气",
+                icon: @image-url("menu/sun.svg"),
+            },
+            {
+                id: "moniter",
+                name: "性能监视器",
+                icon: @image-url("menu/electrocardiogram.svg"),
+            }
+        ];
+        on-entered(id, entry) => {
+            if (entry.id == "home") {
+                current-page = Page.Home;
+            }
         }
     }
 
-    // 将一个整数n转化为星期
-    function cvt-n-to-week(n: int) -> string {
-        if (n == 0) {
-            return "周日";
-        }
-        if (n == 1) {
-            return "周一";
-        } 
-        if (n == 2) {
-            return "周二";
-        } 
-        if (n == 3) {
-            return "周三";
-        } 
-        if (n == 4) {
-            return "周四";
-        } 
-        if (n == 5) {
-            return "周五";
-        } 
-        if (n == 6) {
-            return "周六";
-        } 
-        return "error";
+    public function boot() {
+        current-page = Page.Boot;
+        boot.boot();
     }
 
-    function build-time-string() -> string {
-        return "\{cvt-n-to-two(date-time.hour)}:\{cvt-n-to-two(date-time.minute)}:\{cvt-n-to-two(date-time.second)}";
-    }
-
-    function build-date-week-string() -> string {
-        return "\{date-time.year}年\{cvt-n-to-two(date-time.month)}月\{cvt-n-to-two(date-time.day)}日  \{cvt-n-to-week(date-time.week)}";
+    public function goto-home() {
+        current-page = Page.Home;
     }
     
-    VerticalLayout {
-        padding: 2px;
-        Rectangle {
-            height: 80px;
-            border-color: gray;
-            border-width: 1px;
-            border-radius: 10px;
-            HorizontalLayout {
-                padding: 5px;
-                Rectangle {
-                    VerticalLayout {
-                        alignment: center;
-                        Text {
-                            text: "今日天气";
-                            font-size: 15px;
-                            color: white;
-                        }
-                        HorizontalLayout { 
-                            alignment: center;
-                            Text {
-                                text: "上海";
-                                font-size: 15px;
-                                color: white;
-                            }
-                        }
-                    }
-                }
-                Rectangle {
-                    width: 1px;
-                    background: gray;
-                }
-                Rectangle {
-                    VerticalLayout {
-                        alignment: center;
-                        Text {
-                            text: "最高温度: 36℃";
-                            font-size: 15px;
-                            color: white;
-                        }
-                        Text {
-                            text: "最低温度: 26℃";
-                            font-size: 15px;
-                            color: white;
-                        }
-                    }
-                }
-                Rectangle {
-                    border-color: gray;
-                    border-width: 1px;
-                    VerticalLayout {
-                        alignment: center;
-                        Rectangle {
-                            height: 10px;
-                        }
-                        Image {
-                            source: @image-url("images/weather/dayu.jpg");
-                            source-clip-y: 10;
-                        }
-                        HorizontalLayout {
-                            alignment: center;
-                            Text {
-                                text: "大雨";
-                                font-size: 16px;
-                                color: white;
-                            }
-                        }
-                    }
-                }
-            }
+    public function on-one-button-click() {
+        if (current-page == Page.Home) {
+            current-page = Page.Menu;
+        } else if (current-page == Page.Menu) {
+            menu.next();
         }
-        Rectangle {
-            height: 8px;
-        }
-        Rectangle {
-            border-width: 1px;
-            border-radius: 10px;
-            VerticalLayout {
-                height: 80px;
-                alignment: center;
-                HorizontalLayout {
-                    alignment: center;
-                    Text {
-                        text: build-time-string();
-                        font-size: 24px;
-                        color: white;
-                    }
-                }
-                HorizontalLayout {
-                    alignment: center;
-                    Text {
-                        text: build-date-week-string();
-                        font-size: 20px;
-                        color: white;
-                    }
-                }
-            }
-        }
-        Rectangle {
-            height: 10px;
-        }
-        Rectangle {
-            height: 80px;
-            VerticalLayout {
-                alignment: center;
-                padding-bottom: 10px;
-                HorizontalLayout {
-                    Image {
-                        source: @image-url("images/temp.jpg");
-                    }
-                    HorizontalBox {
-                        Rectangle {
-                            border-width: 1px;
-                            border-color: white;
-                            border-radius:5px;
-                            HorizontalLayout {
-                                padding: 2px;
-                                Rectangle {
-                                    background: red;
-                                    width: 50%;
-                                }
-                            }
-                        }
-                    }
-                    Text {
-                        text: "29";
-                        font-size: 20px;
-                        color: red;
-                    }
-                    Text {
-                        text: "℃";
-                        font-size: 20px;
-                        color: white;
-                    }
-                }
-                HorizontalLayout {
-                    Image {
-                        source: @image-url("images/humi.jpg");
-                    }
-                    HorizontalBox {
-                        Rectangle {
-                            border-width: 1px;
-                            border-color: white;
-                            border-radius:5px;
-                            HorizontalLayout {
-                                padding: 2px;
-                                Rectangle {
-                                    background: green;
-                                    width: 75%;
-                                }
-                            }
-                        }
-                    }
-                    Text {
-                        text: "82";
-                        font-size: 20px;
-                        color: green;
-                    }
-                    Text {
-                        text: "%";
-                        font-size: 20px;
-                        color: white;
-                    }
-                }
-            }
+
+    }
+
+    public function on-one-button-double-click() {
+        if (current-page == Page.Menu) {
+            menu.enter();
         }
     }
-}
-
-component NetworkMoniter inherits Rectangle {
-    width: 240px;
-    height: 240px;
-    background: black;
-    in property <string> ip: "127.0.0.1";
-
-    VerticalLayout {
-        padding: 8px;
-        Text {
-            horizontal-alignment: center;
-            text: "网络监控";
-            font-size: 20px;
-            color: white;
-        }
-
-        Rectangle {
-            height: 10px;
-        }
-
-        Rectangle {
-            height: 1px;
-            background: white;
-        }
-
-        HorizontalLayout {
-            VerticalLayout {
-                alignment: center;
-                Text {
-                    horizontal-alignment: center;
-                    text: "实时速率";
-                    font-size: 15px;
-                    color: white;
-                }
-                Text {
-                    horizontal-alignment: center;
-                    text: "上传 0.00KB/s";
-                    font-size: 15px;
-                    color: white;
-                }
-                Text {
-                    horizontal-alignment: center;
-                    text: "下载 0.00KB/s";
-                    font-size: 15px;
-                    color: white;
-                }
-            }
-            Rectangle {
-                width: 1px;
-                background: gray;
-            }
-            VerticalLayout {
-                alignment: center;
-                Text {
-                    horizontal-alignment: center;
-                    text: "今日流量";
-                    font-size: 15px;
-                    color: white;
-                }
-                Text {
-                    horizontal-alignment: center;
-                    text: "上传 0.00KB";
-                    font-size: 15px;
-                    color: white;
-                }
-                Text {
-                    horizontal-alignment: center;
-                    text: "下载 0.00KB";
-                    font-size: 15px;
-                    color: white;
-                }
-            }
-        }
-        Rectangle {
-            height: 1px;
-            background: white;
-        }
-        Rectangle {
-            height: 20px;
-            Text {
-                color: white;
-                text: "我的IP地址: \{ip}";
-                font-size: 15px;
-            }
-        }
-        Rectangle {
-            height: 50%;
-            Text {
-                horizontal-alignment: center;
-                vertical-alignment: center;
-                text: "图表区域";
-                font-size: 50px;
-                color: white;
-            }
-        }
-    }
-}
-
-component PerformanceMoniter inherits Rectangle {
-    width: 240px;
-    height: 240px;
-    background: black;
-
-    VerticalLayout {
-        padding: 8px;
-        Text {
-            horizontal-alignment: center;
-            text: "性能监控";
-            font-size: 20px;
-            color: white;
-        }
-
-        Rectangle {
-            height: 10px;
-        }
-
-        Rectangle {
-            height: 1px;
-            background: white;
-        }
-
-        HorizontalLayout {
-            VerticalLayout {
-                alignment: center;
-                Text {
-                    horizontal-alignment: center;
-                    text: "当前温度";
-                    color: white;
-                    font-size: 15px;
-                }
-                Text {
-                    horizontal-alignment: center;
-                    text: "0.00℃";
-                    font-size: 15px;
-                    color: white;
-                }
-            }
-            Rectangle {
-                width: 1px;
-                background: gray;
-            }
-            VerticalLayout {
-                alignment: center;
-                Text {
-                    horizontal-alignment: center;
-                    text: "CPU";
-                    font-size: 15px;
-                    color: white;
-                }
-                Text {
-                    horizontal-alignment: center;
-                    text: "0.00%";
-                    font-size: 15px;
-                    color: white;
-                }
-            }
-            Rectangle {
-                width: 1px;
-                background: gray;
-            }
-            VerticalLayout {
-                alignment: center;
-                Text {
-                    horizontal-alignment: center;
-                    text: "内存";
-                    font-size: 15px;
-                    color: white;
-                }
-                Text {
-                    horizontal-alignment: center;
-                    text: "0.00%";
-                    font-size: 15px;
-                    color: white;
-                }
-            }
-        }
-        Rectangle {
-            height: 1px;
-            background: white;
-        }
-        Rectangle {
-            height: 10px;
-        }
-        Rectangle {
-            border-color: gray;
-            border-width: 1px;
-            Text {
-                horizontal-alignment: center;
-                vertical-alignment: center;
-                text: "CPU图表";
-                font-size: 50px;
-                color: white;
-            }
-        }
-        Rectangle {
-            border-color: gray;
-            border-width: 1px;
-            Text {
-                horizontal-alignment: center;
-                vertical-alignment: center;
-                text: "内存图表";
-                font-size: 50px;
-                color: white;
-            }
-        }
-    }
-}
-
-component GenshinBoot inherits Rectangle {
-    background: white;
-
-    Rectangle {
-        Image {
-            width: 150px;
-            source: @image-url("images/boot.png");
-            image-fit: contain;
-            image-rendering: smooth;
-        }
+    
+    public function on-one-button-long-pressed() {
+        debug("on-one-button-long-pressed");
     }
 }
 
 export component AppWindow inherits Window {
     default-font-family: "Microsoft YaHei";
-    
     width: 240px;
     height: 240px;
-
-    in property <DateTime> date-time;
-    in property <string> ip;
-    in property <int> page-id: -1;
-    out property <int> page-size: 3;
-
-    if page-id == -1: GenshinBoot {
-    }
     
-    if page-id == 0: Desktop {
-        date-time: date-time;
+    in-out property <HomeData> home-data;
+
+    m := MultiPage{
+        home-data: home-data;
     }
 
-    if page-id == 1: NetworkMoniter {
-        ip: ip;
+    public function boot() {
+        m.boot();
     }
 
-    if page-id == 2: PerformanceMoniter {
+    public function on-one-button-click() {
+        m.on-one-button-click();
     }
+    public function on-one-button-double-click() {
+        m.on-one-button-double-click();
+    }
+    public function goto-home() {
+        m.goto-home();
+    }
+
+}
+
+component AppWindowTest inherits AppWindow {
+    default-font-family: "Microsoft YaHei";
+    width: 240px;
 }

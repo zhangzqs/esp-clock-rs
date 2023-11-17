@@ -1,0 +1,41 @@
+import { Button } from "std-widgets.slint";
+export component Boot inherits Rectangle {
+    height: 240px;
+    width: 240px;
+
+    property <color> white-no-alpha: #ffffffff;
+    property <color> white-complete-alpha: #ffffff00;
+
+    r := Rectangle {
+        z: 1;
+        background: white-no-alpha;
+        animate background {
+            duration: 3s;
+            easing: ease-out;
+        }
+    }
+
+    Image {
+        z: 0;
+        width: 150px;
+        source: @image-url("genshin.png");
+        image-fit: contain;
+        image-rendering: smooth;
+    }
+    public function boot() {
+        r.background = white-complete-alpha;
+    }
+}
+
+component BootTest inherits Window {
+    VerticalLayout {
+        boot := Boot {}
+        Button {
+            text: "Boot";
+            clicked => {
+                boot.boot();
+            }
+        }
+    }
+}
+

@@ -21,7 +21,6 @@ where
 pub struct MyApp<C> {
     app_window: AppWindow,
     timer: slint::Timer,
-    page_timer: slint::Timer,
     http_client: Arc<Mutex<Send<Client<C>>>>,
 }
 
@@ -45,7 +44,7 @@ where
                     move || {
                         let t = OffsetDateTime::now_utc()
                             .to_offset(UtcOffset::from_hms(8, 0, 0).unwrap());
-                        let dt = DateTime {
+                        let dt = HomeData {
                             day: t.day() as i32,
                             hour: t.hour() as i32,
                             minute: t.minute() as i32,
@@ -53,29 +52,15 @@ where
                             second: t.second() as i32,
                             week: t.weekday().number_days_from_sunday() as i32,
                             year: t.year() as i32,
+                            current_humi: 1,
+                            current_temp: 2,
+                            today_weather_desc: Weather::Cloudy,
+                            today_weather_location: Location::Shanghai,
+                            today_weather_max_temp: 3,
+                            today_weather_min_temp: 4,
                         };
                         if let Some(ui) = u.upgrade() {
-                            ui.set_date_time(dt);
-                        }
-                    },
-                );
-                t
-            },
-            page_timer: {
-                let t = slint::Timer::default();
-                let u = app_window.as_weak();
-                t.start(
-                    slint::TimerMode::Repeated,
-                    Duration::from_secs(5),
-                    move || {
-                        if let Some(ui) = u.upgrade() {
-                            // 还在boot界面，不自动翻页
-                            if ui.get_page_id() == -1 {
-                                return;
-                            }
-                            let s = ui.get_page_size();
-                            let p = ui.get_page_id();
-                            ui.set_page_id((p + 1) % s);
+                            ui.set_home_data(dt);
                         }
                     },
                 );
@@ -86,6 +71,19 @@ where
                 Send::new(Client::wrap(deps.http_conn))
             })),
         };
+        let u = app.get_app_window_as_weak();
+        slint::Timer::single_shot(Duration::from_secs(1), move || {
+            info!("Redraw");
+            if let Some(ui) = u.upgrade() {
+                ui.invoke_boot();
+            }
+            slint::Timer::single_shot(Duration::from_secs(3), move || {
+                if let Some(ui) = u.upgrade() {
+                    ui.invoke_goto_home();
+                }
+            });
+        });
+
         app
     }
 
@@ -107,44 +105,38 @@ where
             let mut buf_read = resp.read(&mut buf).unwrap();
             let ip = std::str::from_utf8(&buf[..buf_read]).unwrap().trim();
             println!("got ip: {}", ip);
-            if let Some(ui) = u.upgrade() {
-                ui.set_ip(ip.into());
-            }
         });
     }
 
-    pub fn go_to_next_page(&self) {
-        info!("go_to_next_page");
-        self.page_timer.restart();
-        self.update_ip();
-
-        let u = self.app_window.as_weak();
+    pub fn boot(&self) {
+        info!("on boot");
+        let u = self.get_app_window_as_weak();
         if let Some(ui) = u.upgrade() {
-            let s = ui.get_page_size();
-            let p = ui.get_page_id();
-            ui.set_page_id((p + 1) % s);
+            ui.invoke_boot();
         }
     }
 
-    pub fn go_to_prev_page(&self) {
-        info!("go_to_prev_page");
-        self.page_timer.restart();
-
-        let u = self.app_window.as_weak();
+    pub fn goto_home(&self) {
+        info!("goto_home");
+        let u = self.get_app_window_as_weak();
         if let Some(ui) = u.upgrade() {
-            let s = ui.get_page_size();
-            let p = ui.get_page_id();
-            ui.set_page_id((p + s - 1) % s);
+            ui.invoke_goto_home();
         }
     }
 
-    pub fn go_to_home_page(&self) {
-        info!("go_to_home_page");
-        self.page_timer.restart();
-
-        let u = self.app_window.as_weak();
+    pub fn on_one_button_click(&self) {
+        info!("on_one_button_click");
+        let u = self.get_app_window_as_weak();
         if let Some(ui) = u.upgrade() {
-            ui.set_page_id(0);
+            ui.invoke_on_one_button_click();
+        }
+    }
+
+    pub fn on_one_button_double_click(&self) {
+        info!("on_one_button_double_click");
+        let u = self.get_app_window_as_weak();
+        if let Some(ui) = u.upgrade() {
+            ui.invoke_on_one_button_double_click();
         }
     }
 }

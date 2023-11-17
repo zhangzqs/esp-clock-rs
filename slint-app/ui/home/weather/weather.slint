@@ -1,0 +1,26 @@
+export enum Weather {
+    Cloudy,
+    Sunny,
+}
+
+export global WeatherLogic {
+    pure public function chinese-text(w: Weather) -> string {
+        if (w == Weather.Cloudy) {
+            return "多云";
+        }
+        if (w == Weather.Sunny) {
+            return "晴天";
+        }
+        return "未知";
+    }
+
+    pure public function icon(w: Weather) -> image {
+        if (w == Weather.Cloudy) {
+            return @image-url("cloudy.svg");
+        }
+        if (w == Weather.Sunny) {
+            return @image-url("sunny.svg");
+        }
+        return @image-url("fog.svg");
+    }
+}

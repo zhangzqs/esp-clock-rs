@@ -1,0 +1,96 @@
+component NetworkMoniter inherits Rectangle {
+    width: 240px;
+    height: 240px;
+    background: black;
+    in property <string> ip: "127.0.0.1";
+
+    VerticalLayout {
+        padding: 8px;
+        Text {
+            horizontal-alignment: center;
+            text: "网络监控";
+            font-size: 20px;
+            color: white;
+        }
+
+        Rectangle {
+            height: 10px;
+        }
+
+        Rectangle {
+            height: 1px;
+            background: white;
+        }
+
+        HorizontalLayout {
+            VerticalLayout {
+                alignment: center;
+                Text {
+                    horizontal-alignment: center;
+                    text: "实时速率";
+                    font-size: 15px;
+                    color: white;
+                }
+                Text {
+                    horizontal-alignment: center;
+                    text: "上传 0.00KB/s";
+                    font-size: 15px;
+                    color: white;
+                }
+                Text {
+                    horizontal-alignment: center;
+                    text: "下载 0.00KB/s";
+                    font-size: 15px;
+                    color: white;
+                }
+            }
+            Rectangle {
+                width: 1px;
+                background: gray;
+            }
+            VerticalLayout {
+                alignment: center;
+                Text {
+                    horizontal-alignment: center;
+                    text: "今日流量";
+                    font-size: 15px;
+                    color: white;
+                }
+                Text {
+                    horizontal-alignment: center;
+                    text: "上传 0.00KB";
+                    font-size: 15px;
+                    color: white;
+                }
+                Text {
+                    horizontal-alignment: center;
+                    text: "下载 0.00KB";
+                    font-size: 15px;
+                    color: white;
+                }
+            }
+        }
+        Rectangle {
+            height: 1px;
+            background: white;
+        }
+        Rectangle {
+            height: 20px;
+            Text {
+                color: white;
+                text: "我的IP地址: \{ip}";
+                font-size: 15px;
+            }
+        }
+        Rectangle {
+            height: 50%;
+            Text {
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                text: "图表区域";
+                font-size: 50px;
+                color: white;
+            }
+        }
+    }
+}

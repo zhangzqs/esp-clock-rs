@@ -1,0 +1,265 @@
+import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { Weather, WeatherLogic } from "./weather/weather.slint";
+
+export enum Location {
+    Shanghai,
+}
+
+export struct HomeData {
+    year: int,
+    month: int,
+    day: int,
+    hour: int,
+    minute: int,
+    second: int,
+    week: int,
+
+    today-weather-location: Location,
+    today-weather-max-temp: int,
+    today-weather-min-temp: int,
+    today-weather-desc: Weather,
+    current-temp: int,
+    current-humi: int,
+}
+
+export component Home inherits Rectangle {
+    width: 240px;
+    height: 240px;
+    background: black;
+
+    in property <HomeData> data: {
+        year: 2019,
+        month: 1,
+        day: 1,
+        hour: 0,
+        minute: 0,
+        second: 0,
+        week: 1,
+    };
+
+    // 将一个整数n转化为2位的字符串，不足2位的前面补0
+    function cvt-n-to-two(n: int) -> string {
+        if (n < 10) {
+            return "0" + n;
+        } 
+        return n;
+    }
+
+    property <[string]> const-week-string: ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+    // 将一个整数n转化为星期
+    function cvt-n-to-week(n: int) -> string {
+        if (n >= 0 && n < 7) {
+            return const-week-string[n];
+        }
+        return "error";
+    }
+
+    function build-time-string() -> string {
+        return "\{cvt-n-to-two(data.hour)}:\{cvt-n-to-two(data.minute)}:\{cvt-n-to-two(data.second)}";
+    }
+
+    function build-date-week-string() -> string {
+        return "\{data.year}年\{cvt-n-to-two(data.month)}月\{cvt-n-to-two(data.day)}日  \{cvt-n-to-week(data.week)}";
+    }
+
+    function build-localtion-name(n: Location) -> string {
+        if (n == Location.Shanghai) {
+            return "上海";
+        }
+        return "未知";
+    }
+    
+    VerticalLayout {
+        padding: 2px;
+        Rectangle {
+            height: 80px;
+            border-color: gray;
+            border-width: 1px;
+            border-radius: 10px;
+            HorizontalLayout {
+                padding: 5px;
+                Rectangle {
+                    VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: "今日天气";
+                            font-size: 15px;
+                            color: white;
+                        }
+                        HorizontalLayout { 
+                            alignment: center;
+                            Text {
+                                text: build-localtion-name(data.today-weather-location);
+                                font-size: 15px;
+                                color: white;
+                            }
+                        }
+                    }
+                }
+                Rectangle {
+                    width: 1px;
+                    background: gray;
+                }
+                Rectangle {
+                    VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: "最高温度: \{data.today-weather-max-temp}℃";
+                            font-size: 15px;
+                            color: white;
+                        }
+                        Text {
+                            text: "最低温度: \{data.today-weather-min-temp}℃";
+                            font-size: 15px;
+                            color: white;
+                        }
+                    }
+                }
+                Rectangle {
+                    border-color: gray;
+                    border-width: 1px;
+                    VerticalLayout {
+                        alignment: center;
+                        
+                        Image {
+                            source: WeatherLogic.icon(data.today-weather-desc);
+                            width: 45px;
+                            height: 45px;
+                            colorize: white;
+                        }
+                        HorizontalLayout {
+                            alignment: center;
+                            Text {
+                                text: WeatherLogic.chinese-text(data.today-weather-desc);
+                                font-size: 16px;
+                                color: white;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Rectangle {
+            height: 8px;
+        }
+        Rectangle {
+            border-width: 1px;
+            border-radius: 10px;
+            VerticalLayout {
+                height: 80px;
+                alignment: center;
+                HorizontalLayout {
+                    alignment: center;
+                    Text {
+                        text: build-time-string();
+                        font-size: 24px;
+                        color: white;
+                    }
+                }
+                HorizontalLayout {
+                    alignment: center;
+                    Text {
+                        text: build-date-week-string();
+                        font-size: 20px;
+                        color: white;
+                    }
+                }
+            }
+        }
+        Rectangle {
+            height: 10px;
+        }
+        Rectangle {
+            height: 80px;
+            VerticalLayout {
+                alignment: center;
+                padding-bottom: 10px;
+                HorizontalLayout {
+                    Image {
+                        source: @image-url("weather/thermometer.svg");
+                        colorize: red;
+                    }
+                    HorizontalBox {
+                        Rectangle {
+                            border-width: 1px;
+                            border-color: white;
+                            border-radius:5px;
+                            HorizontalLayout {
+                                padding: 2px;
+                                Rectangle {
+                                    background: red;
+                                    width: 50%;
+                                }
+                            }
+                        }
+                    }
+                    Text {
+                        text: "\{data.current-temp}";
+                        font-size: 20px;
+                        color: red;
+                    }
+                    Text {
+                        text: "℃";
+                        font-size: 20px;
+                        color: white;
+                    }
+                }
+                HorizontalLayout {
+                    Image {
+                        source: @image-url("weather/water-level.svg");
+                        colorize: skyblue;
+                    }
+                    HorizontalBox {
+                        Rectangle {
+                            border-width: 1px;
+                            border-color: white;
+                            border-radius:5px;
+                            HorizontalLayout {
+                                padding: 2px;
+                                Rectangle {
+                                    background: green;
+                                    width: 75%;
+                                }
+                            }
+                        }
+                    }
+                    Text {
+                        text: "\{data.current-humi}";
+                        font-size: 20px;
+                        color: green;
+                    }
+                    Text {
+                        text: "%";
+                        font-size: 20px;
+                        color: white;
+                    }
+                }
+            }
+        }
+    }
+}
+
+component HomeTest inherits Window {
+    width: 240px;
+    height: 240px;
+    background: black;
+
+    Home {
+        data: {
+            year: 2019,
+            month: 1,
+            day: 1,
+            hour: 0,
+            minute: 0,
+            second: 0,
+            week: 1,
+            today-weather-location: Location.Shanghai,
+            today-weather-max-temp: 10,
+            today-weather-min-temp: 0,
+            today-weather-img: @image-url("weather/heavy-rain.svg"),
+            today-weather-desc: Weather.Cloudy,
+            current-temp: 20,
+            current-humi: 50,
+        };
+    }
+}

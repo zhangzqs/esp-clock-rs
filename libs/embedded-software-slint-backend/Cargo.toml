@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 embedded-graphics = "0.8.1"
 log = "0.4.20"
-slint = "1.3.0"
+slint = { version = "1.3.0", default-features = false, features = ["compat-1-0", "unsafe-single-threaded"] }

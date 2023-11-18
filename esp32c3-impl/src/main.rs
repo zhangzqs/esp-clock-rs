@@ -1,9 +1,11 @@
 use display_interface_spi::SPIInterface;
 use embedded_graphics::{pixelcolor::Rgb565, prelude::*, primitives::Rectangle, text::Text};
 use embedded_hal::spi::MODE_3;
+use embedded_software_slint_backend::EmbeddedSoftwarePlatform;
 use esp_idf_hal::{
-    delay::Ets,
+    delay::{Ets, FreeRtos},
     gpio::{AnyIOPin, Gpio8, PinDriver},
+    ledc::{config::TimerConfig, LedcDriver, LedcTimer, LedcTimerDriver},
     prelude::*,
     spi::{config::Config, Dma, SpiDeviceDriver, SpiDriverConfig},
 };
@@ -21,16 +23,15 @@ use slint::{
     platform::software_renderer::{MinimalSoftwareWindow, Rgb565Pixel},
     ComponentHandle, SharedString,
 };
-use slint_app::DateTime;
+use slint_app::BootState;
 
-use std::thread;
 use std::time::Duration;
+use std::{cell::RefCell, thread};
 use std::{cell::UnsafeCell, sync::Mutex};
 use std::{rc::Rc, sync::Arc};
 
 use crate::wifi::connect_to_wifi;
 
-mod draw;
 mod wifi;
 #[toml_cfg::toml_config]
 pub struct MyConfig {
@@ -53,26 +54,45 @@ fn main() -> anyhow::Result<()> {
     let peripherals = Peripherals::take().unwrap();
 
     // 所有引脚定义
-    let mut led_pin = PinDriver::output(peripherals.pins.gpio2)?;
     let btn_pin = PinDriver::input(peripherals.pins.gpio9)?;
     let cs = PinDriver::output(peripherals.pins.gpio5)?;
     let dc = PinDriver::output(peripherals.pins.gpio4)?;
     let rst = PinDriver::output(peripherals.pins.gpio8)?;
 
     // 初始化SPI引脚
-    let mut delay = Ets;
+    let mut delay = FreeRtos;
     let spi = SpiDeviceDriver::new_single(
         peripherals.spi2,
         peripherals.pins.gpio6,
         peripherals.pins.gpio7,
         Option::<AnyIOPin>::None,
         Option::<AnyIOPin>::None,
-        &SpiDriverConfig::default().dma(Dma::Auto(512)),
+        &SpiDriverConfig::default().dma(Dma::Auto(4096)),
         &Config::default()
             .baudrate(80.MHz().into())
             .data_mode(MODE_3),
     )?;
     info!("SPI init done");
+
+    // 初始化ledc控制器
+    let mut led = LedcDriver::new(
+        peripherals.ledc.channel0,
+        LedcTimerDriver::new(
+            peripherals.ledc.timer0,
+            &TimerConfig::new().frequency(25.kHz().into()),
+        )
+        .unwrap(),
+        peripherals.pins.gpio2,
+    )
+    .unwrap();
+
+    thread::spawn(move || {
+        let max_duty = led.get_max_duty();
+        for numerator in (0..256).chain((0..256).rev()).cycle() {
+            led.set_duty(max_duty * numerator / 256).unwrap();
+            thread::sleep(Duration::from_millis(10));
+        }
+    });
 
     // 初始化显示屏驱动
     let di = SPIInterface::new(spi, dc, cs);
@@ -85,14 +105,14 @@ fn main() -> anyhow::Result<()> {
         .unwrap();
     info!("display init done");
 
-    // 显示绿色表示初始化完成
+    // 显示白色表示初始化完成
     display
         .fill_solid(
             &Rectangle {
                 top_left: Point::new(0, 0),
                 size: Size::new(240, 240),
             },
-            Rgb565::GREEN,
+            Rgb565::WHITE,
         )
         .unwrap();
 
@@ -105,12 +125,36 @@ fn main() -> anyhow::Result<()> {
     nvs_a.set_i32("test_key", cnt + 1).unwrap();
     let sysloop = EspSystemEventLoop::take()?;
 
+    let fps = Rc::new(RefCell::new(0));
+    let fps_ref = fps.clone();
+    slint::platform::set_platform(Box::new(EmbeddedSoftwarePlatform::new(
+        Rc::new(RefCell::new(display)),
+        Some(move |redraw| {
+            if redraw {
+                *fps_ref.borrow_mut() += 1;
+            }
+            Ok(())
+        }),
+    )))
+    .unwrap();
+
+    let app = Rc::new(slint_app::MyApp::new(slint_app::MyAppDeps {
+        http_conn: EspHttpConnection::new(&Default::default())?,
+    }));
+
     let wifi = Arc::new(Mutex::new(None));
     let sntp = Arc::new(Mutex::new(None));
 
     let w1 = wifi.clone();
     let s1 = sntp.clone();
+
+    app.set_boot_state(BootState::Booting);
+    let u = app.get_app_window_as_weak();
     thread::Builder::new().stack_size(4096).spawn(move || {
+        u.upgrade_in_event_loop(|ui| {
+            ui.invoke_set_boot_state(BootState::Connecting);
+        })
+        .unwrap();
         let _wifi = connect_to_wifi(
             MY_CONFIG.wifi_ssid,
             MY_CONFIG.wifi_password,
@@ -118,7 +162,22 @@ fn main() -> anyhow::Result<()> {
             sysloop,
             Some(nvs),
         );
+
+        if _wifi.is_err() {
+            let err = _wifi.err().unwrap();
+            error!("wifi err: {:?}", err);
+            u.upgrade_in_event_loop(|ui| {
+                ui.invoke_set_boot_state(BootState::BootFailed);
+            })
+            .unwrap();
+            return;
+        }
         w1.lock().unwrap().replace(_wifi.unwrap());
+
+        u.upgrade_in_event_loop(|ui| {
+            ui.invoke_set_boot_state(BootState::BootSuccess);
+        })
+        .unwrap();
 
         let _sntp = EspSntp::new(&SntpConf {
             servers: [MY_CONFIG.ntp_server],
@@ -126,58 +185,53 @@ fn main() -> anyhow::Result<()> {
             operating_mode: OperatingMode::Poll,
         });
         s1.lock().unwrap().replace(_sntp.unwrap());
+
+        thread::sleep(Duration::from_secs(1));
+        u.upgrade_in_event_loop(|ui| {
+            ui.invoke_set_boot_state(BootState::Finished);
+        })
+        .unwrap();
     })?;
 
     // 按键驱动
-    let mut btn = button_driver::Button::new(btn_pin, Default::default());
+    let mut button = button_driver::Button::new(btn_pin, Default::default());
 
-    // 初始化slint
-    let window: Rc<MinimalSoftwareWindow> = MinimalSoftwareWindow::new(Default::default());
-    slint::platform::set_platform(Box::new(draw::MyPlatform {
-        window: window.clone(),
-    }))
-    .unwrap();
-
-    let conn = EspHttpConnection::new(&Default::default())?;
-    let app = slint_app::MyApp::new(slint_app::MyAppDeps { http_conn: conn });
-
-    let line_buffer = &mut [Rgb565Pixel::default(); 240];
-    let mut has_boot = false;
-    // 主线程循环
-    loop {
-        // 这段sleep可以使得IDLE任务有时间喂狗，否则容易触发看门狗导致重启
-        thread::sleep(Duration::from_millis(16));
-
-        slint::platform::update_timers_and_animations();
-        window.draw_if_needed(|renderer| {
-            let provider = draw::MyLineBufferProvider {
-                display: &mut display,
-                line_buffer: line_buffer,
-            };
-            renderer.render_by_line(provider);
-        });
-        // 如果有未完成的动画计算，则继续完成动画计算
-        if window.has_active_animations() {
-            continue;
-        }
-
-        // 如果未启动，且wifi已连接，则跳转首页
-        if !has_boot && wifi.clone().lock().unwrap().is_some() {
-            app.go_to_home_page();
-            has_boot = true;
-        }
-
-        // 按键事件处理
-        btn.tick();
-        if btn.is_clicked() {
-            app.go_to_next_page();
-        } else if btn.is_double_clicked() {
-            app.go_to_prev_page();
-        } else if let Some(t) = btn.current_holding_time() {
-            if t > Duration::from_secs(3) {
-                app.go_to_home_page();
+    let app_ref = app.clone();
+    let button_event_timer = slint::Timer::default();
+    button_event_timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(10),
+        move || {
+            button.tick();
+            if button.clicks() > 0 {
+                info!("Clicks: {}", button.clicks());
+                app_ref.on_one_button_clicks(button.clicks() as i32);
+            } else if let Some(dur) = button.current_holding_time() {
+                info!("Held for {dur:?}");
+                app_ref.on_one_button_long_pressed_holding_time(dur);
+            } else if let Some(dur) = button.held_time() {
+                info!("Total holding time {dur:?}");
+                app_ref.on_one_button_long_pressed_held_time(dur);
             }
-        }
-        btn.reset();
-    }
+            button.reset();
+        },
+    );
+
+    // fps计数器
+    let app_ref = app.clone();
+    let frame_timer = slint::Timer::default();
+    frame_timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_secs(1),
+        move || {
+            app_ref.get_app_window_as_weak().upgrade().and_then(|ui| {
+                ui.set_fps(*fps.borrow());
+                Some(())
+            });
+            *fps.borrow_mut() = 0;
+        },
+    );
+
+    slint::run_event_loop().map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    Ok(())
 }

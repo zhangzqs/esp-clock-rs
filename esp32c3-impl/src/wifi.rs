@@ -52,7 +52,14 @@ pub fn connect_to_wifi(
     }))?;
 
     info!("Connecting wifi...");
-    wifi.connect()?;
+    for i in 0..3 {
+        if let Ok(_) = wifi.connect() {
+            info!("Wifi Connected!");
+            break;
+        } else {
+            info!("Attempt {}/3...", i + 1);
+        }
+    }
 
     info!("Waiting for DHCP lease...");
     wifi.wait_netif_up()?;

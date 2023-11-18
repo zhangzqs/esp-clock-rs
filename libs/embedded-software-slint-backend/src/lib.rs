@@ -3,7 +3,7 @@ use std::{
     ops::Range,
     rc::Rc,
     sync::{Arc, Mutex},
-    thread,
+    thread, time::Duration,
 };
 
 use log::{error, info};
@@ -138,6 +138,9 @@ where
                     return Err(e);
                 }
             }
+            if window.has_active_animations() {
+                continue;
+            }
             let mut queue = self.event_loop_queue.lock().unwrap();
             for event in queue.drain(..) {
                 match event {
@@ -147,9 +150,6 @@ where
                     }
                     EventQueueElement::Invoke(f) => f(),
                 }
-            }
-            if window.has_active_animations() {
-                continue;
             }
             if let Some(d) = slint::platform::duration_until_next_timer_update() {
                 thread::sleep(d);

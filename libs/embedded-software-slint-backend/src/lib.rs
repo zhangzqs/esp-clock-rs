@@ -127,6 +127,10 @@ where
         info!("Starting event loop");
         let window = self.window.clone();
         loop {
+            // render
+            if let Some(d) = slint::platform::duration_until_next_timer_update() {
+                thread::sleep(d);
+            }
             slint::platform::update_timers_and_animations();
             let redraw = window.draw_if_needed(|renderer| {
                 let provider = MyLineBufferProvider::new(self.display.clone());
@@ -141,6 +145,8 @@ where
             if window.has_active_animations() {
                 continue;
             }
+
+            // process event in event loop from event queue
             let mut queue = self.event_loop_queue.lock().unwrap();
             for event in queue.drain(..) {
                 match event {
@@ -150,9 +156,6 @@ where
                     }
                     EventQueueElement::Invoke(f) => f(),
                 }
-            }
-            if let Some(d) = slint::platform::duration_until_next_timer_update() {
-                thread::sleep(d);
             }
         }
     }

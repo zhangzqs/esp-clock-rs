@@ -77,6 +77,10 @@ where
         app
     }
 
+    pub fn run(&self) -> Result<(), slint::PlatformError> {
+        self.app_window.run()
+    }
+
     pub fn update_ip(&self) {
         println!("update_ip");
         let c = self.http_client.clone();

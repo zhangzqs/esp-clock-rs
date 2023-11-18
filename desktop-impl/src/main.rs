@@ -42,6 +42,5 @@ fn main() {
             ui.invoke_set_boot_state(BootState::Finished);
         }).unwrap();
     });
-    slint::platform::
     app.run().unwrap();
 }

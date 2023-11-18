@@ -57,8 +57,6 @@ export component Menu inherits Rectangle {
         x: -id*parent.height;
         for entry in entry-list: MenuItem {
             entry: entry;
-            width: parent.height;
-            height: parent.height;
         }
         
         animate x {
@@ -88,7 +86,11 @@ component MenuTest inherits Window {
                 {
                     name: "Monitor",
                     icon: @image-url("electrocardiogram.svg"),
-                }
+                },
+                {
+                    name: "Photo",
+                    icon: @image-url("photograph.svg"),
+                },
             ];
         }
         Button {

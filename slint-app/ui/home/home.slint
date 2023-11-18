@@ -37,6 +37,7 @@ export component Home inherits Rectangle {
         week: 1,
     };
 
+
     // 将一个整数n转化为2位的字符串，不足2位的前面补0
     function cvt-n-to-two(n: int) -> string {
         if (n < 10) {
@@ -60,6 +61,10 @@ export component Home inherits Rectangle {
 
     function build-date-week-string() -> string {
         return "\{data.year}年\{cvt-n-to-two(data.month)}月\{cvt-n-to-two(data.day)}日  \{cvt-n-to-week(data.week)}";
+    }
+
+    function build-weather-name(n: Location) -> string {
+        return "多云";
     }
 
     function build-localtion-name(n: Location) -> string {

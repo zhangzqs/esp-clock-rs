@@ -1,30 +1,43 @@
-import { Boot } from "boot/boot.slint";
+import { Boot, BootState } from "boot/boot.slint";
 import { Home, HomeData, Location } from "home/home.slint";
 import { Menu } from "menu/menu.slint";
 import "./font/microsoft-yahei.ttf";
 import { Button } from "std-widgets.slint";
 import { Weather, WeatherLogic } from "home/weather/weather.slint";
+import { Photo } from "photo/photo.slint";
 
-export { Weather, WeatherLogic, Location }
+export { Weather, WeatherLogic, Location, BootState }
 
 export enum Page {
     Boot,
     Home,
     Menu,
+    Photo,
+    LED,
+    Network
 }
 
 component MultiPage inherits Rectangle {
     in-out property <HomeData> home-data;
+    in property <image> photo;
 
     property <Page> current-page: Page.Boot;
 
     boot := Boot {
         visible: current-page == Page.Boot;
+        on-boot-finish => {
+            current-page = Page.Home;
+        }
     }
     home := Home {
         visible: current-page == Page.Home;
         data: home-data;
     }
+    photo := Photo {
+        visible: current-page == Page.Photo;
+        image-source: root.photo;
+    }
+
     menu := Menu {
         visible: current-page == Page.Menu;
         entry-list: [
@@ -42,29 +55,44 @@ component MultiPage inherits Rectangle {
                 id: "moniter",
                 name: "性能监视器",
                 icon: @image-url("menu/electrocardiogram.svg"),
-            }
+            },
+            {
+                id: "photo",
+                name: "图库",
+                icon: @image-url("menu/photograph.svg"),
+            },
+            {
+                id: "LED",
+                name: "LED",
+                icon: @image-url("menu/led-diode.svg"),
+            },
         ];
         on-entered(id, entry) => {
             if (entry.id == "home") {
                 current-page = Page.Home;
             }
+            if (entry.id == "photo") {
+                current-page = Page.Photo;
+            }
         }
     }
 
-    public function boot() {
-        current-page = Page.Boot;
-        boot.boot();
+    public function set-boot-state(state: BootState) {
+        boot.set-state(state);
     }
 
-    public function goto-home() {
-        current-page = Page.Home;
-    }
-    
     public function on-one-button-click() {
         if (current-page == Page.Home) {
             current-page = Page.Menu;
-        } else if (current-page == Page.Menu) {
+            return;
+        }
+        if (current-page == Page.Menu) {
             menu.next();
+            return;
+        }
+        if (current-page == Page.Photo) {
+            debug("todo next photo");
+            return;
         }
 
     }
@@ -72,11 +100,12 @@ component MultiPage inherits Rectangle {
     public function on-one-button-double-click() {
         if (current-page == Page.Menu) {
             menu.enter();
+            return;
         }
-    }
-    
-    public function on-one-button-long-pressed() {
-        debug("on-one-button-long-pressed");
+        if (current-page == Page.Photo) {
+            debug("todo auto play photo");
+            return;
+        }
     }
 }
 
@@ -86,25 +115,51 @@ export component AppWindow inherits Window {
     height: 240px;
     
     in-out property <HomeData> home-data;
+    in property <image> photo;
+    in property <int> fps;
 
     m := MultiPage{
         home-data: home-data;
+        photo: photo;
+    }
+    VerticalLayout {
+        alignment: start;
+        HorizontalLayout {
+            alignment: end;
+            Text {
+                color: olivedrab;
+                font-size: 15px;
+                text: "fps: \{fps}";
+            }
+        }
     }
 
-    public function boot() {
-        m.boot();
+    public function set-boot-state(state: BootState) {
+        m.set-boot-state(state);
     }
 
-    public function on-one-button-click() {
-        m.on-one-button-click();
-    }
-    public function on-one-button-double-click() {
-        m.on-one-button-double-click();
-    }
-    public function goto-home() {
-        m.goto-home();
+    // 触发点击事件
+    // count: 点击次数
+    public function on-one-button-clicks(count: int) {
+        debug("click count: ", count);
+        if (count == 1) {
+            m.on-one-button-click();
+        } else if (count == 2) {
+            m.on-one-button-double-click();
+        }
     }
 
+    // 触发长按事件
+    // dur: 按下时长
+    public function on-one-button-long-pressed-holding-time(dur: duration) {
+        debug("long pressed holding time: ", dur, "ms");
+    }
+
+    // 长按后松开
+    // dur: 按下总时长
+    public function on-one-button-long-pressed-held-time(dur: duration) {
+        debug("long pressed held time: ", dur, "ms");
+    }
 }
 
 component AppWindowTest inherits AppWindow {

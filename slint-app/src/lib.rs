@@ -4,8 +4,11 @@ use embedded_svc::http::{
 };
 use force_send_sync::Send;
 use log::info;
-use slint::Weak;
-use std::sync::{mpsc, Arc, Mutex};
+use slint::{Image, SharedPixelBuffer, Weak, Rgb8Pixel};
+use std::{
+    io::{BufReader, Bytes, Cursor},
+    sync::{mpsc, Arc, Mutex},
+};
 use std::{thread, time::Duration};
 use time::{OffsetDateTime, UtcOffset};
 
@@ -71,19 +74,6 @@ where
                 Send::new(Client::wrap(deps.http_conn))
             })),
         };
-        let u = app.get_app_window_as_weak();
-        slint::Timer::single_shot(Duration::from_secs(1), move || {
-            info!("Redraw");
-            if let Some(ui) = u.upgrade() {
-                ui.invoke_boot();
-            }
-            slint::Timer::single_shot(Duration::from_secs(3), move || {
-                if let Some(ui) = u.upgrade() {
-                    ui.invoke_goto_home();
-                }
-            });
-        });
-
         app
     }
 
@@ -108,35 +98,35 @@ where
         });
     }
 
-    pub fn boot(&self) {
-        info!("on boot");
+    pub fn set_boot_state(&self, state: BootState) {
+        info!("set_boot_state {:?}", state);
         let u = self.get_app_window_as_weak();
         if let Some(ui) = u.upgrade() {
-            ui.invoke_boot();
+            ui.invoke_set_boot_state(state);
         }
     }
 
-    pub fn goto_home(&self) {
-        info!("goto_home");
-        let u = self.get_app_window_as_weak();
-        if let Some(ui) = u.upgrade() {
-            ui.invoke_goto_home();
-        }
-    }
-
-    pub fn on_one_button_click(&self) {
+    pub fn on_one_button_clicks(&self, clicks: i32) {
         info!("on_one_button_click");
         let u = self.get_app_window_as_weak();
         if let Some(ui) = u.upgrade() {
-            ui.invoke_on_one_button_click();
+            ui.invoke_on_one_button_clicks(clicks);
         }
     }
 
-    pub fn on_one_button_double_click(&self) {
-        info!("on_one_button_double_click");
+    pub fn on_one_button_long_pressed_holding_time(&self, dur: Duration) {
+        info!("on_one_button_long_pressed_holding_time");
         let u = self.get_app_window_as_weak();
         if let Some(ui) = u.upgrade() {
-            ui.invoke_on_one_button_double_click();
+            ui.invoke_on_one_button_long_pressed_holding_time(dur.as_millis() as _);
+        }
+    }
+
+    pub fn on_one_button_long_pressed_held_time(&self, dur: Duration) {
+        info!("on_one_button_long_pressed_held_time");
+        let u = self.get_app_window_as_weak();
+        if let Some(ui) = u.upgrade() {
+            ui.invoke_on_one_button_long_pressed_held_time(dur.as_millis() as _);
         }
     }
 }

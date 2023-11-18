@@ -1,41 +1,76 @@
-import { Button } from "std-widgets.slint";
+import { Button , StandardTableView } from "std-widgets.slint";
+
+export enum BootState {
+    Booting,
+    Connecting,
+    BootFailed,
+    BootSuccess,
+    Finished,
+}
+
+
 export component Boot inherits Rectangle {
     height: 240px;
     width: 240px;
 
+    callback on-boot-finish();
+
+    property <BootState> state: BootState.Booting;
     property <color> white-no-alpha: #ffffffff;
     property <color> white-complete-alpha: #ffffff00;
 
     r := Rectangle {
         z: 1;
         background: white-no-alpha;
+        width: i.width;
+        height: i.height;
         animate background {
             duration: 3s;
             easing: ease-out;
         }
     }
 
-    Image {
+    i := Image {
         z: 0;
         width: 150px;
         source: @image-url("genshin.png");
         image-fit: contain;
         image-rendering: smooth;
     }
-    public function boot() {
-        r.background = white-complete-alpha;
+    
+    function state-chinese-description(state: BootState) -> string {
+        if (state == BootState.Booting) {
+            return "正在启动";
+        }
+        if (state == BootState.Connecting) {
+            return "正在连接WiFi";
+        }
+        if (state == BootState.BootFailed) {
+            return "启动失败";
+        }
+        if (state == BootState.BootSuccess) {
+            return "启动成功";
+        }
+        return "未知状态";
     }
-}
 
-component BootTest inherits Window {
     VerticalLayout {
-        boot := Boot {}
-        Button {
-            text: "Boot";
-            clicked => {
-                boot.boot();
-            }
+        alignment: LayoutAlignment.end;
+        padding-bottom: 30px; 
+        Text {
+            horizontal-alignment: center;
+            vertical-alignment: bottom;
+            text: state-chinese-description(state);
+        }
+    }
+
+    public function set-state(state: BootState) {
+        self.state = state;
+        if (state == BootState.Booting) {
+            r.background = white-complete-alpha;
+        }
+        if (state == BootState.Finished) {
+            self.on-boot-finish();
         }
     }
 }
-

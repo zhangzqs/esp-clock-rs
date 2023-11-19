@@ -149,7 +149,7 @@ fn main() -> anyhow::Result<()> {
     let s1 = sntp.clone();
 
     app.set_boot_state(BootState::Booting);
-    let u = app.get_app_window_as_weak();
+    let u = app.get_app_window();
     thread::Builder::new().stack_size(4096).spawn(move || {
         u.upgrade_in_event_loop(|ui| {
             ui.invoke_set_boot_state(BootState::Connecting);
@@ -208,23 +208,23 @@ fn main() -> anyhow::Result<()> {
                 app_ref.on_one_button_clicks(button.clicks() as i32);
             } else if let Some(dur) = button.current_holding_time() {
                 info!("Held for {dur:?}");
-                app_ref.on_one_button_long_pressed_holding_time(dur);
+                app_ref.on_one_button_long_pressed_holding(dur);
             } else if let Some(dur) = button.held_time() {
                 info!("Total holding time {dur:?}");
-                app_ref.on_one_button_long_pressed_held_time(dur);
+                app_ref.on_one_button_long_pressed_held(dur);
             }
             button.reset();
         },
     );
 
     // fps计数器
-    let app_ref = app.clone();
+    let u = app.get_app_window();
     let frame_timer = slint::Timer::default();
     frame_timer.start(
         slint::TimerMode::Repeated,
         Duration::from_secs(1),
         move || {
-            app_ref.get_app_window_as_weak().upgrade().and_then(|ui| {
+            u.upgrade().and_then(|ui| {
                 ui.set_fps(*fps.borrow());
                 Some(())
             });

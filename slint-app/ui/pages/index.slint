@@ -1,0 +1,102 @@
+import { BootPage, BootState } from "boot/index.slint";
+import { HomePage } from "home/index.slint";
+import { MenuPage } from "menu/index.slint";
+import { PhotoPage } from "photo/index.slint";
+import { LEDPage } from "led/index.slint";
+import { Page } from "common/page.slint";
+import { HomeWeatherData, HomeTimeData } from "home/index.slint";
+
+
+export component MultiPage inherits Rectangle {
+    property <Page> current-page: Page.Boot;
+
+    // BootPage
+    boot-page := BootPage {
+        visible: current-page == Page.Boot;
+        boot-finish => {
+            current-page = Page.Home;
+        }
+    }
+
+    public function boot-page-set-state(state: BootState) {
+        boot-page.set-state(state);
+    }
+
+    // HomePage
+    in property <HomeTimeData> home-page-time;
+    in property <HomeWeatherData> home-page-weather;
+    home-page := HomePage {
+        visible: current-page == Page.Home;
+        time: home-page-time;
+        weather: home-page-weather;
+        open-menu => {
+            current-page = Page.Menu;
+            menu-page.enter();
+        }
+    }
+
+    photo-page := PhotoPage {
+        visible: current-page == Page.Photo;
+        exit => {
+            current-page = Page.Home;
+        }
+    }
+    led-page := LEDPage {
+        visible: current-page == Page.LED;
+        exit => {
+            current-page = Page.Home;
+        }
+    }
+    menu-page := MenuPage {
+        visible: current-page == Page.Menu;
+        enter-selected-item(page) => {
+            current-page = page;
+        }
+    }
+
+    public function on-one-button-click() {
+        if (current-page == Page.Home) {
+            home-page.on-one-button-click();
+        }
+        if (current-page == Page.Menu) {
+            menu-page.on-one-button-click();
+        }
+        if (current-page == Page.Photo) {
+            photo-page.on-one-button-click();
+        }
+        if (current-page == Page.LED) {
+            led-page.on-one-button-click();
+        }
+    }
+
+    public function on-one-button-double-click() {
+        if (current-page == Page.Menu) {
+            menu-page.on-one-button-double-click();
+        }
+        if (current-page == Page.Photo) {
+            photo-page.on-one-button-double-click();
+        }
+        if (current-page == Page.LED) {
+            led-page.on-one-button-double-click();
+        }
+    }
+
+    public function on-one-button-triple-click() {
+        if (current-page == Page.LED) {
+            led-page.on-one-button-triple-click();
+        }
+    }
+
+    public function on-one-button-long-pressed-holding(dur: duration) {
+        if (current-page == Page.LED) {
+            led-page.on-one-button-long-pressed-holding(dur);
+        }
+        if (current-page == Page.Photo) {
+            photo-page.on-one-button-long-pressed-holding(dur);
+        }
+    }
+
+    public function on-one-button-long-pressed-held(dur: duration) {
+        
+    }
+}

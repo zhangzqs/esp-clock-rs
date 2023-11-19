@@ -1,0 +1,28 @@
+export component PhotoPage inherits Rectangle {
+    in property <image> image-source;
+
+    callback exit();
+
+    Image {
+        width: 240px;
+        height: 240px;
+        source: @image-url("p1.jpg");
+    }
+
+    // 单击下一张
+    public function on-one-button-click() {
+        
+    }
+
+    // 双击自动播放
+    public function on-one-button-double-click() {
+        
+    }
+
+    // 长按3秒退出
+    public function on-one-button-long-pressed-holding(dur: duration) {
+        if (dur > 3000ms) {
+            exit();
+        }
+    }
+}

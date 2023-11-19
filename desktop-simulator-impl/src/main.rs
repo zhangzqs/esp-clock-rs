@@ -102,23 +102,23 @@ fn main() -> anyhow::Result<()> {
                 app_ref.on_one_button_clicks(button.clicks() as i32);
             }else if let Some(dur) = button.current_holding_time() {
                 info!("Held for {dur:?}");
-                app_ref.on_one_button_long_pressed_holding_time(dur);
+                app_ref.on_one_button_long_pressed_holding(dur);
             } else if let Some(dur) = button.held_time() {
                 info!("Total holding time {dur:?}");
-                app_ref.on_one_button_long_pressed_held_time(dur);
+                app_ref.on_one_button_long_pressed_held(dur);
             }
             button.reset();
         },
     );
 
     app.set_boot_state(BootState::Booting);
-    let u = app.get_app_window_as_weak();
+    let u = app.get_app_window();
     thread::spawn(move ||{
         thread::sleep(Duration::from_secs(1));
         u.upgrade_in_event_loop(|ui| {
             ui.invoke_set_boot_state(BootState::Connecting);
         }).unwrap();
-        thread::sleep(Duration::from_secs(5));
+        thread::sleep(Duration::from_secs(1));
         u.upgrade_in_event_loop(|ui| {
             ui.invoke_set_boot_state(BootState::BootSuccess);
         }).unwrap();
@@ -135,14 +135,14 @@ fn main() -> anyhow::Result<()> {
         slint::TimerMode::Repeated,
         Duration::from_secs(1),
         move || {
-            app_ref.get_app_window_as_weak().upgrade().and_then(|ui| {
+            app_ref.update_ui(|ui| {
                 ui.set_fps(*fps.borrow());
-                Some(())
             });
+            info!("FPS: {}", *fps.borrow());
             *fps.borrow_mut() = 0;
         },
     );
 
-    slint::run_event_loop().map_err(|e| anyhow!("{}", e))?;
+    app.run().unwrap();
     Ok(())
 }

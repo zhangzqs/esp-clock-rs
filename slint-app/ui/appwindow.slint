@@ -1,127 +1,15 @@
-import { Boot, BootState } from "boot/boot.slint";
-import { Home, HomeData, Location } from "home/home.slint";
-import { Menu } from "menu/menu.slint";
-import "./font/microsoft-yahei.ttf";
-import { Button } from "std-widgets.slint";
-import { Weather, WeatherLogic } from "home/weather/weather.slint";
-import { Photo } from "photo/photo.slint";
+import { MultiPage } from "pages/index.slint";
+import { BootState } from "pages/boot/index.slint";
+import { HomeWeatherData, HomeTimeData } from "pages/home/index.slint";
+import "fonts/microsoft-yahei.ttf";
 
-export { Weather, WeatherLogic, Location, BootState }
-
-export enum Page {
-    Boot,
-    Home,
-    Menu,
-    Photo,
-    LED,
-    Network
-}
-
-component MultiPage inherits Rectangle {
-    in-out property <HomeData> home-data;
-    in property <image> photo;
-
-    property <Page> current-page: Page.Boot;
-
-    boot := Boot {
-        visible: current-page == Page.Boot;
-        on-boot-finish => {
-            current-page = Page.Home;
-        }
-    }
-    home := Home {
-        visible: current-page == Page.Home;
-        data: home-data;
-    }
-    photo := Photo {
-        visible: current-page == Page.Photo;
-        image-source: root.photo;
-    }
-
-    menu := Menu {
-        visible: current-page == Page.Menu;
-        entry-list: [
-            {
-                id: "home",
-                name: "首页",
-                icon: @image-url("menu/home.svg"),
-            },
-            {
-                id: "weather",
-                name: "天气",
-                icon: @image-url("menu/sun.svg"),
-            },
-            {
-                id: "moniter",
-                name: "性能监视器",
-                icon: @image-url("menu/electrocardiogram.svg"),
-            },
-            {
-                id: "photo",
-                name: "图库",
-                icon: @image-url("menu/photograph.svg"),
-            },
-            {
-                id: "LED",
-                name: "LED",
-                icon: @image-url("menu/led-diode.svg"),
-            },
-        ];
-        on-entered(id, entry) => {
-            if (entry.id == "home") {
-                current-page = Page.Home;
-            }
-            if (entry.id == "photo") {
-                current-page = Page.Photo;
-            }
-        }
-    }
-
-    public function set-boot-state(state: BootState) {
-        boot.set-state(state);
-    }
-
-    public function on-one-button-click() {
-        if (current-page == Page.Home) {
-            current-page = Page.Menu;
-            return;
-        }
-        if (current-page == Page.Menu) {
-            menu.next();
-            return;
-        }
-        if (current-page == Page.Photo) {
-            debug("todo next photo");
-            return;
-        }
-
-    }
-
-    public function on-one-button-double-click() {
-        if (current-page == Page.Menu) {
-            menu.enter();
-            return;
-        }
-        if (current-page == Page.Photo) {
-            debug("todo auto play photo");
-            return;
-        }
-    }
-}
 
 export component AppWindow inherits Window {
     default-font-family: "Microsoft YaHei";
     width: 240px;
     height: 240px;
-    
-    in-out property <HomeData> home-data;
-    in property <image> photo;
-    in property <int> fps;
 
-    m := MultiPage{
-        home-data: home-data;
-        photo: photo;
-    }
+    in property <int> fps;
     VerticalLayout {
         alignment: start;
         HorizontalLayout {
@@ -134,9 +22,18 @@ export component AppWindow inherits Window {
         }
     }
 
-    public function set-boot-state(state: BootState) {
-        m.set-boot-state(state);
+    m := MultiPage{
+        home-page-time: home-page-time;
+        home-page-weather: home-page-weather;
     }
+    // 设置启动状态
+    public function set-boot-state(state: BootState) {
+        m.boot-page-set-state(state);
+    }
+
+    // home页的时间和天气
+    in property <HomeTimeData> home-page-time;
+    in property <HomeWeatherData> home-page-weather;
 
     // 触发点击事件
     // count: 点击次数
@@ -144,25 +41,24 @@ export component AppWindow inherits Window {
         debug("click count: ", count);
         if (count == 1) {
             m.on-one-button-click();
-        } else if (count == 2) {
+        } 
+        if (count == 2) {
             m.on-one-button-double-click();
+        }
+        if (count == 3) {
+            m.on-one-button-triple-click();
         }
     }
 
     // 触发长按事件
     // dur: 按下时长
-    public function on-one-button-long-pressed-holding-time(dur: duration) {
-        debug("long pressed holding time: ", dur, "ms");
+    public function on-one-button-long-pressed-holding(dur: duration) {
+        m.on-one-button-long-pressed-holding(dur);
     }
 
     // 长按后松开
     // dur: 按下总时长
-    public function on-one-button-long-pressed-held-time(dur: duration) {
-        debug("long pressed held time: ", dur, "ms");
+    public function on-one-button-long-pressed-held(dur: duration) {
+        m.on-one-button-long-pressed-held(dur);
     }
-}
-
-component AppWindowTest inherits AppWindow {
-    default-font-family: "Microsoft YaHei";
-    width: 240px;
 }

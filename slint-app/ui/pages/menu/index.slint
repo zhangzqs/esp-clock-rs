@@ -1,0 +1,89 @@
+import { VerticalBox , StandardButton, Button, HorizontalBox} from "std-widgets.slint";
+import { Page } from "../common/page.slint";
+
+struct MenuItemEntry {
+    page: Page,
+    name: string,
+    icon: image,
+}
+
+component MenuItem inherits Rectangle {
+    in property <MenuItemEntry> entry;
+    width: 240px;
+    height: 240px;
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            VerticalLayout {
+                Image {
+                    source: entry.icon;
+                    width: 120px;
+                    height: 120px;
+                    colorize: goldenrod;
+                }
+                Rectangle { height: 10px; }
+                Text {
+                    horizontal-alignment: center;
+                    text: entry.name;
+                    font-size: 24px;
+                    color: white;
+                }
+            }
+        }
+    }
+}
+
+export component MenuPage inherits Rectangle {
+    width: 240px;
+    height: 240px;
+    background: black;
+    border-width: 2px;
+    
+    public function enter() {
+        self.id = 0;
+    }
+
+    callback enter-selected-item(Page);
+
+    property <[MenuItemEntry]> entry-list: [
+        {
+            page: Page.Home,
+            name: "首页",
+            icon: @image-url("icons/home.svg"),
+        },
+        {
+            page: Page.Photo,
+            name: "图库",
+            icon: @image-url("icons/photograph.svg"),
+        },
+        {
+            page: Page.LED,
+            name: "LED",
+            icon: @image-url("icons/led-diode.svg"),
+        },
+    ];
+    property <int> id: 0;
+
+    HorizontalLayout {
+        x: -id*parent.height;
+        for entry in entry-list: MenuItem {
+            entry: entry;
+        }
+        
+        animate x {
+            duration: 500ms;
+            easing: ease-in-out;
+        }
+    }
+
+    // 单机切换
+    public function on-one-button-click() {
+        id = Math.mod(id+1, entry-list.length);
+    }
+
+    // 双击进入
+    public function on-one-button-double-click() {
+        enter-selected-item(entry-list[id].page);
+    }
+}

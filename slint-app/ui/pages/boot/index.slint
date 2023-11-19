@@ -9,11 +9,11 @@ export enum BootState {
 }
 
 
-export component Boot inherits Rectangle {
+export component BootPage inherits Rectangle {
     height: 240px;
     width: 240px;
 
-    callback on-boot-finish();
+    callback boot-finish();
 
     property <BootState> state: BootState.Booting;
     property <color> white-no-alpha: #ffffffff;
@@ -70,7 +70,7 @@ export component Boot inherits Rectangle {
             r.background = white-complete-alpha;
         }
         if (state == BootState.Finished) {
-            self.on-boot-finish();
+            self.boot-finish();
         }
     }
 }

@@ -1,11 +1,11 @@
-use embedded_svc::http::{
+use embedded_svc::{http::{
     client::{Client, Connection},
     Method,
-};
-use log::info;
-use slint::{Weak};
+}, io::Read};
+use log::{info, debug};
+use slint::{Weak, SharedPixelBuffer, Rgb8Pixel, Image};
 use std::{
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex}, vec,
 };
 use std::{thread, time::Duration};
 use time::{OffsetDateTime, UtcOffset};
@@ -31,12 +31,57 @@ where
 {
     pub fn new(deps: MyAppDeps<C>) -> MyApp<C> {
         let app_window = AppWindow::new().expect("Failed to create AppWindow");
-        MyApp {
+        let app = MyApp {
             _home_time_timer: Self::start_home_time_timer(app_window.as_weak()),
             _http_client: Arc::new(Mutex::new(unsafe {
                 force_send_sync::Send::new(Client::wrap(deps.http_conn))
             })),
             app_window,
+        };
+        app.bind_event_on_photo_page_request_next();
+        app
+    }
+
+    fn bind_event_on_photo_page_request_next(&self) {
+        info!("bind_event_on_photo_page_request_next");
+        if let Some(ui) = self.app_window.as_weak().upgrade() {
+            let c = self._http_client.clone();
+            let u = ui.as_weak();
+            ui.on_photo_page_request_next(move || {
+                info!("on_photo_page_request_next");
+                if let Some(ui) = u.upgrade() {
+                    ui.set_photo_page_source(Default::default());
+                }
+                let c = c.clone();
+                let u = u.clone();
+                thread::spawn(move || {
+
+                    let mut client = c.lock().unwrap();
+                    let req = client
+                        .request(
+                            Method::Get,
+                            "http://192.168.242.118:3000/api/photo",
+                            &[],
+                        )
+                        .unwrap();
+                    let mut resp = req.submit().unwrap();
+                    let mut byte_buf = [0u8; 2];
+                    resp.read_exact(&mut byte_buf).unwrap();
+                    let width = byte_buf[0] as u32;
+                    let height = byte_buf[1] as u32;
+                    info!("read frame: {}x{}", width, height);
+
+                    let mut frame = vec![0u8; (width * height * 3) as usize];
+                    resp.read_exact(&mut frame).unwrap();
+                    info!("read finished");
+
+                    let buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(&frame, width, height);
+                    u.upgrade_in_event_loop(|u| {
+                        info!("set_photo_page_source");
+                        u.set_photo_page_source(Image::from_rgb8(buf));
+                    }).unwrap();
+                });
+            });
         }
     }
     

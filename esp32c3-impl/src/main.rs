@@ -11,7 +11,7 @@ use esp_idf_hal::{
 };
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
-    http::client::EspHttpConnection,
+    http::client::{EspHttpConnection},
     nvs::{EspDefaultNvsPartition, EspNvs},
     sntp::{self, EspSntp, OperatingMode, SntpConf, SyncMode},
     systime::EspSystemTime,
@@ -139,7 +139,10 @@ fn main() -> anyhow::Result<()> {
     .unwrap();
 
     let app = Rc::new(slint_app::MyApp::new(slint_app::MyAppDeps {
-        http_conn: EspHttpConnection::new(&Default::default())?,
+        http_conn: EspHttpConnection::new(&esp_idf_svc::http::client::Configuration{
+            timeout: Some(Duration::from_secs(60)),
+            ..Default::default()
+        })?,
     }));
 
     let wifi = Arc::new(Mutex::new(None));

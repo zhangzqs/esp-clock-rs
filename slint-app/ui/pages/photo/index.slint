@@ -1,27 +1,44 @@
 export component PhotoPage inherits Rectangle {
     in property <image> image-source;
 
+    property <bool> auto-play-mode: false;
+    callback request-next();
+    callback request-auto-play();
+    callback request-stop-auto-play();
     callback exit();
 
     Image {
-        width: 240px;
-        height: 240px;
-        source: @image-url("p1.jpg");
+        source: image-source;
     }
 
     // 单击下一张
     public function on-one-button-click() {
-        
+        // 如果在自动播放模式，单击则停止自动播放
+        if (auto-play-mode) {
+            request-stop-auto-play();
+            auto-play-mode = false;
+        }
+        // 请求下一张
+        request-next();
     }
 
     // 双击自动播放
     public function on-one-button-double-click() {
-        
+        auto-play-mode = !auto-play-mode;
+        if (auto-play-mode) {
+            request-auto-play();
+        } else {
+            request-stop-auto-play();
+        }
     }
 
     // 长按3秒退出
     public function on-one-button-long-pressed-holding(dur: duration) {
         if (dur > 3000ms) {
+            if (auto-play-mode) {
+                request-stop-auto-play();
+                auto-play-mode = false;
+            }
             exit();
         }
     }

@@ -25,6 +25,11 @@ export component AppWindow inherits Window {
     m := MultiPage{
         home-page-time: home-page-time;
         home-page-weather: home-page-weather;
+        
+        photo-page-source: photo-page-source;
+        photo-page-request-next => { photo-page-request-next(); }
+        photo-page-request-auto-play => { photo-page-request-auto-play(); }
+        photo-page-request-stop-auto-play => { photo-page-request-stop-auto-play(); }
     }
     // 设置启动状态
     public function set-boot-state(state: BootState) {
@@ -34,6 +39,12 @@ export component AppWindow inherits Window {
     // home页的时间和天气
     in property <HomeTimeData> home-page-time;
     in property <HomeWeatherData> home-page-weather;
+
+    // photo页的相关属性
+    in property <image> photo-page-source;
+    callback photo-page-request-next();
+    callback photo-page-request-auto-play();
+    callback photo-page-request-stop-auto-play();
 
     // 触发点击事件
     // count: 点击次数

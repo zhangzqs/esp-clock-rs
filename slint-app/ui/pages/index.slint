@@ -35,8 +35,17 @@ export component MultiPage inherits Rectangle {
         }
     }
 
+    // ImagePage
+    in property <image> photo-page-source;
+    callback photo-page-request-next();
+    callback photo-page-request-auto-play();
+    callback photo-page-request-stop-auto-play();
     photo-page := PhotoPage {
         visible: current-page == Page.Photo;
+        image-source: photo-page-source;
+        request-next => { photo-page-request-next(); }
+        request-auto-play => { photo-page-request-auto-play(); }
+        request-stop-auto-play => { photo-page-request-stop-auto-play(); }
         exit => {
             current-page = Page.Home;
         }

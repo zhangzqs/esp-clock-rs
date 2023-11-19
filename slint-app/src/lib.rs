@@ -3,10 +3,9 @@ use embedded_svc::http::{
     Method,
 };
 use log::info;
-use slint::{Image, SharedPixelBuffer, Weak, Rgb8Pixel, EventLoopError};
+use slint::{Weak};
 use std::{
-    io::{BufReader, Bytes, Cursor},
-    sync::{mpsc, Arc, Mutex},
+    sync::{Arc, Mutex},
 };
 use std::{thread, time::Duration};
 use time::{OffsetDateTime, UtcOffset};
@@ -37,7 +36,7 @@ where
             _http_client: Arc::new(Mutex::new(unsafe {
                 force_send_sync::Send::new(Client::wrap(deps.http_conn))
             })),
-            app_window: app_window,
+            app_window,
         }
     }
     
@@ -57,7 +56,7 @@ where
                         month: t.month() as i32,
                         second: t.second() as i32,
                         week: t.weekday().number_days_from_sunday() as i32,
-                        year: t.year() as i32,
+                        year: t.year(),
                     });
                 }
             },
@@ -65,10 +64,10 @@ where
         t
     }
 
-    fn update_ip(&self) {
+    fn _update_ip(&self) {
         println!("update_ip");
         let c = self._http_client.clone();
-        let u = self.app_window.as_weak();
+        let _u = self.app_window.as_weak();
         thread::spawn(move || {
             let mut client = c.lock().unwrap();
             let req = client
@@ -80,7 +79,7 @@ where
                 .unwrap();
             let mut resp = req.submit().unwrap();
             let mut buf = [0u8; 30];
-            let mut buf_read = resp.read(&mut buf).unwrap();
+            let buf_read = resp.read(&mut buf).unwrap();
             let ip = std::str::from_utf8(&buf[..buf_read]).unwrap().trim();
             println!("got ip: {}", ip);
         });
@@ -96,10 +95,9 @@ where
     }
 
     pub fn update_ui(&self, f: impl FnOnce(AppWindow)) {
-        self.app_window.as_weak().upgrade().and_then(move |ui| {
+        if let Some(ui) = self.app_window.as_weak().upgrade() {
             f(ui);
-            Some(())
-        });
+        }
     }
 
     pub fn set_boot_state(&self, state: BootState) {

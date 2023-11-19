@@ -44,7 +44,7 @@ export component MenuPage inherits Rectangle {
         self.id = 0;
     }
 
-    callback enter-selected-item(Page);
+    callback enter-selected-page(Page);
 
     property <[MenuItemEntry]> entry-list: [
         {
@@ -84,6 +84,6 @@ export component MenuPage inherits Rectangle {
 
     // 双击进入
     public function on-one-button-double-click() {
-        enter-selected-item(entry-list[id].page);
+        enter-selected-page(entry-list[id].page);
     }
 }

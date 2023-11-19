@@ -49,7 +49,7 @@ export component MultiPage inherits Rectangle {
     }
     menu-page := MenuPage {
         visible: current-page == Page.Menu;
-        enter-selected-item(page) => {
+        enter-selected-page(page) => {
             current-page = page;
         }
     }

@@ -25,7 +25,7 @@ export component AppWindow inherits Window {
     m := MultiPage{
         home-page-time: home-page-time;
         home-page-weather: home-page-weather;
-        
+
         photo-page-source: photo-page-source;
         photo-page-request-next => { photo-page-request-next(); }
         photo-page-request-auto-play => { photo-page-request-auto-play(); }
@@ -45,6 +45,9 @@ export component AppWindow inherits Window {
     callback photo-page-request-next();
     callback photo-page-request-auto-play();
     callback photo-page-request-stop-auto-play();
+    public function photo-page-is-auto-play-mode() -> bool{
+        return m.photo-page-is-auto-play-mode();
+    }
 
     // 触发点击事件
     // count: 点击次数

@@ -11,7 +11,7 @@ use esp_idf_hal::{
 };
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
-    http::client::{EspHttpConnection},
+    http::client::EspHttpConnection,
     nvs::{EspDefaultNvsPartition, EspNvs},
     sntp::{self, EspSntp, OperatingMode, SntpConf, SyncMode},
     systime::EspSystemTime,
@@ -139,7 +139,7 @@ fn main() -> anyhow::Result<()> {
     .unwrap();
 
     let app = Rc::new(slint_app::MyApp::new(slint_app::MyAppDeps {
-        http_conn: EspHttpConnection::new(&esp_idf_svc::http::client::Configuration{
+        http_conn: EspHttpConnection::new(&esp_idf_svc::http::client::Configuration {
             timeout: Some(Duration::from_secs(60)),
             ..Default::default()
         })?,
@@ -197,28 +197,36 @@ fn main() -> anyhow::Result<()> {
     })?;
 
     // 按键驱动
-    let mut button = button_driver::Button::new(btn_pin, Default::default());
-
-    let app_ref = app.clone();
-    let button_event_timer = slint::Timer::default();
-    button_event_timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(10),
-        move || {
+    let ui = app.get_app_window();
+    thread::spawn(move || {
+        let mut button = button_driver::Button::new(btn_pin, Default::default());
+        loop {
+            let ui = ui.clone();
             button.tick();
             if button.clicks() > 0 {
-                info!("Clicks: {}", button.clicks());
-                app_ref.on_one_button_clicks(button.clicks() as i32);
+                let clicks = button.clicks();
+                info!("Clicks: {}", clicks);
+                ui.upgrade_in_event_loop(move |ui| {
+                    ui.invoke_on_one_button_clicks(clicks as i32);
+                })
+                .unwrap();
             } else if let Some(dur) = button.current_holding_time() {
                 info!("Held for {dur:?}");
-                app_ref.on_one_button_long_pressed_holding(dur);
+                ui.upgrade_in_event_loop(move |ui| {
+                    ui.invoke_on_one_button_long_pressed_holding(dur.as_millis() as i64);
+                })
+                .unwrap();
             } else if let Some(dur) = button.held_time() {
                 info!("Total holding time {dur:?}");
-                app_ref.on_one_button_long_pressed_held(dur);
+                ui.upgrade_in_event_loop(move |ui| {
+                    ui.invoke_on_one_button_long_pressed_held(dur.as_millis() as i64);
+                })
+                .unwrap();
             }
             button.reset();
-        },
-    );
+            thread::sleep(Duration::from_millis(10));
+        }
+    });
 
     // fps计数器
     let u = app.get_app_window();
@@ -235,6 +243,15 @@ fn main() -> anyhow::Result<()> {
         },
     );
 
+    let free_mem_timer = slint::Timer::default();
+    free_mem_timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_secs(1),
+        move || unsafe {
+            let free = esp_idf_sys::esp_get_free_heap_size();
+            info!("free heap: {}", free);
+        },
+    );
     slint::run_event_loop().map_err(|e| anyhow::anyhow!("{:?}", e))?;
     Ok(())
 }

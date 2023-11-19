@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc, time::Duration, env::set_var, thread};
+use std::{cell::RefCell, env::set_var, rc::Rc, thread, time::Duration};
 
 use anyhow::anyhow;
 use desktop_svc::http::client::HttpClientAdapterConnection;
@@ -9,7 +9,7 @@ use embedded_graphics_simulator::{
 
 use log::info;
 
-use slint_app::{MyApp, MyAppDeps, BootState};
+use slint_app::{BootState, MyApp, MyAppDeps};
 
 use button_driver::{Button, ButtonConfig, PinWrapper};
 use embedded_software_slint_backend::EmbeddedSoftwarePlatform;
@@ -77,9 +77,9 @@ fn main() -> anyhow::Result<()> {
         slint::platform::set_platform(Box::new(platform)).unwrap();
     }
 
-    let app = Rc::new(MyApp::new(MyAppDeps {
+    let app = MyApp::new(MyAppDeps {
         http_conn: HttpClientAdapterConnection::new(),
-    }));
+    });
 
     // 分发按键事件
     // 假设代表按键状态，默认为松开，值为false
@@ -90,7 +90,7 @@ fn main() -> anyhow::Result<()> {
             ..Default::default()
         },
     );
-    let app_ref = app.clone();
+    let u = app.get_app_window();
     let button_event_timer = slint::Timer::default();
     button_event_timer.start(
         slint::TimerMode::Repeated,
@@ -98,45 +98,63 @@ fn main() -> anyhow::Result<()> {
         move || {
             button.tick();
             if button.clicks() > 0 {
-                info!("Clicks: {}", button.clicks());
-                app_ref.on_one_button_clicks(button.clicks() as i32);
-            }else if let Some(dur) = button.current_holding_time() {
+                let clicks = button.clicks();
+                info!("Clicks: {}", clicks);
+                u.upgrade().and_then(move |ui| {
+                    ui.invoke_on_one_button_clicks(clicks as i32);
+                    Some(())
+                });
+            } else if let Some(dur) = button.current_holding_time() {
                 info!("Held for {dur:?}");
-                app_ref.on_one_button_long_pressed_holding(dur);
+                u.upgrade().and_then(move |ui| {
+                    ui.invoke_on_one_button_long_pressed_holding(dur.as_millis() as i64);
+                    Some(())
+                });
             } else if let Some(dur) = button.held_time() {
                 info!("Total holding time {dur:?}");
-                app_ref.on_one_button_long_pressed_held(dur);
+                u.upgrade().and_then(move |ui| {
+                    ui.invoke_on_one_button_long_pressed_held(dur.as_millis() as i64);
+                    Some(())
+                });
             }
             button.reset();
         },
     );
 
-    app.set_boot_state(BootState::Booting);
+    // 模拟启动过程
     let u = app.get_app_window();
-    thread::spawn(move ||{
+    u.upgrade().and_then(|ui| {
+        ui.invoke_set_boot_state(BootState::Booting);
+        Some(())
+    });
+    thread::spawn(move || {
         thread::sleep(Duration::from_secs(1));
         u.upgrade_in_event_loop(|ui| {
             ui.invoke_set_boot_state(BootState::Connecting);
-        }).unwrap();
+        })
+        .unwrap();
         thread::sleep(Duration::from_secs(1));
         u.upgrade_in_event_loop(|ui| {
             ui.invoke_set_boot_state(BootState::BootSuccess);
-        }).unwrap();
+        })
+        .unwrap();
         thread::sleep(Duration::from_secs(1));
         u.upgrade_in_event_loop(|ui| {
             ui.invoke_set_boot_state(BootState::Finished);
-        }).unwrap();
+        })
+        .unwrap();
     });
 
     // fps计数器
-    let app_ref = app.clone();
+    let ui = app.get_app_window();
     let frame_timer = slint::Timer::default();
     frame_timer.start(
         slint::TimerMode::Repeated,
         Duration::from_secs(1),
         move || {
-            app_ref.update_ui(|ui| {
+            ui.upgrade().and_then(|ui| {
                 ui.set_fps(*fps.borrow());
+                Some(())
             });
             info!("FPS: {}", *fps.borrow());
             *fps.borrow_mut() = 0;

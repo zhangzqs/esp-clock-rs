@@ -8,7 +8,12 @@ export component PhotoPage inherits Rectangle {
     callback exit();
 
     Image {
+        height: 240px;
         source: image-source;
+    }
+
+    public function is-auto-play-mode() -> bool {
+        return auto-play-mode;
     }
 
     // 单击下一张

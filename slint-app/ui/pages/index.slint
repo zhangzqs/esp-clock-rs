@@ -50,6 +50,11 @@ export component MultiPage inherits Rectangle {
             current-page = Page.Home;
         }
     }
+
+    public function photo-page-is-auto-play-mode() -> bool{
+        return photo-page.is-auto-play-mode();
+    }
+
     led-page := LEDPage {
         visible: current-page == Page.LED;
         exit => {

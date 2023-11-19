@@ -1,11 +1,16 @@
-use embedded_svc::{http::{
-    client::{Client, Connection},
-    Method,
-}, io::Read};
-use log::{info, debug};
-use slint::{Weak, SharedPixelBuffer, Rgb8Pixel, Image};
+use embedded_svc::{
+    http::{
+        client::{Client, Connection},
+        Method,
+    },
+    io::Read,
+};
+use log::{debug, info};
+use slint::{Image, Rgb8Pixel, SharedPixelBuffer, Weak};
 use std::{
-    sync::{Arc, Mutex}, vec,
+    panic,
+    sync::{Arc, Mutex},
+    vec,
 };
 use std::{thread, time::Duration};
 use time::{OffsetDateTime, UtcOffset};
@@ -39,7 +44,64 @@ where
             app_window,
         };
         app.bind_event_on_photo_page_request_next();
+        app.bind_event_on_photo_page_request_auto_play();
         app
+    }
+
+    fn bind_event_on_photo_page_request_auto_play(&self) {
+        info!("bind_event_on_photo_page_request_auto_play");
+        if let Some(ui) = self.app_window.as_weak().upgrade() {
+            let c = self._http_client.clone();
+            let u = ui.as_weak();
+            ui.on_photo_page_request_auto_play(move || {
+                info!("on_photo_page_request_auto_play");
+                if let Some(ui) = u.upgrade() {
+                    ui.set_photo_page_source(Default::default());
+                }
+                let c = c.clone();
+                let u = u.clone();
+                thread::spawn(move || {
+                    let mut client = c.lock().unwrap();
+                    loop {
+                        if let Some(ui) = u.upgrade() {
+                            if !ui.invoke_photo_page_is_auto_play_mode() {
+                                break;
+                            }
+                        }
+                        let req = client
+                            .request(Method::Get, "http://192.168.242.118:3000/api/photo", &[])
+                            .unwrap();
+                        let mut resp = req.submit().unwrap();
+                        let mut byte_buf = [0u8; 2];
+                        resp.read_exact(&mut byte_buf).unwrap();
+                        let width = byte_buf[0] as u32;
+                        let height = byte_buf[1] as u32;
+                        info!("read frame: {}x{}", width, height);
+
+                        // 这一步可能会内存分配失败
+                        let buf = panic::catch_unwind(move || {
+                            SharedPixelBuffer::<Rgb8Pixel>::new(width, height)
+                        });
+                        if buf.is_err() {
+                            info!("SharedPixelBuffer::new failed");
+                            return;
+                        }
+
+                        let mut buf = buf.unwrap();
+                        info!("new SharedPixelBuffer");
+                        resp.read_exact(buf.make_mut_bytes()).unwrap();
+                        info!("read finished");
+
+                        u.upgrade_in_event_loop(|u| {
+                            info!("set_photo_page_source");
+                            u.set_photo_page_source(Image::from_rgb8(buf));
+                        })
+                        .unwrap();
+                        thread::sleep(Duration::from_secs(5));
+                    }
+                });
+            });
+        }
     }
 
     fn bind_event_on_photo_page_request_next(&self) {
@@ -55,14 +117,9 @@ where
                 let c = c.clone();
                 let u = u.clone();
                 thread::spawn(move || {
-
                     let mut client = c.lock().unwrap();
                     let req = client
-                        .request(
-                            Method::Get,
-                            "http://192.168.242.118:3000/api/photo",
-                            &[],
-                        )
+                        .request(Method::Get, "http://192.168.242.118:3000/api/photo", &[])
                         .unwrap();
                     let mut resp = req.submit().unwrap();
                     let mut byte_buf = [0u8; 2];
@@ -71,28 +128,36 @@ where
                     let height = byte_buf[1] as u32;
                     info!("read frame: {}x{}", width, height);
 
-                    let mut frame = vec![0u8; (width * height * 3) as usize];
-                    resp.read_exact(&mut frame).unwrap();
+                    // 这一步可能会内存分配失败
+                    let buf = panic::catch_unwind(move || {
+                        SharedPixelBuffer::<Rgb8Pixel>::new(width, height)
+                    });
+                    if buf.is_err() {
+                        info!("SharedPixelBuffer::new failed");
+                        return;
+                    }
+                    let mut buf = buf.unwrap();
+                    info!("new SharedPixelBuffer");
+                    resp.read_exact(buf.make_mut_bytes()).unwrap();
                     info!("read finished");
 
-                    let buf = SharedPixelBuffer::<Rgb8Pixel>::clone_from_slice(&frame, width, height);
                     u.upgrade_in_event_loop(|u| {
                         info!("set_photo_page_source");
                         u.set_photo_page_source(Image::from_rgb8(buf));
-                    }).unwrap();
+                    })
+                    .unwrap();
                 });
             });
         }
     }
-    
-    fn start_home_time_timer(w: Weak<AppWindow>) ->slint::Timer {
+
+    fn start_home_time_timer(w: Weak<AppWindow>) -> slint::Timer {
         let t = slint::Timer::default();
         t.start(
             slint::TimerMode::Repeated,
             Duration::from_secs(1),
             move || {
-                let t = OffsetDateTime::now_utc()
-                    .to_offset(UtcOffset::from_hms(8, 0, 0).unwrap());
+                let t = OffsetDateTime::now_utc().to_offset(UtcOffset::from_hms(8, 0, 0).unwrap());
                 if let Some(ui) = w.upgrade() {
                     ui.set_home_page_time(HomeTimeData {
                         day: t.day() as i32,
@@ -137,31 +202,5 @@ where
 
     pub fn get_app_window(&self) -> Weak<AppWindow> {
         self.app_window.as_weak()
-    }
-
-    pub fn update_ui(&self, f: impl FnOnce(AppWindow)) {
-        if let Some(ui) = self.app_window.as_weak().upgrade() {
-            f(ui);
-        }
-    }
-
-    pub fn set_boot_state(&self, state: BootState) {
-        info!("set_boot_state {:?}", state);
-        self.update_ui(|ui| ui.invoke_set_boot_state(state));
-    }
-
-    pub fn on_one_button_clicks(&self, clicks: i32) {
-        info!("on_one_button_click");
-        self.update_ui(|ui| ui.invoke_on_one_button_clicks(clicks));
-    }
-
-    pub fn on_one_button_long_pressed_holding(&self, dur: Duration) {
-        info!("on_one_button_long_pressed_holding_time");
-        self.update_ui(|ui| ui.invoke_on_one_button_long_pressed_holding(dur.as_millis() as _));
-    }
-
-    pub fn on_one_button_long_pressed_held(&self, dur: Duration) {
-        info!("on_one_button_long_pressed_held_time");
-        self.update_ui(|ui| ui.invoke_on_one_button_long_pressed_held(dur.as_millis() as _));
     }
 }

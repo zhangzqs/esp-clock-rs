@@ -1,8 +1,8 @@
 use std::{cell::RefCell, env::set_var, rc::Rc, thread, time::Duration};
 
-use anyhow::anyhow;
+
 use desktop_svc::http::client::HttpClientAdapterConnection;
-use embedded_graphics::prelude::*;
+use embedded_graphics::{prelude::*, pixelcolor::Rgb888};
 use embedded_graphics_simulator::{
     sdl2::Keycode, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
 };
@@ -12,7 +12,7 @@ use log::info;
 use slint_app::{BootState, MyApp, MyAppDeps};
 
 use button_driver::{Button, ButtonConfig, PinWrapper};
-use embedded_software_slint_backend::EmbeddedSoftwarePlatform;
+use embedded_software_slint_backend::{EmbeddedSoftwarePlatform, RGB888PixelColorAdapter};
 
 #[derive(Clone)]
 struct MyButtonPin(Rc<RefCell<bool>>);
@@ -23,12 +23,29 @@ impl PinWrapper for MyButtonPin {
     }
 }
 
+struct MockSystem;
+impl slint_app::System for MockSystem {
+    /// 重启
+    fn restart(&self) {
+    }
+
+    /// 获取剩余可用堆内存，这可能比最大连续的可分配块的值还要大
+    fn get_free_heap_size(&self) -> usize {
+        0
+    }
+
+    /// 获取最大连续的可分配块
+    fn get_largest_free_block(&self) -> usize {
+        0
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     set_var("RUST_LOG", "debug");
     env_logger::init();
     info!("Starting desktop simulator");
 
-    let display = Rc::new(RefCell::new(SimulatorDisplay::new(Size::new(240, 240))));
+    let display = Rc::new(RefCell::new(SimulatorDisplay::<Rgb888>::new(Size::new(240, 240))));
     let output_settings = OutputSettingsBuilder::new().build();
     let window = Rc::new(RefCell::new(Window::new(
         "Desktop Simulator",
@@ -43,7 +60,7 @@ fn main() -> anyhow::Result<()> {
         let button_state_ref = button_state.clone();
         let fps_ref = fps.clone();
 
-        let platform = EmbeddedSoftwarePlatform::new(
+        let platform = EmbeddedSoftwarePlatform::<_, _, _, _, RGB888PixelColorAdapter>::new(
             display,
             Some(Box::new(move |has_redraw| {
                 let mut window = window_update_ref.borrow_mut();
@@ -79,6 +96,7 @@ fn main() -> anyhow::Result<()> {
 
     let app = MyApp::new(MyAppDeps {
         http_conn: HttpClientAdapterConnection::new(),
+        system: MockSystem,
     });
 
     // 分发按键事件
@@ -100,21 +118,21 @@ fn main() -> anyhow::Result<()> {
             if button.clicks() > 0 {
                 let clicks = button.clicks();
                 info!("Clicks: {}", clicks);
-                u.upgrade().and_then(move |ui| {
+                u.upgrade().map(move |ui| {
                     ui.invoke_on_one_button_clicks(clicks as i32);
-                    Some(())
+                    
                 });
             } else if let Some(dur) = button.current_holding_time() {
                 info!("Held for {dur:?}");
-                u.upgrade().and_then(move |ui| {
+                u.upgrade().map(move |ui| {
                     ui.invoke_on_one_button_long_pressed_holding(dur.as_millis() as i64);
-                    Some(())
+                    
                 });
             } else if let Some(dur) = button.held_time() {
                 info!("Total holding time {dur:?}");
-                u.upgrade().and_then(move |ui| {
+                u.upgrade().map(move |ui| {
                     ui.invoke_on_one_button_long_pressed_held(dur.as_millis() as i64);
-                    Some(())
+                    
                 });
             }
             button.reset();
@@ -123,9 +141,9 @@ fn main() -> anyhow::Result<()> {
 
     // 模拟启动过程
     let u = app.get_app_window();
-    u.upgrade().and_then(|ui| {
+    u.upgrade().map(|ui| {
         ui.invoke_set_boot_state(BootState::Booting);
-        Some(())
+        
     });
     thread::spawn(move || {
         thread::sleep(Duration::from_secs(1));
@@ -152,9 +170,9 @@ fn main() -> anyhow::Result<()> {
         slint::TimerMode::Repeated,
         Duration::from_secs(1),
         move || {
-            ui.upgrade().and_then(|ui| {
+            ui.upgrade().map(|ui| {
                 ui.set_fps(*fps.borrow());
-                Some(())
+                
             });
             info!("FPS: {}", *fps.borrow());
             *fps.borrow_mut() = 0;

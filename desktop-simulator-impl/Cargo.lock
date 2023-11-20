@@ -821,6 +821,7 @@ name = "embedded-software-slint-backend"
 version = "0.1.0"
 dependencies = [
  "embedded-graphics",
+ "euclid",
  "log",
  "slint",
 ]

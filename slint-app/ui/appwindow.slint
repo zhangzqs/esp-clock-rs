@@ -10,19 +10,40 @@ export component AppWindow inherits Window {
     height: 240px;
 
     in property <int> fps;
+    in property <int> memory;
+    in property <int> largest-free-block;
+    in property <int> cpu;
     VerticalLayout {
+        z: 1;
         alignment: start;
         HorizontalLayout {
-            alignment: end;
-            Text {
-                color: olivedrab;
-                font-size: 15px;
-                text: "fps: \{fps}";
+            HorizontalLayout {
+                alignment: start;
+                Rectangle {
+                    background: gray.with-alpha(0.5);
+                    Text {
+                        color: #ff2a00;
+                        font-size: 20px;
+                        text: "memory: \{memory}\n"+"free block: \{largest-free-block}";
+                    }
+                }
+            }
+            HorizontalLayout {
+                alignment: end;
+                Rectangle {
+                    background: gray.with-alpha(0.5);
+                    Text {
+                        color: #ff2a00;
+                        font-size: 20px;
+                        text: "fps: \{fps}\n"+"cpu: \{cpu}";
+                    }
+                }
             }
         }
     }
 
     m := MultiPage{
+        z: 0;
         home-page-time: home-page-time;
         home-page-weather: home-page-weather;
 

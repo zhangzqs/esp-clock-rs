@@ -15,26 +15,33 @@ use std::{
 use std::{thread, time::Duration};
 use time::{OffsetDateTime, UtcOffset};
 
+mod system;
+pub use system::System;
+
 slint::include_modules!();
 
-pub struct MyAppDeps<C>
+pub struct MyAppDeps<C, S>
 where
     C: Connection + 'static,
+    S: System + 'static,
 {
     pub http_conn: C,
+    pub system: S,
 }
 
-pub struct MyApp<C> {
+pub struct MyApp<C, S> {
     app_window: AppWindow,
     _home_time_timer: slint::Timer,
     _http_client: Arc<Mutex<force_send_sync::Send<Client<C>>>>,
+    _system: S,
 }
 
-impl<C> MyApp<C>
+impl<C, S> MyApp<C, S>
 where
     C: Connection + 'static,
+    S: System + 'static,
 {
-    pub fn new(deps: MyAppDeps<C>) -> MyApp<C> {
+    pub fn new(deps: MyAppDeps<C, S>) -> MyApp<C, S> {
         let app_window = AppWindow::new().expect("Failed to create AppWindow");
         let app = MyApp {
             _home_time_timer: Self::start_home_time_timer(app_window.as_weak()),
@@ -42,6 +49,7 @@ where
                 force_send_sync::Send::new(Client::wrap(deps.http_conn))
             })),
             app_window,
+            _system: deps.system,
         };
         app.bind_event_on_photo_page_request_next();
         app.bind_event_on_photo_page_request_auto_play();
@@ -97,7 +105,7 @@ where
                             u.set_photo_page_source(Image::from_rgb8(buf));
                         })
                         .unwrap();
-                        thread::sleep(Duration::from_secs(5));
+                        // thread::sleep(Duration::from_secs(5));
                     }
                 });
             });

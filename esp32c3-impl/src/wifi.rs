@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use embedded_svc::wifi::{
-    AccessPointConfiguration, AuthMethod, ClientConfiguration, Configuration,
+    AuthMethod, ClientConfiguration, Configuration,
 };
 use esp_idf_hal::peripheral;
 use esp_idf_svc::{
@@ -53,7 +53,7 @@ pub fn connect_to_wifi(
 
     info!("Connecting wifi...");
     for i in 0..3 {
-        if let Ok(_) = wifi.connect() {
+        if wifi.connect().is_ok() {
             info!("Wifi Connected!");
             break;
         } else {

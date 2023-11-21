@@ -1,8 +1,9 @@
-use std::{cell::RefCell, env::set_var, rc::Rc, thread, time::Duration};
+use std::{cell::RefCell, env::set_var, rc::Rc, thread, time::Duration, sync::{Arc, Mutex}};
 
 
 use desktop_svc::http::client::HttpClientAdapterConnection;
-use embedded_graphics::{prelude::*, pixelcolor::Rgb888};
+use embedded_graphics::{prelude::*, pixelcolor::Rgb888, primitives::Rectangle};
+use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
 use embedded_graphics_simulator::{
     sdl2::Keycode, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
 };
@@ -40,6 +41,8 @@ impl slint_app::System for MockSystem {
     }
 }
 
+
+
 fn main() -> anyhow::Result<()> {
     set_var("RUST_LOG", "debug");
     env_logger::init();
@@ -52,6 +55,16 @@ fn main() -> anyhow::Result<()> {
         &output_settings,
     )));
 
+    let display_group = Rc::new(RefCell::new(DisplayGroup::new(display.clone(), 2)));
+    let slint_display = LogicalDisplay::new(display_group.clone(), Rectangle{
+        top_left: Point::new(0, 0),
+        size: Size::new(240, 240),
+    });
+    let app_display = LogicalDisplay::new(display_group.clone(), Rectangle{
+        top_left: Point::new(0, 120),
+        size: Size::new(120, 120),
+    });
+    display_group.borrow_mut().switch_to_logical_display(0);
     let button_state = Rc::new(RefCell::new(false));
     let fps = Rc::new(RefCell::new(0));
     {
@@ -59,9 +72,10 @@ fn main() -> anyhow::Result<()> {
         let display_update_ref = display.clone();
         let button_state_ref = button_state.clone();
         let fps_ref = fps.clone();
+        let slint_display_ref = slint_display.clone();
 
         let platform = EmbeddedSoftwarePlatform::<_, _, _, _, RGB888PixelColorAdapter>::new(
-            display,
+            slint_display_ref,
             Some(Box::new(move |has_redraw| {
                 let mut window = window_update_ref.borrow_mut();
                 let display = display_update_ref.borrow();
@@ -178,6 +192,14 @@ fn main() -> anyhow::Result<()> {
             *fps.borrow_mut() = 0;
         },
     );
+
+    let display_group_ref = display_group.clone();
+    let timer = slint::Timer::default();
+    timer.start(slint::TimerMode::Repeated, Duration::from_secs(1), move || {
+        let idx = display_group_ref.borrow().get_current_active_display_index() ^ 1;
+        let display = display_group_ref.borrow_mut().switch_to_logical_display(idx);
+        display.borrow_mut().clear(Rgb888::RED).unwrap();
+    });
 
     app.run().unwrap();
     Ok(())

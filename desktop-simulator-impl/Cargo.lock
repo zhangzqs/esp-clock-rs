@@ -725,6 +725,7 @@ dependencies = [
  "button-driver",
  "desktop-svc",
  "embedded-graphics",
+ "embedded-graphics-group",
  "embedded-graphics-simulator",
  "embedded-software-slint-backend",
  "embedded-svc",
@@ -786,6 +787,14 @@ checksum = "ba9ecd261f991856250d2207f6d8376946cd9f412a2165d3b75bc87a0bc7a044"
 dependencies = [
  "az",
  "byteorder",
+]
+
+[[package]]
+name = "embedded-graphics-group"
+version = "0.1.0"
+dependencies = [
+ "embedded-graphics",
+ "log",
 ]
 
 [[package]]

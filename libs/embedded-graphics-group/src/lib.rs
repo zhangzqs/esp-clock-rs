@@ -1,7 +1,7 @@
 use std::{usize, sync::{Arc, Mutex}};
 
 use embedded_graphics::{
-    draw_target::DrawTarget, geometry::OriginDimensions, pixelcolor::PixelColor, primitives::Rectangle,
+    draw_target::DrawTarget, geometry::{OriginDimensions, Size}, pixelcolor::PixelColor, primitives::Rectangle,
 };
 use log::info;
 
@@ -15,7 +15,7 @@ where
     parent: Arc<Mutex<DisplayGroup<C, D>>>,
     aria: Rectangle,
     is_active: bool,
-    // on_activate: Option<ActivateCallback>,
+    id: usize,
 }
 
 impl<C, D> LogicalDisplay<C, D>
@@ -24,14 +24,21 @@ where
     D: DrawTarget<Color = C>,
 {
     pub fn new(parent: Arc<Mutex<DisplayGroup<C, D>>>, aria: Rectangle) -> Arc<Mutex<Self>> {
+        let mut parent_mut_ref = parent.lock().unwrap();
+        let id = parent_mut_ref.logical_displays.len();
         let child = Arc::new(Mutex::new(Self {
             parent:parent.clone(),
             aria,
             is_active: false,
-            // on_activate: None,
+            id,
         }));
-        parent.lock().unwrap().logical_displays.push(child.clone());
+        info!("create logical display {}", id);
+        parent_mut_ref.logical_displays.push(child.clone());
         child
+    }
+
+    pub fn get_id(&self) -> usize {
+        self.id
     }
 }
 
@@ -80,6 +87,7 @@ where
     D: DrawTarget<Color = C>,
 {
     physical_display: Arc<Mutex<D>>,
+    physical_display_size: Size,
     logical_displays: Vec<Arc<Mutex<LogicalDisplay<C, D>>>>,
     current_active_display: isize,
 }
@@ -90,11 +98,18 @@ where
     D: DrawTarget<Color = C>,
 {
     pub fn new(physical_display: Arc<Mutex<D>>, initial_logical_display_capacity: usize) -> Self {
+        info!("DisplayGroup::new");
+        let physical_display_size = physical_display.lock().unwrap().bounding_box().size;
         Self {
             physical_display,
+            physical_display_size,
             logical_displays: Vec::with_capacity(initial_logical_display_capacity),
             current_active_display: -1,
         }
+    }
+
+    pub fn get_physical_display_size(&self) -> Size {
+        self.physical_display_size
     }
 
     pub fn get_current_active_display_index(&self) -> isize {

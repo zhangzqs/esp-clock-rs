@@ -10,8 +10,8 @@ use embedded_svc::{
     },
     io::Read,
 };
-use log::{info};
-use slint::{Weak};
+use log::{debug, info};
+use slint::Weak;
 use std::{
     cell::RefCell,
     rc::Rc,
@@ -73,8 +73,16 @@ where
     ECA: ColorAdapter<Color = EGC> + 'static,
 {
     pub fn new(deps: MyAppDeps<C, S, EGC, EGD, ECA>) -> MyApp<C, S, EGC, EGD, ECA> {
+        debug!("MyApp::new");
         let app_window = AppWindow::new().expect("Failed to create AppWindow");
+        debug!("AppWindow created");
         let http_client = Arc::new(Mutex::new(Client::wrap(deps.http_conn)));
+        debug!("HttpClient created");
+        let photo_app = Rc::new(RefCell::new(PhotoApp::new(
+            http_client.clone(),
+            deps.display_group.clone(),
+            deps.color_adapter,
+        )));
         let app = MyApp {
             _home_time_timer: Self::start_home_time_timer(app_window.as_weak()),
             _http_client: http_client.clone(),
@@ -82,12 +90,9 @@ where
             _system: deps.system,
             display_group: deps.display_group.clone(),
             color_adapter: deps.color_adapter,
-            photo_app: Rc::new(RefCell::new(PhotoApp::new(
-                http_client.clone(),
-                deps.display_group.clone(),
-                deps.color_adapter,
-            ))),
+            photo_app,
         };
+        info!("MyApp created");
         app.bind_event_photo_app();
         app
     }
@@ -104,6 +109,21 @@ where
             ui.on_photo_page_exit(move || {
                 info!("on_photo_page_exit");
                 photo_app.borrow_mut().exit();
+            });
+            let photo_app = self.photo_app.clone();
+            ui.on_photo_page_request_next(move || {
+                info!("on_photo_page_request_next");
+                photo_app.borrow_mut().next();
+            });
+            let photo_app = self.photo_app.clone();
+            ui.on_photo_page_request_auto_play(move || {
+                info!("on_photo_page_request_auto_play");
+                photo_app.borrow_mut().auto_play();
+            });
+            let photo_app = self.photo_app.clone();
+            ui.on_photo_page_request_stop_auto_play(move || {
+                info!("on_photo_page_request_stop_auto_play");
+                photo_app.borrow_mut().stop_auto_play();
             });
         }
     }

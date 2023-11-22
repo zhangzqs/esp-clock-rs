@@ -1,34 +1,42 @@
-use std::{cell::RefCell, env::set_var, rc::Rc, thread, time::Duration, sync::{Arc, Mutex}};
-
+use std::{
+    cell::RefCell,
+    env::set_var,
+    rc::Rc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
+    thread,
+    time::Duration,
+};
 
 use desktop_svc::http::client::HttpClientAdapterConnection;
-use embedded_graphics::{prelude::*, pixelcolor::Rgb888, primitives::Rectangle};
+use embedded_graphics::{pixelcolor::Rgb888, prelude::*, primitives::Rectangle};
 use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
 use embedded_graphics_simulator::{
     sdl2::Keycode, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
 };
 
-use log::info;
+use log::{info, debug};
 
-use slint_app::{BootState, MyApp, MyAppDeps, ColorAdapter};
+use slint_app::{BootState, ColorAdapter, MyApp, MyAppDeps};
 
 use button_driver::{Button, ButtonConfig, PinWrapper};
 use embedded_software_slint_backend::{EmbeddedSoftwarePlatform, RGB888PixelColorAdapter};
 
 #[derive(Clone)]
-struct MyButtonPin(Rc<RefCell<bool>>);
+struct MyButtonPin(Rc<AtomicBool>);
 
 impl PinWrapper for MyButtonPin {
     fn is_high(&self) -> bool {
-        *self.0.borrow()
+        self.0.load(Ordering::Relaxed)
     }
 }
 
 struct MockSystem;
 impl slint_app::System for MockSystem {
     /// 重启
-    fn restart(&self) {
-    }
+    fn restart(&self) {}
 
     /// 获取剩余可用堆内存，这可能比最大连续的可分配块的值还要大
     fn get_free_heap_size(&self) -> usize {
@@ -46,7 +54,7 @@ struct RGB888ColorAdapter;
 
 impl ColorAdapter for RGB888ColorAdapter {
     type Color = Rgb888;
-    
+
     fn rgb888(&self, c: Rgb888) -> Self::Color {
         c
     }
@@ -57,66 +65,39 @@ fn main() -> anyhow::Result<()> {
     env_logger::init();
     info!("Starting desktop simulator");
 
-    let display = Arc::new(Mutex::new(SimulatorDisplay::<Rgb888>::new(Size::new(240, 240))));
-    let output_settings = OutputSettingsBuilder::new().build();
-    let window = Rc::new(RefCell::new(Window::new(
-        "Desktop Simulator",
-        &output_settings,
-    )));
+    let physical_display = Arc::new(Mutex::new(SimulatorDisplay::<Rgb888>::new(Size::new(
+        240, 240,
+    ))));
+    let display_group = Arc::new(Mutex::new(DisplayGroup::new(physical_display.clone(), 2)));
 
-    let display_group = Arc::new(Mutex::new(DisplayGroup::new(display.clone(), 2)));
-    let slint_display = LogicalDisplay::new(display_group.clone(), Rectangle{
-        top_left: Point::new(0, 0),
-        size: Size::new(240, 240),
-    });
-    LogicalDisplay::new(display_group.clone(), Rectangle{
-        top_left: Point::new(0, 0),
-        size: Size::new(240, 240),
-    });
-    display_group.lock().unwrap().switch_to_logical_display(0);
-
-    let button_state = Rc::new(RefCell::new(false));
     let fps = Rc::new(RefCell::new(0));
     {
-        let window_update_ref = window.clone();
-        let display_update_ref = display.clone();
-        let button_state_ref = button_state.clone();
         let fps_ref = fps.clone();
-        let slint_display_ref = slint_display.clone();
+        let slint_display = LogicalDisplay::new(
+            display_group.clone(),
+            Rectangle {
+                top_left: Point::new(0, 0),
+                size: Size::new(240, 240),
+            },
+        );
+        let slint_display_id = slint_display.lock().unwrap().get_id() as isize;
+        display_group
+            .lock()
+            .unwrap()
+            .switch_to_logical_display(slint_display_id);
 
         let platform = EmbeddedSoftwarePlatform::<_, _, _, _, RGB888PixelColorAdapter>::new(
-            slint_display_ref,
+            slint_display,
             Some(Box::new(move |has_redraw| {
-                let mut window = window_update_ref.borrow_mut();
-                let display = display_update_ref.lock().unwrap();
-                window.update(&display);
                 if has_redraw {
                     *fps_ref.borrow_mut() += 1;
                 }
-                for event in window.events() {
-                    match event {
-                        SimulatorEvent::KeyUp { keycode, .. } => match keycode {
-                            Keycode::Space => {
-                                *button_state_ref.borrow_mut() = false;
-                            }
-                            _ => {}
-                        },
-                        SimulatorEvent::KeyDown { keycode, .. } => match keycode {
-                            Keycode::Space => {
-                                *button_state_ref.borrow_mut() = true;
-                            }
-                            _ => {}
-                        },
-                        SimulatorEvent::Quit => slint::quit_event_loop().unwrap(),
-                        _ => {}
-                    }
-                }
-
                 Ok(())
             })),
         );
         slint::platform::set_platform(Box::new(platform)).unwrap();
     }
+    info!("platform has been set");
 
     let app = MyApp::new(MyAppDeps {
         http_conn: HttpClientAdapterConnection::new(),
@@ -124,9 +105,11 @@ fn main() -> anyhow::Result<()> {
         display_group: display_group.clone(),
         color_adapter: RGB888ColorAdapter,
     });
+    info!("app has been created");
 
     // 分发按键事件
     // 假设代表按键状态，默认为松开，值为false
+    let button_state = Rc::new(AtomicBool::new(false));
     let mut button = Button::new(
         MyButtonPin(button_state.clone()),
         ButtonConfig {
@@ -134,31 +117,51 @@ fn main() -> anyhow::Result<()> {
             ..Default::default()
         },
     );
+    
     let u = app.get_app_window();
     let button_event_timer = slint::Timer::default();
+
+    let output_settings = OutputSettingsBuilder::new().build();
+    let mut window = Window::new("Desktop Simulator", &output_settings);
+
     button_event_timer.start(
         slint::TimerMode::Repeated,
         Duration::from_millis(10),
         move || {
+            let physical_display_update_ref = physical_display.clone();
+            let button_state_ref = button_state.clone();
+            let display = physical_display_update_ref.lock().unwrap();
+            window.update(&display);
+            for event in window.events() {
+                match event {
+                    SimulatorEvent::KeyUp { keycode, .. } => match keycode {
+                        Keycode::Space => button_state_ref.store(false, Ordering::Relaxed),
+                        _ => {}
+                    },
+                    SimulatorEvent::KeyDown { keycode, .. } => match keycode {
+                        Keycode::Space => button_state_ref.store(true, Ordering::Relaxed),
+                        _ => {}
+                    },
+                    SimulatorEvent::Quit => slint::quit_event_loop().unwrap(),
+                    _ => {}
+                }
+            }
             button.tick();
             if button.clicks() > 0 {
                 let clicks = button.clicks();
-                info!("Clicks: {}", clicks);
+                debug!("Clicks: {}", clicks);
                 u.upgrade().map(move |ui| {
                     ui.invoke_on_one_button_clicks(clicks as i32);
-                    
                 });
             } else if let Some(dur) = button.current_holding_time() {
-                info!("Held for {dur:?}");
+                debug!("Held for {dur:?}");
                 u.upgrade().map(move |ui| {
                     ui.invoke_on_one_button_long_pressed_holding(dur.as_millis() as i64);
-                    
                 });
             } else if let Some(dur) = button.held_time() {
-                info!("Total holding time {dur:?}");
+                debug!("Total holding time {dur:?}");
                 u.upgrade().map(move |ui| {
                     ui.invoke_on_one_button_long_pressed_held(dur.as_millis() as i64);
-                    
                 });
             }
             button.reset();
@@ -169,7 +172,6 @@ fn main() -> anyhow::Result<()> {
     let u = app.get_app_window();
     u.upgrade().map(|ui| {
         ui.invoke_set_boot_state(BootState::Booting);
-        
     });
     thread::spawn(move || {
         thread::sleep(Duration::from_secs(1));
@@ -198,20 +200,11 @@ fn main() -> anyhow::Result<()> {
         move || {
             ui.upgrade().map(|ui| {
                 ui.set_fps(*fps.borrow());
-                
             });
             info!("FPS: {}", *fps.borrow());
             *fps.borrow_mut() = 0;
         },
     );
-
-    // let display_group_ref = display_group.clone();
-    // let timer = slint::Timer::default();
-    // timer.start(slint::TimerMode::Repeated, Duration::from_secs(1), move || {
-    //     let idx = display_group_ref.borrow().get_current_active_display_index() ^ 1;
-    //     let display = display_group_ref.borrow_mut().switch_to_logical_display(idx);
-    //     display.borrow_mut().clear(Rgb888::RED).unwrap();
-    // });
 
     app.run().unwrap();
     Ok(())

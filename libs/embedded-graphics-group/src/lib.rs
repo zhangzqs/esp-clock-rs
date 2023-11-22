@@ -1,21 +1,21 @@
-use std::{usize, cell::RefCell, rc::Rc};
+use std::{usize, sync::{Arc, Mutex}};
 
 use embedded_graphics::{
-    draw_target::DrawTarget, geometry::OriginDimensions, pixelcolor::PixelColor, primitives::{Rectangle, PointsIter},
+    draw_target::DrawTarget, geometry::OriginDimensions, pixelcolor::PixelColor, primitives::Rectangle,
 };
 use log::info;
 
-type ActivateCallback = Box<dyn FnMut(usize, usize)>;
+// type ActivateCallback = Box<dyn FnMut(usize, usize)>;
 
 pub struct LogicalDisplay<C, D>
 where
     C: PixelColor,
     D: DrawTarget<Color = C>,
 {
-    parent: Rc<RefCell<DisplayGroup<C, D>>>,
+    parent: Arc<Mutex<DisplayGroup<C, D>>>,
     aria: Rectangle,
     is_active: bool,
-    on_activate: Option<ActivateCallback>,
+    // on_activate: Option<ActivateCallback>,
 }
 
 impl<C, D> LogicalDisplay<C, D>
@@ -23,14 +23,14 @@ where
     C: PixelColor,
     D: DrawTarget<Color = C>,
 {
-    pub fn new(parent: Rc<RefCell<DisplayGroup<C, D>>>, aria: Rectangle) -> Rc<RefCell<Self>> {
-        let child = Rc::new(RefCell::new(Self {
+    pub fn new(parent: Arc<Mutex<DisplayGroup<C, D>>>, aria: Rectangle) -> Arc<Mutex<Self>> {
+        let child = Arc::new(Mutex::new(Self {
             parent:parent.clone(),
             aria,
             is_active: false,
-            on_activate: None,
+            // on_activate: None,
         }));
-        parent.borrow_mut().logical_displays.push(child.clone());
+        parent.lock().unwrap().logical_displays.push(child.clone());
         child
     }
 }
@@ -63,12 +63,11 @@ where
         }
 
         let parent_ref = self.parent.clone();
-        let parent = parent_ref.borrow();
-        let mut phy_display = parent.physical_display.borrow_mut();
+        let parent = parent_ref.lock().unwrap();
+        let mut phy_display = parent.physical_display.lock().unwrap();
 
         let origin = self.aria.top_left;
-        
-        phy_display.draw_iter(pixels.into_iter().map(|mut p| {
+        phy_display.draw_iter(pixels.into_iter().map(move |mut p| {
             p.0 += origin;
             p
         }))
@@ -80,8 +79,8 @@ where
     C: PixelColor,
     D: DrawTarget<Color = C>,
 {
-    physical_display: Rc<RefCell<D>>,
-    logical_displays: Vec<Rc<RefCell<LogicalDisplay<C, D>>>>,
+    physical_display: Arc<Mutex<D>>,
+    logical_displays: Vec<Arc<Mutex<LogicalDisplay<C, D>>>>,
     current_active_display: isize,
 }
 
@@ -90,7 +89,7 @@ where
     C: PixelColor,
     D: DrawTarget<Color = C>,
 {
-    pub fn new(physical_display: Rc<RefCell<D>>, initial_logical_display_capacity: usize) -> Self {
+    pub fn new(physical_display: Arc<Mutex<D>>, initial_logical_display_capacity: usize) -> Self {
         Self {
             physical_display,
             logical_displays: Vec::with_capacity(initial_logical_display_capacity),
@@ -102,19 +101,19 @@ where
         self.current_active_display
     }
 
-    pub fn switch_to_logical_display(&mut self, index: isize) -> Rc<RefCell<LogicalDisplay<C, D>>> {
+    pub fn switch_to_logical_display(&mut self, index: isize) -> Arc<Mutex<LogicalDisplay<C, D>>> {
         if index < 0 || index >= self.logical_displays.len() as isize {
             panic!("index out of range");
         }
         if self.current_active_display != -1 {
             let old_display_ref = &self.logical_displays[self.current_active_display as usize];
-            let mut old_display = old_display_ref.borrow_mut();
+            let mut old_display = old_display_ref.lock().unwrap();
             old_display.is_active = false;
         }
 
         self.current_active_display = index;
         let new_display_ref = &self.logical_displays[self.current_active_display as usize];
-        let mut new_display = new_display_ref.borrow_mut();
+        let mut new_display = new_display_ref.lock().unwrap();
         new_display.is_active = true;
         info!("switch to logical display {}", index);
         new_display_ref.clone()

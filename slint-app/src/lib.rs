@@ -1,3 +1,8 @@
+use embedded_graphics::{
+    draw_target::DrawTarget,
+    pixelcolor::{PixelColor, Rgb888},
+};
+use embedded_graphics_group::DisplayGroup;
 use embedded_svc::{
     http::{
         client::{Client, Connection},
@@ -5,12 +10,12 @@ use embedded_svc::{
     },
     io::Read,
 };
-use log::{debug, info};
-use slint::{Image, Rgb8Pixel, SharedPixelBuffer, Weak};
+use log::{info};
+use slint::{Weak};
 use std::{
-    panic,
+    cell::RefCell,
+    rc::Rc,
     sync::{Arc, Mutex},
-    vec,
 };
 use std::{thread, time::Duration};
 use time::{OffsetDateTime, UtcOffset};
@@ -18,143 +23,87 @@ use time::{OffsetDateTime, UtcOffset};
 mod system;
 pub use system::System;
 
+use crate::photo::PhotoApp;
+mod photo;
+
 slint::include_modules!();
 
-pub struct MyAppDeps<C, S>
+pub trait ColorAdapter: Copy + Clone + Send + Sync {
+    type Color: PixelColor;
+
+    fn rgb888(&self, c: Rgb888) -> Self::Color;
+}
+
+pub struct MyAppDeps<C, S, EGC, EGD, ECA>
 where
-    C: Connection + 'static,
+    C: Connection + 'static + Send,
     S: System + 'static,
+    EGC: PixelColor + 'static,
+    EGD: DrawTarget<Color = EGC> + 'static,
+    ECA: ColorAdapter<Color = EGC>,
 {
     pub http_conn: C,
     pub system: S,
+    pub display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>,
+    pub color_adapter: ECA,
 }
 
-pub struct MyApp<C, S> {
+pub struct MyApp<C, S, EGC, EGD, ECA>
+where
+    C: Connection + 'static + Send,
+    EGC: PixelColor + 'static,
+    EGD: DrawTarget<Color = EGC> + 'static,
+    ECA: ColorAdapter<Color = EGC> + 'static,
+{
     app_window: AppWindow,
     _home_time_timer: slint::Timer,
-    _http_client: Arc<Mutex<force_send_sync::Send<Client<C>>>>,
     _system: S,
+    _http_client: Arc<Mutex<Client<C>>>, // 这个需要多线程传递共享
+    display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>, // 这个需要多线程传递共享
+    color_adapter: ECA,                  // 这个可以多线程传递共享，可以复制，可以克隆
+    photo_app: Rc<RefCell<PhotoApp<C, EGC, EGD, ECA>>>,
 }
 
-impl<C, S> MyApp<C, S>
+impl<C, S, EGC, EGD, ECA> MyApp<C, S, EGC, EGD, ECA>
 where
-    C: Connection + 'static,
+    C: Connection + 'static + Send,
     S: System + 'static,
+    EGC: PixelColor + 'static,
+    EGD: DrawTarget<Color = EGC> + 'static + Send,
+    ECA: ColorAdapter<Color = EGC> + 'static,
 {
-    pub fn new(deps: MyAppDeps<C, S>) -> MyApp<C, S> {
+    pub fn new(deps: MyAppDeps<C, S, EGC, EGD, ECA>) -> MyApp<C, S, EGC, EGD, ECA> {
         let app_window = AppWindow::new().expect("Failed to create AppWindow");
+        let http_client = Arc::new(Mutex::new(Client::wrap(deps.http_conn)));
         let app = MyApp {
             _home_time_timer: Self::start_home_time_timer(app_window.as_weak()),
-            _http_client: Arc::new(Mutex::new(unsafe {
-                force_send_sync::Send::new(Client::wrap(deps.http_conn))
-            })),
+            _http_client: http_client.clone(),
             app_window,
             _system: deps.system,
+            display_group: deps.display_group.clone(),
+            color_adapter: deps.color_adapter,
+            photo_app: Rc::new(RefCell::new(PhotoApp::new(
+                http_client.clone(),
+                deps.display_group.clone(),
+                deps.color_adapter,
+            ))),
         };
-        app.bind_event_on_photo_page_request_next();
-        app.bind_event_on_photo_page_request_auto_play();
+        app.bind_event_photo_app();
         app
     }
 
-    fn bind_event_on_photo_page_request_auto_play(&self) {
-        info!("bind_event_on_photo_page_request_auto_play");
+    fn bind_event_photo_app(&self) {
+        info!("bind_event_photo_app");
         if let Some(ui) = self.app_window.as_weak().upgrade() {
-            let c = self._http_client.clone();
-            let u = ui.as_weak();
-            ui.on_photo_page_request_auto_play(move || {
-                info!("on_photo_page_request_auto_play");
-                if let Some(ui) = u.upgrade() {
-                    ui.set_photo_page_source(Default::default());
-                }
-                let c = c.clone();
-                let u = u.clone();
-                thread::spawn(move || {
-                    let mut client = c.lock().unwrap();
-                    loop {
-                        if let Some(ui) = u.upgrade() {
-                            if !ui.invoke_photo_page_is_auto_play_mode() {
-                                break;
-                            }
-                        }
-                        let req = client
-                            .request(Method::Get, "http://192.168.242.118:3000/api/photo", &[])
-                            .unwrap();
-                        let mut resp = req.submit().unwrap();
-                        let mut byte_buf = [0u8; 2];
-                        resp.read_exact(&mut byte_buf).unwrap();
-                        let width = byte_buf[0] as u32;
-                        let height = byte_buf[1] as u32;
-                        info!("read frame: {}x{}", width, height);
-
-                        // 这一步可能会内存分配失败
-                        let buf = panic::catch_unwind(move || {
-                            SharedPixelBuffer::<Rgb8Pixel>::new(width, height)
-                        });
-                        if buf.is_err() {
-                            info!("SharedPixelBuffer::new failed");
-                            return;
-                        }
-
-                        let mut buf = buf.unwrap();
-                        info!("new SharedPixelBuffer");
-                        resp.read_exact(buf.make_mut_bytes()).unwrap();
-                        info!("read finished");
-
-                        u.upgrade_in_event_loop(|u| {
-                            info!("set_photo_page_source");
-                            u.set_photo_page_source(Image::from_rgb8(buf));
-                        })
-                        .unwrap();
-                        // thread::sleep(Duration::from_secs(5));
-                    }
-                });
+            let photo_app = self.photo_app.clone();
+            ui.on_photo_page_enter(move || {
+                info!("on_photo_page_enter");
+                photo_app.borrow_mut().enter();
             });
-        }
-    }
-
-    fn bind_event_on_photo_page_request_next(&self) {
-        info!("bind_event_on_photo_page_request_next");
-        if let Some(ui) = self.app_window.as_weak().upgrade() {
-            let c = self._http_client.clone();
-            let u = ui.as_weak();
-            ui.on_photo_page_request_next(move || {
-                info!("on_photo_page_request_next");
-                if let Some(ui) = u.upgrade() {
-                    ui.set_photo_page_source(Default::default());
-                }
-                let c = c.clone();
-                let u = u.clone();
-                thread::spawn(move || {
-                    let mut client = c.lock().unwrap();
-                    let req = client
-                        .request(Method::Get, "http://192.168.242.118:3000/api/photo", &[])
-                        .unwrap();
-                    let mut resp = req.submit().unwrap();
-                    let mut byte_buf = [0u8; 2];
-                    resp.read_exact(&mut byte_buf).unwrap();
-                    let width = byte_buf[0] as u32;
-                    let height = byte_buf[1] as u32;
-                    info!("read frame: {}x{}", width, height);
-
-                    // 这一步可能会内存分配失败
-                    let buf = panic::catch_unwind(move || {
-                        SharedPixelBuffer::<Rgb8Pixel>::new(width, height)
-                    });
-                    if buf.is_err() {
-                        info!("SharedPixelBuffer::new failed");
-                        return;
-                    }
-                    let mut buf = buf.unwrap();
-                    info!("new SharedPixelBuffer");
-                    resp.read_exact(buf.make_mut_bytes()).unwrap();
-                    info!("read finished");
-
-                    u.upgrade_in_event_loop(|u| {
-                        info!("set_photo_page_source");
-                        u.set_photo_page_source(Image::from_rgb8(buf));
-                    })
-                    .unwrap();
-                });
+            let photo_app = self.photo_app.clone();
+            ui.on_photo_page_exit(move || {
+                info!("on_photo_page_exit");
+                photo_app.borrow_mut().exit();
             });
         }
     }

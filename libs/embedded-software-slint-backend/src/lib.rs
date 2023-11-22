@@ -17,8 +17,9 @@ use slint::{
 };
 
 use embedded_graphics::{
+    pixelcolor::{raw::RawU16, PixelColor as EmbeddedPixelColor},
     prelude::*,
-    primitives::Rectangle, pixelcolor::{raw::RawU16, PixelColor as EmbeddedPixelColor},
+    primitives::Rectangle,
 };
 
 pub trait PixelColorAdapter<EC, STC>: Default
@@ -32,7 +33,9 @@ where
 #[derive(Default)]
 pub struct RGB888PixelColorAdapter;
 
-impl PixelColorAdapter<embedded_graphics::pixelcolor::Rgb888, slint::Rgb8Pixel> for RGB888PixelColorAdapter {
+impl PixelColorAdapter<embedded_graphics::pixelcolor::Rgb888, slint::Rgb8Pixel>
+    for RGB888PixelColorAdapter
+{
     fn convert(self, pixel: &slint::Rgb8Pixel) -> embedded_graphics::pixelcolor::Rgb888 {
         embedded_graphics::pixelcolor::Rgb888::new(pixel.r, pixel.g, pixel.b)
     }
@@ -41,34 +44,40 @@ impl PixelColorAdapter<embedded_graphics::pixelcolor::Rgb888, slint::Rgb8Pixel> 
 #[derive(Default)]
 pub struct RGB565PixelColorAdapter;
 
-impl PixelColorAdapter<embedded_graphics::pixelcolor::Rgb565, slint::platform::software_renderer::Rgb565Pixel> for RGB565PixelColorAdapter {
-    fn convert(self, pixel: &slint::platform::software_renderer::Rgb565Pixel) -> embedded_graphics::pixelcolor::Rgb565 {
+impl
+    PixelColorAdapter<
+        embedded_graphics::pixelcolor::Rgb565,
+        slint::platform::software_renderer::Rgb565Pixel,
+    > for RGB565PixelColorAdapter
+{
+    fn convert(
+        self,
+        pixel: &slint::platform::software_renderer::Rgb565Pixel,
+    ) -> embedded_graphics::pixelcolor::Rgb565 {
         embedded_graphics::pixelcolor::Rgb565::from(RawU16::from(pixel.0))
     }
 }
 
-struct MyLineBufferProvider<T, EC, STC, PCA>
+struct MyLineBufferProvider<'a, T, EC, STC, PCA>
 where
     T: DrawTarget<Color = EC>,
     EC: EmbeddedPixelColor,
     STC: SlintPixel + Default,
 {
-    display: Rc<RefCell<T>>,
+    display: &'a mut T,
     line_buffer: Vec<STC>,
     _phantom: std::marker::PhantomData<PCA>,
 }
 
-
-
-impl<T, EC, STC, PCA> MyLineBufferProvider<T, EC, STC, PCA>
+impl<'a, T, EC, STC, PCA> MyLineBufferProvider<'a, T, EC, STC, PCA>
 where
     T: DrawTarget<Color = EC>,
     EC: EmbeddedPixelColor,
     STC: SlintPixel + Default,
     PCA: PixelColorAdapter<EC, STC>,
 {
-    pub fn new(display: Rc<RefCell<T>>) -> Self {
-        let width = display.borrow().bounding_box().size.width as usize;
+    pub fn new(display: &'a mut T) -> Self {
+        let width = display.bounding_box().size.width as usize;
         Self {
             display,
             line_buffer: vec![Default::default(); width],
@@ -77,9 +86,7 @@ where
     }
 }
 
-
-
-impl<T, EC, STC, PCA> LineBufferProvider for MyLineBufferProvider<T, EC, STC, PCA>
+impl<T, EC, STC, PCA> LineBufferProvider for MyLineBufferProvider<'_, T, EC, STC, PCA>
 where
     T: DrawTarget<Color = EC>,
     EC: EmbeddedPixelColor,
@@ -100,10 +107,11 @@ where
         );
         render_fn(&mut self.line_buffer[range]);
         self.display
-            .borrow_mut()
             .fill_contiguous(
                 &rect,
-                self.line_buffer.iter().map(|p: &STC| PCA::default().convert(p)),
+                self.line_buffer
+                    .iter()
+                    .map(|p: &STC| PCA::default().convert(p)),
             )
             .map_err(drop)
             .unwrap();
@@ -115,7 +123,7 @@ enum EventQueueElement {
     Invoke(Box<dyn FnOnce() + Send>),
 }
 
-pub struct EmbeddedSoftwarePlatform<T, F, EC, STC, PCA=RGB888PixelColorAdapter>
+pub struct EmbeddedSoftwarePlatform<T, F, EC, STC, PCA = RGB888PixelColorAdapter>
 where
     T: DrawTarget<Color = EC>,
     F: FnMut(bool) -> Result<(), PlatformError> + 'static,
@@ -123,7 +131,7 @@ where
     STC: SlintPixel + Default,
     PCA: PixelColorAdapter<EC, STC>,
 {
-    display: Rc<RefCell<T>>,
+    display: Arc<Mutex<T>>,
     window: Rc<MinimalSoftwareWindow>,
     start_time: std::time::Instant,
     event_loop_callback: Option<Rc<RefCell<F>>>,
@@ -140,7 +148,7 @@ where
     PCA: PixelColorAdapter<EC, STC>,
 {
     pub fn new(
-        display: Rc<RefCell<T>>,
+        display: Arc<Mutex<T>>,
         event_loop_callback: Option<F>,
     ) -> EmbeddedSoftwarePlatform<T, F, EC, STC, PCA> {
         let window = MinimalSoftwareWindow::new(Default::default());
@@ -186,10 +194,13 @@ where
                 thread::sleep(d);
             }
             slint::platform::update_timers_and_animations();
-            let redraw = window.draw_if_needed(|renderer| {
-                let provider = MyLineBufferProvider::<T, EC, STC, PCA>::new(self.display.clone());
-                renderer.render_by_line(provider);
-            });
+            let redraw = {
+                let mut d = self.display.lock().unwrap();
+                window.draw_if_needed(|renderer| {
+                    let provider = MyLineBufferProvider::<T, EC, STC, PCA>::new(&mut *d);
+                    renderer.render_by_line(provider);
+                })
+            };
             if let Some(f) = self.event_loop_callback.clone() {
                 if let Err(e) = f.borrow_mut()(redraw) {
                     error!("Error in event loop callback: {:?}", e);

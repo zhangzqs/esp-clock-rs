@@ -2824,6 +2824,8 @@ dependencies = [
 name = "slint-app"
 version = "0.1.0"
 dependencies = [
+ "embedded-graphics",
+ "embedded-graphics-group",
  "embedded-svc",
  "euclid",
  "force-send-sync",

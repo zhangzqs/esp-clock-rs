@@ -10,7 +10,7 @@ use embedded_graphics_simulator::{
 
 use log::info;
 
-use slint_app::{BootState, MyApp, MyAppDeps};
+use slint_app::{BootState, MyApp, MyAppDeps, ColorAdapter};
 
 use button_driver::{Button, ButtonConfig, PinWrapper};
 use embedded_software_slint_backend::{EmbeddedSoftwarePlatform, RGB888PixelColorAdapter};
@@ -41,30 +41,40 @@ impl slint_app::System for MockSystem {
     }
 }
 
+#[derive(Clone, Copy, Default)]
+struct RGB888ColorAdapter;
 
+impl ColorAdapter for RGB888ColorAdapter {
+    type Color = Rgb888;
+    
+    fn rgb888(&self, c: Rgb888) -> Self::Color {
+        c
+    }
+}
 
 fn main() -> anyhow::Result<()> {
     set_var("RUST_LOG", "debug");
     env_logger::init();
     info!("Starting desktop simulator");
 
-    let display = Rc::new(RefCell::new(SimulatorDisplay::<Rgb888>::new(Size::new(240, 240))));
+    let display = Arc::new(Mutex::new(SimulatorDisplay::<Rgb888>::new(Size::new(240, 240))));
     let output_settings = OutputSettingsBuilder::new().build();
     let window = Rc::new(RefCell::new(Window::new(
         "Desktop Simulator",
         &output_settings,
     )));
 
-    let display_group = Rc::new(RefCell::new(DisplayGroup::new(display.clone(), 2)));
+    let display_group = Arc::new(Mutex::new(DisplayGroup::new(display.clone(), 2)));
     let slint_display = LogicalDisplay::new(display_group.clone(), Rectangle{
         top_left: Point::new(0, 0),
         size: Size::new(240, 240),
     });
-    let app_display = LogicalDisplay::new(display_group.clone(), Rectangle{
-        top_left: Point::new(0, 120),
-        size: Size::new(120, 120),
+    LogicalDisplay::new(display_group.clone(), Rectangle{
+        top_left: Point::new(0, 0),
+        size: Size::new(240, 240),
     });
-    display_group.borrow_mut().switch_to_logical_display(0);
+    display_group.lock().unwrap().switch_to_logical_display(0);
+
     let button_state = Rc::new(RefCell::new(false));
     let fps = Rc::new(RefCell::new(0));
     {
@@ -78,9 +88,9 @@ fn main() -> anyhow::Result<()> {
             slint_display_ref,
             Some(Box::new(move |has_redraw| {
                 let mut window = window_update_ref.borrow_mut();
-                let display = display_update_ref.borrow();
+                let display = display_update_ref.lock().unwrap();
+                window.update(&display);
                 if has_redraw {
-                    window.update(&display);
                     *fps_ref.borrow_mut() += 1;
                 }
                 for event in window.events() {
@@ -111,6 +121,8 @@ fn main() -> anyhow::Result<()> {
     let app = MyApp::new(MyAppDeps {
         http_conn: HttpClientAdapterConnection::new(),
         system: MockSystem,
+        display_group: display_group.clone(),
+        color_adapter: RGB888ColorAdapter,
     });
 
     // 分发按键事件
@@ -193,13 +205,13 @@ fn main() -> anyhow::Result<()> {
         },
     );
 
-    let display_group_ref = display_group.clone();
-    let timer = slint::Timer::default();
-    timer.start(slint::TimerMode::Repeated, Duration::from_secs(1), move || {
-        let idx = display_group_ref.borrow().get_current_active_display_index() ^ 1;
-        let display = display_group_ref.borrow_mut().switch_to_logical_display(idx);
-        display.borrow_mut().clear(Rgb888::RED).unwrap();
-    });
+    // let display_group_ref = display_group.clone();
+    // let timer = slint::Timer::default();
+    // timer.start(slint::TimerMode::Repeated, Duration::from_secs(1), move || {
+    //     let idx = display_group_ref.borrow().get_current_active_display_index() ^ 1;
+    //     let display = display_group_ref.borrow_mut().switch_to_logical_display(idx);
+    //     display.borrow_mut().clear(Rgb888::RED).unwrap();
+    // });
 
     app.run().unwrap();
     Ok(())

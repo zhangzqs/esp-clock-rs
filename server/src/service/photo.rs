@@ -12,12 +12,12 @@ impl Photo {
         let bytes = resp.bytes().await.unwrap();
         let img = image::load_from_memory(&bytes.to_vec()).unwrap();
         // 将图片缩放为 240x240
-        let img = img.resize(90, 160, FilterType::Nearest);
+        let img = img.resize(240, 240, FilterType::Nearest);
         let mut bytes = Vec::new();
         // 写入一个字节的宽度和一个字节的高度
         bytes.push(img.width() as u8);
         bytes.push(img.height() as u8);
-        // 依次写入原始图片像素数据，按照RGB5888
+        // 依次写入原始图片像素数据，按照RGB888
         for (_, _, pixel) in img.pixels() {
             bytes.push(pixel.0[0]);
             bytes.push(pixel.0[1]);

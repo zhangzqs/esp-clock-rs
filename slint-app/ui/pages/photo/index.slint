@@ -2,6 +2,7 @@ export component PhotoPage inherits Rectangle {
     in property <image> image-source;
 
     property <bool> auto-play-mode: false;
+    callback enter();
     callback request-next();
     callback request-auto-play();
     callback request-stop-auto-play();
@@ -14,6 +15,11 @@ export component PhotoPage inherits Rectangle {
 
     public function is-auto-play-mode() -> bool {
         return auto-play-mode;
+    }
+
+    // 进入页面
+    public function on-enter() {
+        enter();
     }
 
     // 单击下一张

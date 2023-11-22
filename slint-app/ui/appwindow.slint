@@ -46,11 +46,12 @@ export component AppWindow inherits Window {
         z: 0;
         home-page-time: home-page-time;
         home-page-weather: home-page-weather;
-
         photo-page-source: photo-page-source;
+        photo-page-enter => { photo-page-enter(); }
         photo-page-request-next => { photo-page-request-next(); }
         photo-page-request-auto-play => { photo-page-request-auto-play(); }
         photo-page-request-stop-auto-play => { photo-page-request-stop-auto-play(); }
+        photo-page-exit => { photo-page-exit(); }
     }
     // 设置启动状态
     public function set-boot-state(state: BootState) {
@@ -63,9 +64,11 @@ export component AppWindow inherits Window {
 
     // photo页的相关属性
     in property <image> photo-page-source;
+    callback photo-page-enter();
     callback photo-page-request-next();
     callback photo-page-request-auto-play();
     callback photo-page-request-stop-auto-play();
+    callback photo-page-exit();
     public function photo-page-is-auto-play-mode() -> bool{
         return m.photo-page-is-auto-play-mode();
     }

@@ -16,6 +16,7 @@ use std::{
     cell::RefCell,
     rc::Rc,
     sync::{Arc, Mutex},
+    fmt::Debug,
 };
 use std::{thread, time::Duration};
 use time::{OffsetDateTime, UtcOffset};
@@ -26,53 +27,51 @@ pub use system::System;
 use crate::photo::PhotoApp;
 mod photo;
 
+mod clock;
+use crate::clock::ClockApp;
+
+
 slint::include_modules!();
 
-pub trait ColorAdapter: Copy + Clone + Send + Sync {
-    type Color: PixelColor;
-
-    fn rgb888(&self, c: Rgb888) -> Self::Color;
-}
-
-pub struct MyAppDeps<C, S, EGC, EGD, ECA>
+pub struct MyAppDeps<C, S, EGC, EGD, EGE>
 where
     C: Connection + 'static + Send,
     S: System + 'static,
-    EGC: PixelColor + 'static,
-    EGD: DrawTarget<Color = EGC> + 'static,
-    ECA: ColorAdapter<Color = EGC>,
+    EGC: PixelColor + 'static + From<Rgb888>,
+    EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
+    EGE: Debug + 'static,
+
 {
     pub http_conn: C,
     pub system: S,
     pub display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>,
-    pub color_adapter: ECA,
 }
 
-pub struct MyApp<C, S, EGC, EGD, ECA>
+pub struct MyApp<C, S, EGC, EGD, EGE>
 where
     C: Connection + 'static + Send,
-    EGC: PixelColor + 'static,
-    EGD: DrawTarget<Color = EGC> + 'static,
-    ECA: ColorAdapter<Color = EGC> + 'static,
+    EGC: PixelColor + 'static + From<Rgb888>,
+    EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
+    EGE: Debug,
 {
     app_window: AppWindow,
     _home_time_timer: slint::Timer,
     _system: S,
     _http_client: Arc<Mutex<Client<C>>>, // 这个需要多线程传递共享
     display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>, // 这个需要多线程传递共享
-    color_adapter: ECA,                  // 这个可以多线程传递共享，可以复制，可以克隆
-    photo_app: Rc<RefCell<PhotoApp<C, EGC, EGD, ECA>>>,
+    photo_app: Rc<RefCell<PhotoApp<C, EGC, EGD>>>,
+    clock_app: Rc<RefCell<ClockApp<EGC, EGD, EGE>>>
 }
 
-impl<C, S, EGC, EGD, ECA> MyApp<C, S, EGC, EGD, ECA>
+impl<C, S, EGC, EGD, EGE> MyApp<C, S, EGC, EGD, EGE>
 where
     C: Connection + 'static + Send,
     S: System + 'static,
-    EGC: PixelColor + 'static,
-    EGD: DrawTarget<Color = EGC> + 'static + Send,
-    ECA: ColorAdapter<Color = EGC> + 'static,
+    EGC: PixelColor + 'static + From<Rgb888>,
+    EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
+    EGE: Debug + 'static,
 {
-    pub fn new(deps: MyAppDeps<C, S, EGC, EGD, ECA>) -> MyApp<C, S, EGC, EGD, ECA> {
+    pub fn new(deps: MyAppDeps<C, S, EGC, EGD, EGE>) -> Self {
         debug!("MyApp::new");
         let app_window = AppWindow::new().expect("Failed to create AppWindow");
         debug!("AppWindow created");
@@ -81,7 +80,9 @@ where
         let photo_app = Rc::new(RefCell::new(PhotoApp::new(
             http_client.clone(),
             deps.display_group.clone(),
-            deps.color_adapter,
+        )));
+        let clock_app = Rc::new(RefCell::new(ClockApp::new(
+            deps.display_group.clone(),
         )));
         let app = MyApp {
             _home_time_timer: Self::start_home_time_timer(app_window.as_weak()),
@@ -89,15 +90,15 @@ where
             app_window,
             _system: deps.system,
             display_group: deps.display_group.clone(),
-            color_adapter: deps.color_adapter,
             photo_app,
+            clock_app,
         };
         info!("MyApp created");
-        app.bind_event_photo_app();
+        app.bind_event_app();
         app
     }
 
-    fn bind_event_photo_app(&self) {
+    fn bind_event_app(&self) {
         info!("bind_event_photo_app");
         if let Some(ui) = self.app_window.as_weak().upgrade() {
             let photo_app = self.photo_app.clone();
@@ -106,6 +107,7 @@ where
                 photo_app.borrow_mut().enter();
             });
             let photo_app = self.photo_app.clone();
+
             ui.on_photo_page_exit(move || {
                 info!("on_photo_page_exit");
                 photo_app.borrow_mut().exit();
@@ -124,6 +126,16 @@ where
             ui.on_photo_page_request_stop_auto_play(move || {
                 info!("on_photo_page_request_stop_auto_play");
                 photo_app.borrow_mut().stop_auto_play();
+            });
+            let clock_app = self.clock_app.clone();
+            ui.on_clock_page_enter(move || {
+                info!("on_clock_page_enter");
+                clock_app.borrow_mut().enter();
+            });
+            let clock_app = self.clock_app.clone();
+            ui.on_clock_page_exit(move || {
+                info!("on_clock_page_exit");
+                clock_app.borrow_mut().exit();
             });
         }
     }

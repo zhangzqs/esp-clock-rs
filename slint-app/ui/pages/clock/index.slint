@@ -1,0 +1,16 @@
+export component ClockPage inherits Rectangle {
+    callback enter();
+    callback exit();
+
+    // 进入页面
+    public function on-enter() {
+        enter();
+    }
+
+    // 长按3秒退出
+    public function on-one-button-long-pressed-holding(dur: duration) {
+        if (dur > 3000ms) {
+            exit();
+        }
+    }
+}

@@ -43,6 +43,9 @@ slint = { version = "1.3.0", default-features = false, features = ["compat-1-0",
 slint-app = { path = "../slint-app" }
 button-driver = { git="https://github.com/maxwase/button-driver", features = ["esp", "std"], rev = "refs/pull/3/head" }
 embedded-software-slint-backend = { path="../libs/embedded-software-slint-backend" }
+embedded-graphics-group = { path = "../libs/embedded-graphics-group" }
+force-send-sync = "1.1.0"
+embedded-graphics-framebuf = "0.5.0"
 
 [build-dependencies]
 embuild = "0.31.2"

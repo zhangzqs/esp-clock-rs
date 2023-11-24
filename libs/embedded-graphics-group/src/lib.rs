@@ -5,7 +5,6 @@ use embedded_graphics::{
 };
 use log::info;
 
-// type ActivateCallback = Box<dyn FnMut(usize, usize)>;
 
 pub struct LogicalDisplay<C, D>
 where
@@ -37,6 +36,10 @@ where
         child
     }
 
+    pub fn get_aria(&self) -> Rectangle {
+        self.aria
+    }
+    
     pub fn get_id(&self) -> usize {
         self.id
     }
@@ -79,6 +82,63 @@ where
             p
         }))
     }
+
+    fn fill_contiguous<I>(&mut self, area: &Rectangle, colors: I) -> Result<(), Self::Error>
+    where
+        I: IntoIterator<Item = Self::Color>,
+    {
+        if !self.is_active {
+            return Ok(());
+        }
+
+        let parent_ref = self.parent.clone();
+        let parent = parent_ref.lock().unwrap();
+        let mut phy_display = parent.physical_display.lock().unwrap();
+
+        let origin = self.aria.top_left;
+        // 过滤并填充
+        phy_display.fill_contiguous(
+            &Rectangle::new(
+                origin + area.top_left,
+                area.size,
+            ),
+            colors.into_iter(),
+        )
+    }
+
+    fn fill_solid(&mut self, area: &Rectangle, color: Self::Color) -> Result<(), Self::Error> {
+        if !self.is_active {
+            return Ok(());
+        }
+
+        let parent_ref = self.parent.clone();
+        let parent = parent_ref.lock().unwrap();
+        let mut phy_display = parent.physical_display.lock().unwrap();
+
+        let origin = self.aria.top_left;
+        phy_display.fill_solid(
+            &Rectangle::new(
+                origin + area.top_left,
+                area.size,
+            ),
+            color,
+        )
+    }
+
+    fn clear(&mut self, color: Self::Color) -> Result<(), Self::Error> {
+        if !self.is_active {
+            return Ok(());
+        }
+
+        let parent_ref = self.parent.clone();
+        let parent = parent_ref.lock().unwrap();
+        let mut phy_display = parent.physical_display.lock().unwrap();
+
+        phy_display.clear(color)
+    }
+
+
+
 }
 
 pub struct DisplayGroup<C, D>

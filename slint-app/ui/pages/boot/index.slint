@@ -25,7 +25,7 @@ export component BootPage inherits Rectangle {
         width: i.width;
         height: i.height;
         animate background {
-            duration: 3s;
+            duration: 6s;
             easing: ease-out;
         }
     }
@@ -70,6 +70,9 @@ export component BootPage inherits Rectangle {
             r.background = white-complete-alpha;
         }
         if (state == BootState.Finished) {
+            self.boot-finish();
+        }
+        if (state == BootState.BootFailed) {
             self.boot-finish();
         }
     }

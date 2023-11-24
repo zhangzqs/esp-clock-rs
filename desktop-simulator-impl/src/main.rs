@@ -19,7 +19,7 @@ use embedded_graphics_simulator::{
 
 use log::{info, debug};
 
-use slint_app::{BootState, ColorAdapter, MyApp, MyAppDeps};
+use slint_app::{BootState, MyApp, MyAppDeps};
 
 use button_driver::{Button, ButtonConfig, PinWrapper};
 use embedded_software_slint_backend::{EmbeddedSoftwarePlatform, RGB888PixelColorAdapter};
@@ -46,17 +46,6 @@ impl slint_app::System for MockSystem {
     /// 获取最大连续的可分配块
     fn get_largest_free_block(&self) -> usize {
         0
-    }
-}
-
-#[derive(Clone, Copy, Default)]
-struct RGB888ColorAdapter;
-
-impl ColorAdapter for RGB888ColorAdapter {
-    type Color = Rgb888;
-
-    fn rgb888(&self, c: Rgb888) -> Self::Color {
-        c
     }
 }
 
@@ -103,7 +92,6 @@ fn main() -> anyhow::Result<()> {
         http_conn: HttpClientAdapterConnection::new(),
         system: MockSystem,
         display_group: display_group.clone(),
-        color_adapter: RGB888ColorAdapter,
     });
     info!("app has been created");
 

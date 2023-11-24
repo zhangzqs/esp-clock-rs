@@ -3,9 +3,9 @@ import { HomePage } from "home/index.slint";
 import { MenuPage } from "menu/index.slint";
 import { PhotoPage } from "photo/index.slint";
 import { LEDPage } from "led/index.slint";
-import { Page } from "common/page.slint";
 import { HomeWeatherData, HomeTimeData } from "home/index.slint";
-
+import { ClockPage } from "clock/index.slint";
+import { Page } from "common/page.slint";
 
 export component MultiPage inherits Rectangle {
     property <Page> current-page: Page.Boot;
@@ -65,12 +65,27 @@ export component MultiPage inherits Rectangle {
             current-page = Page.Home;
         }
     }
+
+    callback clock-page-enter();
+    callback clock-page-exit();
+    clock-page := ClockPage {
+        visible: current-page == Page.Clock;
+        enter => { clock-page-enter(); }
+        exit => {
+            clock-page-exit();
+            current-page = Page.Home;
+        }
+    }
+
     menu-page := MenuPage {
         visible: current-page == Page.Menu;
         enter-selected-page(page) => {
             current-page = page;
             if (page == Page.Photo) {
                 photo-page.enter();
+            }
+            if (page == Page.Clock) {
+                clock-page.enter();
             }
         }
     }
@@ -114,6 +129,9 @@ export component MultiPage inherits Rectangle {
         }
         if (current-page == Page.Photo) {
             photo-page.on-one-button-long-pressed-holding(dur);
+        }
+        if (current-page == Page.Clock) {
+            clock-page.on-one-button-long-pressed-holding(dur);
         }
     }
 

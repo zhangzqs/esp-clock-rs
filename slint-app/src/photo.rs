@@ -1,7 +1,7 @@
 use std::{
     sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex, mpsc::{self, Sender},
+        mpsc::{self},
+        Arc, Mutex,
     },
     thread,
     time::Duration,
@@ -10,7 +10,7 @@ use std::{
 use embedded_graphics::{
     draw_target::DrawTarget,
     geometry::{Point, Size},
-    pixelcolor::{PixelColor, Rgb888, RgbColor},
+    pixelcolor::{PixelColor, Rgb888},
     primitives::Rectangle,
 };
 use embedded_svc::{
@@ -18,11 +18,10 @@ use embedded_svc::{
         client::{Client, Connection},
         Method,
     },
-    io::Read,
+    io::{Read},
 };
-use log::{debug, info};
+use log::{debug, info, error};
 
-use crate::ColorAdapter;
 use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
 
 enum PhotoAppEvent {
@@ -32,17 +31,15 @@ enum PhotoAppEvent {
     Exit,
 }
 
-pub struct PhotoApp<C, EGC, EGD, ECA>
+pub struct PhotoApp<C, EGC, EGD>
 where
     C: Connection + 'static + Send,
-    EGC: PixelColor + 'static,
+    EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC> + 'static,
-    ECA: ColorAdapter<Color = EGC> + 'static,
 {
     // 外部传递进来的字段
     client: Arc<Mutex<Client<C>>>,
     display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>,
-    color_adapter: ECA,
 
     // 内部使用字段
     display: Arc<Mutex<LogicalDisplay<EGC, EGD>>>,
@@ -53,17 +50,15 @@ where
     event_receiver: Arc<Mutex<mpsc::Receiver<PhotoAppEvent>>>,
 }
 
-impl<C, EGC, EGD, ECA> PhotoApp<C, EGC, EGD, ECA>
+impl<C, EGC, EGD> PhotoApp<C, EGC, EGD>
 where
     C: Connection + 'static + Send,
-    EGC: PixelColor + 'static,
+    EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC> + 'static + Send,
-    ECA: ColorAdapter<Color = EGC> + 'static,
 {
     pub fn new(
         client: Arc<Mutex<Client<C>>>,
         display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>,
-        color_adapter: ECA,
     ) -> Self {
         let old_display_id = display_group
             .lock()
@@ -78,7 +73,6 @@ where
         let (event_sender, event_receiver) = mpsc::channel();
         Self {
             client,
-            color_adapter,
             old_display_id,
             display_group: display_group.clone(),
             display,
@@ -98,7 +92,6 @@ where
             .switch_to_logical_display(self.new_display_id as isize);
 
         let display_ref = self.display.clone();
-        let color_adapter = self.color_adapter;
         let client_ref = self.client.clone();
         let recv_ref = self.event_receiver.clone();
         self.join_handle = Some(thread::spawn(move || {
@@ -111,9 +104,9 @@ where
                     match event {
                         PhotoAppEvent::Exit => {
                             break;
-                        },
+                        }
                         PhotoAppEvent::Next => {
-                            Self::load_image_to_screen(&mut client, &mut display, color_adapter);
+                            Self::load_image_to_screen(&mut client, &mut display);
                         }
                         PhotoAppEvent::AutoPlay => {
                             auto_play_mode = true;
@@ -124,7 +117,11 @@ where
                     }
                 }
                 if auto_play_mode {
-                    Self::load_image_to_screen(&mut client, &mut display, color_adapter);
+                    if Self::load_image_to_screen(&mut client, &mut display) {
+                        // 加载成功，等待 5s
+                    } else {
+                        error!("load image failed");
+                    }
                 }
                 thread::sleep(Duration::from_millis(20));
             }
@@ -152,7 +149,7 @@ where
         if self.join_handle.is_none() {
             return;
         }
-        
+
         self.event_sender.send(PhotoAppEvent::Exit).unwrap();
         debug!("wait for photo app thread exit");
 
@@ -165,33 +162,41 @@ where
             .switch_to_logical_display(self.old_display_id);
     }
 
-    fn load_image_to_screen(
-        client: &mut Client<C>,
-        display: &mut LogicalDisplay<EGC, EGD>,
-        color_adapter: ECA,
-    ) {
+    fn load_image_to_screen(client: &mut Client<C>, display: &mut LogicalDisplay<EGC, EGD>) -> bool {
         let req = client
-            .request(Method::Get, "http://192.168.242.118:3000/api/photo", &[])
-            .unwrap();
-        let mut resp = req.submit().unwrap();
+            .request(Method::Get, "http://192.168.242.118:3000/api/photo", &[]);
+        if req.is_err() {
+            return false;
+        }
+        let req = req.unwrap();
+        let resp = req.submit();
+        if resp.is_err() {
+            return false;
+        }
+        let mut resp = resp.unwrap();
         let mut byte_buf = [0u8; 2];
-        resp.read_exact(&mut byte_buf).unwrap();
+        if resp.read_exact(&mut byte_buf).is_err() {
+            return false;
+        }
         let width = byte_buf[0] as usize;
         let height = byte_buf[1] as usize;
         info!("read frame: {}x{}", width, height);
 
-        let buf_lines = height / 1;
+        let buf_lines = height / 10;
         let mut line_buf = vec![0u8; width * 3 * buf_lines];
         for i in 0..height / buf_lines {
-            resp.read_exact(&mut line_buf).unwrap();
+            if resp.read_exact(&mut line_buf).is_err() {
+                return false;
+            }
             let rect = &Rectangle {
                 top_left: Point::new(0, i as i32 * buf_lines as i32),
                 size: Size::new(width as u32, buf_lines as u32),
             };
             let colors = line_buf
                 .chunks(3)
-                .map(|rgb| color_adapter.rgb888(Rgb888::new(rgb[0], rgb[1], rgb[2])));
+                .map(|rgb| Rgb888::new(rgb[0], rgb[1], rgb[2]).into());
             _ = display.fill_contiguous(rect, colors);
         }
+        true
     }
 }

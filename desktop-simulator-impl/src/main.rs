@@ -138,19 +138,13 @@ fn main() -> anyhow::Result<()> {
             if button.clicks() > 0 {
                 let clicks = button.clicks();
                 debug!("Clicks: {}", clicks);
-                u.upgrade().map(move |ui| {
-                    ui.invoke_on_one_button_clicks(clicks as i32);
-                });
+                if let Some(ui) = u.upgrade() { ui.invoke_on_one_button_clicks(clicks as i32); }
             } else if let Some(dur) = button.current_holding_time() {
                 debug!("Held for {dur:?}");
-                u.upgrade().map(move |ui| {
-                    ui.invoke_on_one_button_long_pressed_holding(dur.as_millis() as i64);
-                });
+                if let Some(ui) = u.upgrade() { ui.invoke_on_one_button_long_pressed_holding(dur.as_millis() as i64); }
             } else if let Some(dur) = button.held_time() {
                 debug!("Total holding time {dur:?}");
-                u.upgrade().map(move |ui| {
-                    ui.invoke_on_one_button_long_pressed_held(dur.as_millis() as i64);
-                });
+                if let Some(ui) = u.upgrade() { ui.invoke_on_one_button_long_pressed_held(dur.as_millis() as i64); }
             }
             button.reset();
         },
@@ -158,9 +152,7 @@ fn main() -> anyhow::Result<()> {
 
     // 模拟启动过程
     let u = app.get_app_window();
-    u.upgrade().map(|ui| {
-        ui.invoke_set_boot_state(BootState::Booting);
-    });
+    if let Some(ui) = u.upgrade() { ui.invoke_set_boot_state(BootState::Booting); }
     thread::spawn(move || {
         thread::sleep(Duration::from_secs(1));
         u.upgrade_in_event_loop(|ui| {
@@ -186,9 +178,7 @@ fn main() -> anyhow::Result<()> {
         slint::TimerMode::Repeated,
         Duration::from_secs(1),
         move || {
-            ui.upgrade().map(|ui| {
-                ui.set_fps(*fps.borrow());
-            });
+            if let Some(ui) = ui.upgrade() { ui.set_fps(*fps.borrow()); }
             info!("FPS: {}", *fps.borrow());
             *fps.borrow_mut() = 0;
         },

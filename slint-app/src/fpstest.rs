@@ -1,6 +1,5 @@
 use std::{
     fmt::Debug,
-    ops::AddAssign,
     sync::{
         mpsc::{self},
         Arc, Mutex,
@@ -11,16 +10,15 @@ use std::{
 
 use embedded_graphics::{
     draw_target::DrawTarget,
-    geometry::{Point, Size},
-    pixelcolor::{PixelColor, Rgb888, RgbColor},
-    primitives::{Circle, PointsIter, Primitive, PrimitiveStyle, Rectangle},
-    Drawable,
+    geometry::Point,
+    pixelcolor::{PixelColor, Rgb888},
+    primitives::{PointsIter, Rectangle},
 };
 
 use log::{debug, info};
 
 use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
-use time::{Instant, OffsetDateTime, UtcOffset};
+
 
 use crate::hsv::hsv_to_rgb;
 use crate::FPSTestType;

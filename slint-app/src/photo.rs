@@ -4,7 +4,7 @@ use std::{
         Arc, Mutex,
     },
     thread,
-    time::Duration, error, fmt::Debug,
+    time::Duration, error,
 };
 
 use embedded_graphics::{
@@ -18,7 +18,7 @@ use embedded_svc::{
         client::{Client, Connection},
         Method,
     },
-    io::{Read},
+    io::Read,
 };
 use log::{debug, info, error};
 

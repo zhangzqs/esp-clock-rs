@@ -32,9 +32,9 @@ pub fn get_colon_shape() -> [[bool; 4]; 10] {
     ret
 }
 
+#[cfg(test)]
 mod tests {
-    use super::*;
-
+    use super::{get_digist_shape, get_colon_shape};
     const EXPECTED_COLON_SHAPE_DATA: [[u8; 4]; 10] = [
         [0, 0, 0, 0],
         [0, 0, 0, 0],
@@ -184,6 +184,16 @@ mod tests {
                 .collect::<Vec<Vec<bool>>>();
             assert_eq!(actual, expected);
         }
+        // 冒号判定
+        let actual = get_colon_shape()
+            .iter()
+            .map(|x| x.to_vec())
+            .collect::<Vec<Vec<bool>>>();
+        let expected = EXPECTED_COLON_SHAPE_DATA
+            .iter()
+            .map(|x| x.iter().map(|x| *x == 1).collect::<Vec<bool>>())
+            .collect::<Vec<Vec<bool>>>();
+        assert_eq!(actual, expected);
     }
 }
 
@@ -201,14 +211,14 @@ use embedded_graphics::{
     draw_target::DrawTarget,
     geometry::{Point, Size},
     pixelcolor::{PixelColor, Rgb888, RgbColor},
-    primitives::{Circle, PointsIter, Primitive, PrimitiveStyle, Rectangle},
+    primitives::{Circle, Primitive, PrimitiveStyle, Rectangle},
     Drawable,
 };
 
 use log::{debug, info};
 
 use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
-use time::{Instant, OffsetDateTime, UtcOffset};
+use time::{OffsetDateTime, UtcOffset};
 
 use crate::hsv::hsv_to_rgb;
 

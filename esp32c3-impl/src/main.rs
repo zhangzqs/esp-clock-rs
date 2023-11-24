@@ -13,6 +13,7 @@ use esp_idf_hal::{
     ledc::{config::TimerConfig, LedcDriver, LedcTimerDriver},
     prelude::*,
     spi::{config::Config, Dma, SpiDeviceDriver, SpiDriverConfig},
+    task::watchdog,
 };
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
@@ -46,48 +47,6 @@ pub struct MyConfig {
 }
 
 mod connection;
-// struct MyConn<T: Connection>(pub T);
-
-// unsafe impl<T> Send for MyConn<T> {}
-
-// impl<T: Connection> Connection for MyConn<T> {
-//     type Headers = T::Headers;
-
-//     type Read = T::Read;
-
-//     type RawConnectionError = T::RawConnectionError;
-
-//     type RawConnection = T::RawConnection;
-
-//     fn initiate_request<'a>(
-//         &'a mut self,
-//         method: embedded_svc::http::Method,
-//         uri: &'a str,
-//         headers: &'a [(&'a str, &'a str)],
-//     ) -> Result<(), Self::Error> {
-//         self.0.initiate_request(method, uri, headers)
-//     }
-
-//     fn is_request_initiated(&self) -> bool {
-//         todo!()
-//     }
-
-//     fn initiate_response(&mut self) -> Result<(), Self::Error> {
-//         todo!()
-//     }
-
-//     fn is_response_initiated(&self) -> bool {
-//         todo!()
-//     }
-
-//     fn split(&mut self) -> (&Self::Headers, &mut Self::Read) {
-//         todo!()
-//     }
-
-//     fn raw_connection(&mut self) -> Result<&mut Self::RawConnection, Self::Error> {
-//         todo!()
-//     }
-// }
 
 use slint_app::System;
 struct EspSystem;
@@ -114,56 +73,6 @@ impl System for EspSystem {
     }
 }
 
-pub fn hsv_to_rgb(hue: f64, saturation: f64, value: f64) -> (u8, u8, u8) {
-    fn is_between(value: f64, min: f64, max: f64) -> bool {
-        min <= value && value < max
-    }
-
-    check_bounds(hue, saturation, value);
-
-    let c = value * saturation;
-    let h = hue / 60.0;
-    let x = c * (1.0 - ((h % 2.0) - 1.0).abs());
-    let m = value - c;
-
-    let (r, g, b): (f64, f64, f64) = if is_between(h, 0.0, 1.0) {
-        (c, x, 0.0)
-    } else if is_between(h, 1.0, 2.0) {
-        (x, c, 0.0)
-    } else if is_between(h, 2.0, 3.0) {
-        (0.0, c, x)
-    } else if is_between(h, 3.0, 4.0) {
-        (0.0, x, c)
-    } else if is_between(h, 4.0, 5.0) {
-        (x, 0.0, c)
-    } else {
-        (c, 0.0, x)
-    };
-
-    (
-        ((r + m) * 255.0) as u8,
-        ((g + m) * 255.0) as u8,
-        ((b + m) * 255.0) as u8,
-    )
-}
-
-fn check_bounds(hue: f64, saturation: f64, value: f64) {
-    fn panic_bad_params(name: &str, from_value: &str, to_value: &str, supplied: f64) -> ! {
-        panic!(
-            "param {} must be between {} and {} inclusive; was: {}",
-            name, from_value, to_value, supplied
-        )
-    }
-
-    if !(0.0..=360.0).contains(&hue) {
-        panic_bad_params("hue", "0.0", "360.0", hue)
-    } else if !(0.0..=1.0).contains(&saturation) {
-        panic_bad_params("saturation", "0.0", "1.0", saturation)
-    } else if !(0.0..=1.0).contains(&value) {
-        panic_bad_params("value", "0.0", "1.0", value)
-    }
-}
-
 fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
@@ -173,7 +82,6 @@ fn main() -> anyhow::Result<()> {
     info!("start largest free block: {}", sys.get_largest_free_block());
 
     let peripherals = Peripherals::take().unwrap();
-
     // 所有引脚定义
     let btn_pin = PinDriver::input(peripherals.pins.gpio9)?;
     let cs = PinDriver::output(peripherals.pins.gpio5)?;
@@ -235,6 +143,7 @@ fn main() -> anyhow::Result<()> {
             .init(&mut delay, Some(rst))
             .unwrap(),
     ));
+
     let display_group = Arc::new(Mutex::new(DisplayGroup::new(physical_display.clone(), 2)));
 
     info!("display init done");
@@ -457,6 +366,13 @@ fn main() -> anyhow::Result<()> {
     info!("free heap: {}", sys.get_free_heap_size());
     info!("largest free block: {}", sys.get_largest_free_block());
 
-    slint::run_event_loop().map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    // 放到新线程，防止阻塞看门狗
+    thread::Builder::new()
+        .stack_size(8 * 1024)
+        .name("Slint UI".into())
+        .spawn(|| slint::run_event_loop().map_err(|e| anyhow::anyhow!("{:?}", e)))
+        .unwrap()
+        .join()
+        .unwrap();
     Ok(())
 }

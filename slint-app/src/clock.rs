@@ -32,56 +32,6 @@ pub fn get_colon_shape() -> [[bool; 4]; 10] {
     ret
 }
 
-pub fn hsv_to_rgb(hue: f64, saturation: f64, value: f64) -> (u8, u8, u8) {
-    fn is_between(value: f64, min: f64, max: f64) -> bool {
-        min <= value && value < max
-    }
-
-    check_bounds(hue, saturation, value);
-
-    let c = value * saturation;
-    let h = hue / 60.0;
-    let x = c * (1.0 - ((h % 2.0) - 1.0).abs());
-    let m = value - c;
-
-    let (r, g, b): (f64, f64, f64) = if is_between(h, 0.0, 1.0) {
-        (c, x, 0.0)
-    } else if is_between(h, 1.0, 2.0) {
-        (x, c, 0.0)
-    } else if is_between(h, 2.0, 3.0) {
-        (0.0, c, x)
-    } else if is_between(h, 3.0, 4.0) {
-        (0.0, x, c)
-    } else if is_between(h, 4.0, 5.0) {
-        (x, 0.0, c)
-    } else {
-        (c, 0.0, x)
-    };
-
-    (
-        ((r + m) * 255.0) as u8,
-        ((g + m) * 255.0) as u8,
-        ((b + m) * 255.0) as u8,
-    )
-}
-
-fn check_bounds(hue: f64, saturation: f64, value: f64) {
-    fn panic_bad_params(name: &str, from_value: &str, to_value: &str, supplied: f64) -> ! {
-        panic!(
-            "param {} must be between {} and {} inclusive; was: {}",
-            name, from_value, to_value, supplied
-        )
-    }
-
-    if !(0.0..=360.0).contains(&hue) {
-        panic_bad_params("hue", "0.0", "360.0", hue)
-    } else if !(0.0..=1.0).contains(&saturation) {
-        panic_bad_params("saturation", "0.0", "1.0", saturation)
-    } else if !(0.0..=1.0).contains(&value) {
-        panic_bad_params("value", "0.0", "1.0", value)
-    }
-}
-
 mod tests {
     use super::*;
 
@@ -251,7 +201,7 @@ use embedded_graphics::{
     draw_target::DrawTarget,
     geometry::{Point, Size},
     pixelcolor::{PixelColor, Rgb888, RgbColor},
-    primitives::{Circle, Primitive, PrimitiveStyle, Rectangle, PointsIter},
+    primitives::{Circle, PointsIter, Primitive, PrimitiveStyle, Rectangle},
     Drawable,
 };
 
@@ -259,6 +209,8 @@ use log::{debug, info};
 
 use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
 use time::{Instant, OffsetDateTime, UtcOffset};
+
+use crate::hsv::hsv_to_rgb;
 
 enum ClockAppEvent {
     Exit,
@@ -317,7 +269,7 @@ where
     }
 
     pub fn enter(&mut self) {
-        info!("enter nes app");
+        info!("enter clock app");
         // 切换到当前逻辑屏幕
         self.display_group
             .lock()
@@ -327,7 +279,6 @@ where
         let display_ref = self.display.clone();
 
         let recv_ref = self.event_receiver.clone();
-        
 
         self.join_handle = Some(thread::spawn(move || {
             let mut display = display_ref.lock().unwrap();
@@ -337,34 +288,8 @@ where
                 has_init: false,
             };
 
-            let fps = Arc::new(Mutex::new(0));
-            let fps_clone1 = fps.clone();
-            let fps_clone2 = fps.clone();    
-            thread::spawn(move || {
-                loop {
-                    let mut fps = fps_clone1.lock().unwrap();
-                    info!("fps: {}", *fps);
-                    *fps = 0;
-                    drop(fps);
-                    thread::sleep(Duration::from_secs(1));
-                }
-            });
-            let mut hue = 0;
             loop {
-                let mut fps = fps_clone2.lock().unwrap();
-                *fps += 1;
-                drop(fps);
-                hue = (hue + 1)%360;
-                let (r, g, b) = hsv_to_rgb(hue as f64, 1.0, 1.0);
-                let aria = Rectangle {
-                    top_left: Point::new(0, 0),
-                    size: Size::new(240, 240),
-                };
-                // 显示白色表示初始化完成
-                display
-                    .fill_solid(&aria, Rgb888::new(r, g, b).into())
-                    .unwrap();
-                // Self::app_loop(&mut *display, &mut state);
+                Self::app_loop(&mut *display, &mut state);
                 if let Ok(event) = recv.try_recv() {
                     match event {
                         ClockAppEvent::Exit => {
@@ -374,21 +299,21 @@ where
                 }
                 thread::sleep(Duration::from_millis(10));
             }
-            debug!("nes app thread will exit");
+            debug!("clock app thread will exit");
         }));
     }
 
     pub fn exit(&mut self) {
-        info!("exit nes app");
+        info!("exit clock app");
         if self.join_handle.is_none() {
             return;
         }
 
         self.event_sender.send(ClockAppEvent::Exit).unwrap();
-        debug!("wait for nes app thread exit");
+        debug!("wait for clock app thread exit");
 
         self.join_handle.take().unwrap().join().unwrap();
-        debug!("nes app thread exited");
+        debug!("clock app thread exited");
 
         self.display_group
             .lock()
@@ -420,8 +345,8 @@ where
                         )
                         .into_styled(PrimitiveStyle::with_fill({
                             let (r, g, b) = hsv_to_rgb(
-                                360.0 * (dx + x as i32) as f64
-                                    / (display.get_aria().size.width as i32) as f64,
+                                360.0 * (dx + x as i32) as f32
+                                    / (display.get_aria().size.width as i32) as f32,
                                 1.0,
                                 1.0,
                             );
@@ -434,13 +359,15 @@ where
             }
         };
         let clear_digit = |display: &mut LogicalDisplay<EGC, EGD>, dx: i32, dy: i32, gap: i32| {
-            display.fill_solid(
-                &Rectangle::new(
-                    Point::new(dx, dy),
-                    Size::new(7 * gap as u32, 10 * gap as u32),
-                ),
-                Rgb888::BLACK.into(),
-            ).unwrap();
+            display
+                .fill_solid(
+                    &Rectangle::new(
+                        Point::new(dx, dy),
+                        Size::new(7 * gap as u32, 10 * gap as u32),
+                    ),
+                    Rgb888::BLACK.into(),
+                )
+                .unwrap();
         };
 
         let single_digist_width = 38;
@@ -451,7 +378,14 @@ where
             display.clear(Rgb888::BLACK.into()).unwrap();
 
             for i in 0..6 {
-                draw_digist(display, state.digist_cache[i], single_digist_width * i as i32, 100, 2, 5);
+                draw_digist(
+                    display,
+                    state.digist_cache[i],
+                    single_digist_width * i as i32,
+                    100,
+                    2,
+                    5,
+                );
             }
         } else {
             // 局部按需
@@ -459,7 +393,14 @@ where
                 if state.digist_cache[i] != [h0, h1, m0, m1, s0, s1][i] {
                     state.digist_cache[i] = [h0, h1, m0, m1, s0, s1][i];
                     clear_digit(display, single_digist_width * i as i32, 100, 5);
-                    draw_digist(display, state.digist_cache[i], single_digist_width * i as i32, 100, 2, 5);
+                    draw_digist(
+                        display,
+                        state.digist_cache[i],
+                        single_digist_width * i as i32,
+                        100,
+                        2,
+                        5,
+                    );
                 }
             }
         }

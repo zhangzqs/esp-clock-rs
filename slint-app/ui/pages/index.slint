@@ -6,6 +6,7 @@ import { LEDPage } from "led/index.slint";
 import { HomeWeatherData, HomeTimeData } from "home/index.slint";
 import { ClockPage } from "clock/index.slint";
 import { Page } from "common/page.slint";
+import { FPSTestPage, FPSTestType } from "fpstest/index.slint";
 
 export component MultiPage inherits Rectangle {
     property <Page> current-page: Page.Boot;
@@ -36,7 +37,6 @@ export component MultiPage inherits Rectangle {
     }
 
     // ImagePage
-    in property <image> photo-page-source;
     callback photo-page-enter();
     callback photo-page-request-next();
     callback photo-page-request-auto-play();
@@ -44,7 +44,6 @@ export component MultiPage inherits Rectangle {
     callback photo-page-exit();
     photo-page := PhotoPage {
         visible: current-page == Page.Photo;
-        image-source: photo-page-source;
         enter => { photo-page-enter(); }
         request-next => { photo-page-request-next(); }
         request-auto-play => { photo-page-request-auto-play(); }
@@ -77,62 +76,52 @@ export component MultiPage inherits Rectangle {
         }
     }
 
+    callback fpstest-page-enter();
+    callback fpstest-page-exit();
+    callback fpstest-page-update-type(FPSTestType);
+    fpstest-page := FPSTestPage {
+        visible: current-page == Page.FPSTest;
+        enter => { fpstest-page-enter(); }
+        exit => {
+            fpstest-page-exit();
+            current-page = Page.Home;
+        }
+        update-type(t) => { fpstest-page-update-type(t); }
+    }
+
     menu-page := MenuPage {
         visible: current-page == Page.Menu;
         enter-selected-page(page) => {
             current-page = page;
-            if (page == Page.Photo) {
-                photo-page.enter();
-            }
-            if (page == Page.Clock) {
-                clock-page.enter();
-            }
+            if (page == Page.Photo) { photo-page.enter(); }
+            if (page == Page.Clock) { clock-page.enter(); }
+            if (page == Page.FPSTest) { fpstest-page.enter(); }
         }
     }
 
     public function on-one-button-click() {
-        if (current-page == Page.Home) {
-            home-page.on-one-button-click();
-        }
-        if (current-page == Page.Menu) {
-            menu-page.on-one-button-click();
-        }
-        if (current-page == Page.Photo) {
-            photo-page.on-one-button-click();
-        }
-        if (current-page == Page.LED) {
-            led-page.on-one-button-click();
-        }
+        if (current-page == Page.Home) { home-page.on-one-button-click(); }
+        if (current-page == Page.Menu) { menu-page.on-one-button-click(); }
+        if (current-page == Page.Photo) { photo-page.on-one-button-click(); }
+        if (current-page == Page.LED) { led-page.on-one-button-click(); }
+        if (current-page == Page.FPSTest) { fpstest-page.on-one-button-click(); }
     }
 
     public function on-one-button-double-click() {
-        if (current-page == Page.Menu) {
-            menu-page.on-one-button-double-click();
-        }
-        if (current-page == Page.Photo) {
-            photo-page.on-one-button-double-click();
-        }
-        if (current-page == Page.LED) {
-            led-page.on-one-button-double-click();
-        }
+        if (current-page == Page.Menu) { menu-page.on-one-button-double-click(); }
+        if (current-page == Page.Photo) { photo-page.on-one-button-double-click(); }
+        if (current-page == Page.LED) { led-page.on-one-button-double-click(); }
     }
 
     public function on-one-button-triple-click() {
-        if (current-page == Page.LED) {
-            led-page.on-one-button-triple-click();
-        }
+        if (current-page == Page.LED) { led-page.on-one-button-triple-click(); }
     }
 
     public function on-one-button-long-pressed-holding(dur: duration) {
-        if (current-page == Page.LED) {
-            led-page.on-one-button-long-pressed-holding(dur);
-        }
-        if (current-page == Page.Photo) {
-            photo-page.on-one-button-long-pressed-holding(dur);
-        }
-        if (current-page == Page.Clock) {
-            clock-page.on-one-button-long-pressed-holding(dur);
-        }
+        if (current-page == Page.LED) { led-page.on-one-button-long-pressed-holding(dur); }
+        if (current-page == Page.Photo) { photo-page.on-one-button-long-pressed-holding(dur); }
+        if (current-page == Page.Clock) { clock-page.on-one-button-long-pressed-holding(dur); }
+        if (current-page == Page.FPSTest) { fpstest-page.on-one-button-long-pressed-holding(dur); }
     }
 
     public function on-one-button-long-pressed-held(dur: duration) {

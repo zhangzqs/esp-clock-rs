@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::io::Read;
 use std::str::FromStr;
 
@@ -98,6 +99,24 @@ impl From<reqwest::Error> for HttpClientAdapterConnectionError {
 impl embedded_io::Error for HttpClientAdapterConnectionError {
     fn kind(&self) -> embedded_io::ErrorKind {
         embedded_io::ErrorKind::Other
+    }
+}
+
+impl std::fmt::Display for HttpClientAdapterConnectionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HttpClientAdapterConnectionError::ReqwestError(e) => e.fmt(f),
+            HttpClientAdapterConnectionError::Other(e) => e.fmt(f),
+        }
+    }
+}
+
+impl Error for HttpClientAdapterConnectionError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::ReqwestError(e) => Some(e),
+            Self::Other(e) => Some(e.as_ref()),
+        }
     }
 }
 

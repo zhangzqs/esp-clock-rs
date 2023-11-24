@@ -209,13 +209,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     let app = slint_app::MyApp::new(slint_app::MyAppDeps {
-        http_conn: {
-            let conn = EspHttpConnection::new(&esp_idf_svc::http::client::Configuration {
-                timeout: Some(Duration::from_secs(3)),
-                ..Default::default()
-            })?;
-            connection::SendConnection(conn)
-        },
+        http_conn: connection::MyConnection::new(),
         system: EspSystem,
         display_group: display_group,
     });
@@ -326,40 +320,24 @@ fn main() -> anyhow::Result<()> {
     info!("free heap: {}", sys.get_free_heap_size());
     info!("largest free block: {}", sys.get_largest_free_block());
 
-    // fps计数器
+    // 性能监视器
     let u = app.get_app_window();
-    let frame_timer = slint::Timer::default();
-    frame_timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_secs(1),
-        move || {
-            info!("fps: {}", *fps.borrow());
-            u.upgrade().map(|ui| {
-                ui.set_fps(*fps.borrow());
-            });
-            *fps.borrow_mut() = 0;
-        },
-    );
-    info!("fps timer init done");
-    info!("free heap: {}", sys.get_free_heap_size());
-    info!("largest free block: {}", sys.get_largest_free_block());
-
-    let u = app.get_app_window();
-    let free_mem_timer = slint::Timer::default();
-    free_mem_timer.start(
+    let perf_timer = slint::Timer::default();
+    perf_timer.start(
         slint::TimerMode::Repeated,
         Duration::from_secs(1),
         move || {
             let sys = EspSystem;
             let free = sys.get_free_heap_size();
             let largest = sys.get_largest_free_block();
+            let fps_ref = fps.clone();
             u.upgrade().map(move |ui| {
                 ui.set_memory(free as i32);
                 ui.set_largest_free_block(largest as i32);
+                ui.set_fps(*fps_ref.borrow());
             });
-            info!("memory timer");
-            info!("free heap: {}", free);
-            info!("largest free block: {}", sys.get_largest_free_block());
+            let fps_ref = fps.clone();
+            *fps_ref.borrow_mut() = 0;
         },
     );
     info!("free mem timer init done");
@@ -373,6 +351,7 @@ fn main() -> anyhow::Result<()> {
         .spawn(|| slint::run_event_loop().map_err(|e| anyhow::anyhow!("{:?}", e)))
         .unwrap()
         .join()
+        .unwrap()
         .unwrap();
     Ok(())
 }

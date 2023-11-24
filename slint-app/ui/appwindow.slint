@@ -2,6 +2,7 @@ import { MultiPage } from "pages/index.slint";
 import { BootState } from "pages/boot/index.slint";
 import { HomeWeatherData, HomeTimeData } from "pages/home/index.slint";
 import "fonts/microsoft-yahei.ttf";
+import { FPSTestType } from "pages/fpstest/index.slint";
 
 
 export component AppWindow inherits Window {
@@ -46,7 +47,6 @@ export component AppWindow inherits Window {
         z: 0;
         home-page-time: home-page-time;
         home-page-weather: home-page-weather;
-        photo-page-source: photo-page-source;
         photo-page-enter => { photo-page-enter(); }
         photo-page-request-next => { photo-page-request-next(); }
         photo-page-request-auto-play => { photo-page-request-auto-play(); }
@@ -54,6 +54,9 @@ export component AppWindow inherits Window {
         photo-page-exit => { photo-page-exit(); }
         clock-page-enter => { clock-page-enter(); }
         clock-page-exit => { clock-page-exit(); }
+        fpstest-page-enter => { fpstest-page-enter(); }
+        fpstest-page-exit => { fpstest-page-exit(); }
+        fpstest-page-update-type(t) => { fpstest-page-update-type(t); }
     }
     // 设置启动状态
     public function set-boot-state(state: BootState) {
@@ -65,19 +68,21 @@ export component AppWindow inherits Window {
     in property <HomeWeatherData> home-page-weather;
 
     // photo页相关
-    in property <image> photo-page-source;
     callback photo-page-enter();
     callback photo-page-request-next();
     callback photo-page-request-auto-play();
     callback photo-page-request-stop-auto-play();
     callback photo-page-exit();
-    public function photo-page-is-auto-play-mode() -> bool{
-        return m.photo-page-is-auto-play-mode();
-    }
 
     // clock页相关
     callback clock-page-enter();
     callback clock-page-exit();
+
+    // fps测试页相关
+    callback fpstest-page-enter();
+    callback fpstest-page-exit();
+    callback fpstest-page-update-type(FPSTestType);
+
 
     // 触发点击事件
     // count: 点击次数

@@ -1,0 +1,47 @@
+
+export enum FPSTestType {
+    // HSV全屏幕渐变
+    HSVFullScreen,
+    // HSV径向渐变
+    HSVRadial1,
+    HSVRadial2,
+    HSVRadial3,
+    HSVRadial4,
+    HSVRadial5,
+}
+
+export component FPSTestPage inherits Rectangle {
+    property <[FPSTestType]> all-type: [
+        FPSTestType.HSVFullScreen,
+        FPSTestType.HSVRadial1,
+        FPSTestType.HSVRadial2,
+        FPSTestType.HSVRadial3,
+        FPSTestType.HSVRadial4,
+        FPSTestType.HSVRadial5,
+    ];
+
+    property <int> current-type-id: 0;
+
+    callback enter();
+    callback exit();
+    callback update-type(FPSTestType);
+
+    // 单击切换
+    public function on-one-button-click() {
+        current-type-id = Math.mod(current-type-id + 1,  all-type.length);
+        self.update-type(all-type[current-type-id]);
+    }
+
+    // 进入页面
+    public function on-enter() {
+        enter();
+        self.update-type(all-type[current-type-id]);
+    }
+
+    // 长按3秒退出
+    public function on-one-button-long-pressed-holding(dur: duration) {
+        if (dur > 3000ms) {
+            exit();
+        }
+    }
+}

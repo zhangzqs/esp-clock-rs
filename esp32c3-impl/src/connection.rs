@@ -1,56 +1,81 @@
+use embedded_svc::http::client::{Connection, Status};
 use embedded_svc::http::Headers;
-use embedded_svc::http::client::{Connection,Status};
-use embedded_svc::io::{ Read, Write};
-use esp_idf_hal::io::ErrorType;
+use embedded_svc::io::{Read, Write};
+use esp_idf_hal::io::{ErrorType, EspIOError};
+use esp_idf_svc::http::client::{Configuration, EspHttpConnection};
+use esp_idf_sys::{EspError, ESP_ERR_HTTP_EAGAIN, ESP_FAIL};
+use log::{debug, error, info, warn};
+use std::result::Result;
+use std::time::Duration;
 
-pub struct SendConnection<T: Connection>(pub T);
+pub struct MyConnection {
+    conn: EspHttpConnection,
+    need_build_new_connection: bool,
+}
 
-unsafe impl<T: Connection> Send for SendConnection<T> {}
+unsafe impl Send for MyConnection {}
 
-impl <T: Connection> Headers for SendConnection<T> {
-    fn header(&self, name: &str) -> Option<&'_ str> {
-        self.0.header(name)
+impl MyConnection {
+    pub fn new() -> Self {
+        Self {
+            conn: Self::build_new_connection(),
+            need_build_new_connection: false,
+        }
+    }
+
+    fn build_new_connection() -> EspHttpConnection {
+        EspHttpConnection::new(&Configuration {
+            timeout: Some(Duration::from_secs(1)),
+            ..Default::default()
+        })
+        .unwrap()
     }
 }
 
-impl<T: Connection> Status for SendConnection<T> {
+impl Headers for MyConnection {
+    fn header(&self, name: &str) -> Option<&'_ str> {
+        self.conn.header(name)
+    }
+}
+
+impl Status for MyConnection {
     fn status(&self) -> u16 {
-        self.0.status()
+        self.conn.status()
     }
 
     fn status_message(&self) -> Option<&'_ str> {
-        self.0.status_message()
+        self.conn.status_message()
     }
 }
 
-impl <T: Connection> ErrorType for SendConnection<T> {
-    type Error = T::Error;
+impl ErrorType for MyConnection {
+    type Error = EspIOError;
 }
 
-impl <T: Connection> Read for SendConnection<T> {
+impl Read for MyConnection {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
-        self.0.read(buf)
+        self.conn.read(buf).map_err(EspIOError)
     }
 }
 
-impl <T: Connection> Write for SendConnection<T> {
+impl Write for MyConnection {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
-        self.0.write(buf)
+        self.conn.write(buf).map_err(EspIOError)
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
-        self.0.flush()
+        self.conn.flush()
     }
 }
 
-impl<T: Connection> Connection for SendConnection<T> {
-    type Headers = T::Headers;
+impl Connection for MyConnection {
+    type Headers = Self;
 
-    type Read = T::Read;
+    type Read = Self;
 
-    type RawConnectionError = T::RawConnectionError;
+    type RawConnectionError = EspIOError;
 
-    type RawConnection = T::RawConnection;
+    type RawConnection = Self;
 
     fn initiate_request<'a>(
         &'a mut self,
@@ -58,26 +83,43 @@ impl<T: Connection> Connection for SendConnection<T> {
         uri: &'a str,
         headers: &'a [(&'a str, &'a str)],
     ) -> Result<(), Self::Error> {
-        self.0.initiate_request(method, uri, headers)
+        if self.need_build_new_connection {
+            self.conn = Self::build_new_connection();
+            self.need_build_new_connection = false;
+        }
+        self.conn
+            .initiate_request(method, uri, headers)
+            .map_err(EspIOError)
     }
 
     fn is_request_initiated(&self) -> bool {
-        self.0.is_request_initiated()
+        self.conn.is_request_initiated()
     }
 
     fn initiate_response(&mut self) -> Result<(), Self::Error> {
-        self.0.initiate_response()
+        // 这个函数可能会返回一个timeout error
+        if let Err(e) = self.conn.initiate_response() {
+            error!("Error initiating response: {:?}", e);
+            if e.code() == -ESP_ERR_HTTP_EAGAIN {
+                // timeout error, need to build a new connection
+                self.need_build_new_connection = true;
+            }
+            return Err(EspIOError::from(e));
+        }
+        Ok(())
     }
 
     fn is_response_initiated(&self) -> bool {
-        self.0.is_response_initiated()
+        self.conn.is_response_initiated()
     }
 
     fn split(&mut self) -> (&Self::Headers, &mut Self::Read) {
-        self.0.split()
+        let headers_ptr: *const Self = self as *const _;
+        let headers = unsafe { headers_ptr.as_ref().unwrap() };
+        (headers, self)
     }
 
     fn raw_connection(&mut self) -> Result<&mut Self::RawConnection, Self::Error> {
-        self.0.raw_connection()
+        Err(EspError::from_infallible::<ESP_FAIL>().into())
     }
 }

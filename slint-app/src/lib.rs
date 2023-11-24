@@ -14,9 +14,10 @@ use log::{debug, info};
 use slint::Weak;
 use std::{
     cell::RefCell,
+    error,
+    fmt::Debug,
     rc::Rc,
     sync::{Arc, Mutex},
-    fmt::Debug,
 };
 use std::{thread, time::Duration};
 use time::{OffsetDateTime, UtcOffset};
@@ -30,48 +31,53 @@ mod photo;
 mod clock;
 use crate::clock::ClockApp;
 
+mod fpstest;
+use crate::fpstest::FPSTestApp;
+mod hsv;
 
 slint::include_modules!();
 
-pub struct MyAppDeps<C, S, EGC, EGD, EGE>
+pub struct MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE>
 where
-    C: Connection + 'static + Send,
-    S: System + 'static,
+    CONN: Connection<Error = ConnErr> + 'static + Send,
+    ConnErr: error::Error + 'static,
+    SYS: System + 'static,
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
     EGE: Debug + 'static,
-
 {
-    pub http_conn: C,
-    pub system: S,
+    pub http_conn: CONN,
+    pub system: SYS,
     pub display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>,
 }
 
-pub struct MyApp<C, S, EGC, EGD, EGE>
+pub struct MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE>
 where
-    C: Connection + 'static + Send,
+    CONN: Connection<Error = ConnErr> + 'static + Send,
+    ConnErr: error::Error + 'static,
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
     EGE: Debug,
 {
     app_window: AppWindow,
-    _home_time_timer: slint::Timer,
-    _system: S,
-    _http_client: Arc<Mutex<Client<C>>>, // 这个需要多线程传递共享
-    display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>, // 这个需要多线程传递共享
-    photo_app: Rc<RefCell<PhotoApp<C, EGC, EGD>>>,
-    clock_app: Rc<RefCell<ClockApp<EGC, EGD, EGE>>>
+    home_time_timer: slint::Timer,
+    system: SYS,
+    http_client: Arc<Mutex<Client<CONN>>>, // 这个需要多线程传递共享
+    photo_app: Rc<RefCell<PhotoApp<CONN, ConnErr, EGC, EGD>>>,
+    clock_app: Rc<RefCell<ClockApp<EGC, EGD, EGE>>>,
+    fpstest_app: Rc<RefCell<FPSTestApp<EGC, EGD, EGE>>>,
 }
 
-impl<C, S, EGC, EGD, EGE> MyApp<C, S, EGC, EGD, EGE>
+impl<CONN, ConnErr, SYS, EGC, EGD, EGE> MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE>
 where
-    C: Connection + 'static + Send,
-    S: System + 'static,
+    CONN: Connection<Error = ConnErr> + 'static + Send,
+    ConnErr: error::Error + 'static,
+    SYS: System + 'static,
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
     EGE: Debug + 'static,
 {
-    pub fn new(deps: MyAppDeps<C, S, EGC, EGD, EGE>) -> Self {
+    pub fn new(deps: MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE>) -> Self {
         debug!("MyApp::new");
         let app_window = AppWindow::new().expect("Failed to create AppWindow");
         debug!("AppWindow created");
@@ -81,17 +87,16 @@ where
             http_client.clone(),
             deps.display_group.clone(),
         )));
-        let clock_app = Rc::new(RefCell::new(ClockApp::new(
-            deps.display_group.clone(),
-        )));
+        let clock_app = Rc::new(RefCell::new(ClockApp::new(deps.display_group.clone())));
+        let fpstest_app = Rc::new(RefCell::new(FPSTestApp::new(deps.display_group.clone())));
         let app = MyApp {
-            _home_time_timer: Self::start_home_time_timer(app_window.as_weak()),
-            _http_client: http_client.clone(),
+            home_time_timer: Self::start_home_time_timer(app_window.as_weak()),
+            http_client,
             app_window,
-            _system: deps.system,
-            display_group: deps.display_group.clone(),
+            system: deps.system,
             photo_app,
             clock_app,
+            fpstest_app,
         };
         info!("MyApp created");
         app.bind_event_app();
@@ -137,6 +142,21 @@ where
                 info!("on_clock_page_exit");
                 clock_app.borrow_mut().exit();
             });
+            let fpstest_app = self.fpstest_app.clone();
+            ui.on_fpstest_page_enter(move || {
+                info!("on_fpstest_page_enter");
+                fpstest_app.borrow_mut().enter();
+            });
+            let fpstest_app = self.fpstest_app.clone();
+            ui.on_fpstest_page_exit(move || {
+                info!("on_fpstest_page_exit");
+                fpstest_app.borrow_mut().exit();
+            });
+            let fpstest_app = self.fpstest_app.clone();
+            ui.on_fpstest_page_update_type(move |t| {
+                info!("on_fpstest_page_update_type");
+                fpstest_app.borrow_mut().update_type(t);
+            });
         }
     }
 
@@ -165,7 +185,7 @@ where
 
     fn _update_ip(&self) {
         println!("update_ip");
-        let c = self._http_client.clone();
+        let c = self.http_client.clone();
         let _u = self.app_window.as_weak();
         thread::spawn(move || {
             let mut client = c.lock().unwrap();

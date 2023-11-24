@@ -4,7 +4,7 @@ use std::{
         Arc, Mutex,
     },
     thread,
-    time::Duration,
+    time::Duration, error, fmt::Debug,
 };
 
 use embedded_graphics::{
@@ -31,14 +31,15 @@ enum PhotoAppEvent {
     Exit,
 }
 
-pub struct PhotoApp<C, EGC, EGD>
+pub struct PhotoApp<CONN, ConnErr, EGC, EGD>
 where
-    C: Connection + 'static + Send,
+    CONN: Connection<Error = ConnErr> + 'static + Send,
+    ConnErr: error::Error + 'static,
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC> + 'static,
 {
     // 外部传递进来的字段
-    client: Arc<Mutex<Client<C>>>,
+    client: Arc<Mutex<Client<CONN>>>,
     display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>,
 
     // 内部使用字段
@@ -46,18 +47,19 @@ where
     old_display_id: isize,
     new_display_id: usize,
     join_handle: Option<thread::JoinHandle<()>>,
-    event_sender: mpsc::Sender<PhotoAppEvent>,
+    event_sender: mpsc::SyncSender<PhotoAppEvent>,
     event_receiver: Arc<Mutex<mpsc::Receiver<PhotoAppEvent>>>,
 }
 
-impl<C, EGC, EGD> PhotoApp<C, EGC, EGD>
+impl<CONN, ConnErr, EGC, EGD> PhotoApp<CONN, ConnErr, EGC, EGD>
 where
-    C: Connection + 'static + Send,
+    CONN: Connection<Error = ConnErr> + 'static + Send,
+    ConnErr: error::Error + 'static,
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC> + 'static + Send,
 {
     pub fn new(
-        client: Arc<Mutex<Client<C>>>,
+        client: Arc<Mutex<Client<CONN>>>,
         display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>,
     ) -> Self {
         let old_display_id = display_group
@@ -70,7 +72,7 @@ where
             Rectangle::new(Point::zero(), physical_display_size),
         );
         let new_display_id = display.lock().unwrap().get_id();
-        let (event_sender, event_receiver) = mpsc::channel();
+        let (event_sender, event_receiver) = mpsc::sync_channel(2);
         Self {
             client,
             old_display_id,
@@ -118,12 +120,13 @@ where
                 }
                 if auto_play_mode {
                     if Self::load_image_to_screen(&mut client, &mut display) {
-                        // 加载成功，等待 5s
+                        // 加载成功，等待 2s
+                        thread::sleep(Duration::from_secs(2));
                     } else {
                         error!("load image failed");
                     }
                 }
-                thread::sleep(Duration::from_millis(20));
+                thread::sleep(Duration::from_millis(50));
             }
             debug!("photo app thread will exit");
         }));
@@ -162,30 +165,34 @@ where
             .switch_to_logical_display(self.old_display_id);
     }
 
-    fn load_image_to_screen(client: &mut Client<C>, display: &mut LogicalDisplay<EGC, EGD>) -> bool {
+    fn load_image_to_screen(client: &mut Client<CONN>, display: &mut LogicalDisplay<EGC, EGD>) -> bool {
         let req = client
             .request(Method::Get, "http://192.168.242.118:3000/api/photo", &[]);
-        if req.is_err() {
+        if let Err(e) = req {
+            error!("create request failed: {}", e);
             return false;
         }
         let req = req.unwrap();
         let resp = req.submit();
-        if resp.is_err() {
+        if let Err(e) = resp {
+            error!("submit request failed: {}", e);
             return false;
         }
         let mut resp = resp.unwrap();
         let mut byte_buf = [0u8; 2];
-        if resp.read_exact(&mut byte_buf).is_err() {
+        if let Err(e) = resp.read_exact(&mut byte_buf) {
+            error!("read frame size failed: {}", e);
             return false;
         }
         let width = byte_buf[0] as usize;
         let height = byte_buf[1] as usize;
         info!("read frame: {}x{}", width, height);
 
-        let buf_lines = height / 10;
+        let buf_lines = height / height;
         let mut line_buf = vec![0u8; width * 3 * buf_lines];
         for i in 0..height / buf_lines {
-            if resp.read_exact(&mut line_buf).is_err() {
+            if let Err(e) = resp.read_exact(&mut line_buf) {
+                error!("read frame failed: {}", e);
                 return false;
             }
             let rect = &Rectangle {

@@ -19,7 +19,7 @@ use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
     http::client::EspHttpConnection,
     nvs::{EspDefaultNvsPartition, EspNvs},
-    sntp::{EspSntp, OperatingMode, SntpConf, SyncMode},
+    sntp::{EspSntp, OperatingMode, SntpConf, SyncMode, SyncStatus},
 };
 use esp_idf_sys as _;
 use log::*;
@@ -150,7 +150,6 @@ fn main() -> anyhow::Result<()> {
     info!("free heap: {}", sys.get_free_heap_size());
     info!("largest free block: {}", sys.get_largest_free_block());
 
-    // 连接wifi并NTP校时
     let nvs = EspDefaultNvsPartition::take()?;
     let nvs_a = EspNvs::new(nvs.clone(), "test_ns", true)?;
     let cnt = nvs_a.get_i32("test_key").unwrap().unwrap_or(0);
@@ -217,6 +216,7 @@ fn main() -> anyhow::Result<()> {
     info!("free heap: {}", sys.get_free_heap_size());
     info!("largest free block: {}", sys.get_largest_free_block());
 
+    // 连接wifi并NTP校时
     let sysloop = EspSystemEventLoop::take()?;
     let wifi = Arc::new(Mutex::new(None));
     let sntp = Arc::new(Mutex::new(None));
@@ -267,13 +267,18 @@ fn main() -> anyhow::Result<()> {
             servers: [MY_CONFIG.ntp_server],
             sync_mode: SyncMode::Immediate,
             operating_mode: OperatingMode::Poll,
-        });
+        })
+        .unwrap();
         s1.lock().unwrap().replace(_sntp.unwrap());
         info!("sntp init done");
         info!("free heap: {}", sys.get_free_heap_size());
         info!("largest free block: {}", sys.get_largest_free_block());
 
-        thread::sleep(Duration::from_secs(1));
+        // 等待ntp校时
+        while _sntp.get_sync_status() != SyncStatus::Completed {
+            debug!("wait ntp...");
+            thread::sleep(Duration::from_secs(1));
+        }
         u.upgrade_in_event_loop(|ui| {
             ui.invoke_set_boot_state(BootState::Finished);
         })

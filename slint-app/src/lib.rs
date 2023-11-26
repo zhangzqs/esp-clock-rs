@@ -10,7 +10,7 @@ use embedded_svc::{
     },
     io::Read,
 };
-use embedded_tone::Player;
+use embedded_tone::{AbsulateNotePitch, Player, SlideNote};
 use log::{debug, info};
 use slint::Weak;
 use std::{
@@ -101,37 +101,123 @@ where
         thread::spawn(move || {
             let mut player = player_ref.lock().unwrap();
             use embedded_tone::{
-                Guitar, GuitarString,
-                NoteDuration::{Eighth, Half, HalfDotted, Quarter, Sixteenth, Whole},
+                Guitar,
+                GuitarString::*,
+                NoteDuration::{Eighth, Half, HalfDotted, Quarter, Sixteenth},
+                NoteName::*,
+                Octave::*,
                 Rest,
             };
 
-            let mut guitar = Guitar::default();
+            let mut guitar = Guitar {
+                base: [
+                    AbsulateNotePitch::new(E, O4),
+                    AbsulateNotePitch::new(B, O3),
+                    AbsulateNotePitch::new(G, O3),
+                    AbsulateNotePitch::new(D, O3),
+                    AbsulateNotePitch::new(A, O2),
+                    AbsulateNotePitch::new(E, O2),
+                ],
+                capo_fret: 0,
+            };
 
-            for i in 0..12 {
-                guitar.set_capo_fret(20);
-
-                player.set_beat_duration_from_bpm(240, Quarter);
-                player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Sixteenth));
-                player.play_rest(Rest::new(Sixteenth));
-                player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Sixteenth));
-                player.play_rest(Rest::new(Sixteenth));
-                player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Sixteenth));
-                player.play_rest(Rest::new(Sixteenth));
-                player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Sixteenth));
-                player.play_rest(Rest::new(Sixteenth));
-                player.play_rest(Rest::new(HalfDotted));
-
+            for i in (4..12).step_by(2) {
+                guitar.set_capo_fret(i);
                 player.set_beat_duration_from_bpm(120, Quarter);
-                player.play_note(guitar.to_absulate_note(GuitarString::S5, 0, Eighth));
-                player.play_note(guitar.to_absulate_note(GuitarString::S3, 0, Eighth));
-                player.play_note(guitar.to_absulate_note(GuitarString::S2, 0, Eighth));
-                player.play_note(guitar.to_absulate_note(GuitarString::S3, 0, Eighth));
-                player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Eighth));
-                player.play_note(guitar.to_absulate_note(GuitarString::S3, 0, Eighth));
-                player.play_note(guitar.to_absulate_note(GuitarString::S2, 0, Eighth));
-                player.play_note(guitar.to_absulate_note(GuitarString::S3, 0, Eighth));
+    
+                player.play_slide(SlideNote {
+                    start_pitch: guitar.to_absulate_note_pitch(S3, 2),
+                    end_pitch: guitar.to_absulate_note_pitch(S3, 8),
+                    duration: Quarter,
+                });
+                player.play_slide(SlideNote {
+                    start_pitch: guitar.to_absulate_note_pitch(S3, 2),
+                    end_pitch: guitar.to_absulate_note_pitch(S3, 8),
+                    duration: Quarter,
+                });
+    
+                // 休止停顿
+                player.play_rest(Rest::new(Quarter));
+    
+                player.play_slide(SlideNote {
+                    start_pitch: guitar.to_absulate_note_pitch(S2, 2),
+                    end_pitch: guitar.to_absulate_note_pitch(S2, 10),
+                    duration: Quarter,
+                });
+                player.play_slide(SlideNote {
+                    start_pitch: guitar.to_absulate_note_pitch(S2, 16),
+                    end_pitch: guitar.to_absulate_note_pitch(S2, 0),
+                    duration: Quarter,
+                });
+                player.play_rest(Rest::new(Half));
             }
+
+
+            //     guitar.set_capo_fret(20);
+            //     player.set_beat_duration_from_bpm(240, Quarter);
+            //     player.play_note(guitar.to_absulate_note(S1, 0, Sixteenth));
+            //     player.play_rest(Rest::new(Sixteenth));
+            //     player.play_note(guitar.to_absulate_note(S1, 0, Sixteenth));
+            //     player.play_rest(Rest::new(Sixteenth));
+            //     player.play_note(guitar.to_absulate_note(S1, 0, Sixteenth));
+            //     player.play_rest(Rest::new(Sixteenth));
+            //     player.play_note(guitar.to_absulate_note(S1, 0, Sixteenth));
+            //     player.play_rest(Rest::new(Sixteenth));
+            //     player.play_rest(Rest::new(HalfDotted));
+
+            //     player.set_beat_duration_from_bpm(60, Quarter);
+            //     player.play_note(guitar.to_absulate_note(S5, 0, Eighth));
+            //     player.play_note(guitar.to_absulate_note(S3, 0, Eighth));
+            //     player.play_note(guitar.to_absulate_note(S2, 0, Eighth));
+            //     player.play_note(guitar.to_absulate_note(S3, 0, Eighth));
+            //     player.play_note(guitar.to_absulate_note(S1, 0, Eighth));
+            //     player.play_note(guitar.to_absulate_note(S3, 0, Eighth));
+            //     player.play_note(guitar.to_absulate_note(S2, 0, Eighth));
+            //     player.play_note(guitar.to_absulate_note(S3, 0, Eighth));
+
+            //     for i in 3..12 {
+            //         guitar.set_capo_fret(i);
+            //         player.set_beat_duration_from_bpm(100, Quarter);
+
+            //         player.play_rest(Rest::new(Quarter));
+            //         player.play_slide(SlideNote {
+            //             start_pitch: guitar.to_absulate_note_pitch(S4, 2),
+            //             end_pitch: guitar.to_absulate_note_pitch(S4, 8),
+            //             duration: Quarter,
+            //         });
+            //         player.play_note(guitar.to_absulate_note(S2, 7, Quarter));
+            //         player.play_note(guitar.to_absulate_note(S2, 9, Quarter));
+            //         player.play_note(guitar.to_absulate_note(S2, 11, Half));
+
+            //         player.play_note(guitar.to_absulate_note(S2, 12, Eighth));
+            //         player.play_note(guitar.to_absulate_note(S2, 11, Eighth));
+            //         player.play_note(guitar.to_absulate_note(S2, 9, Half));
+
+            //         player.play_note(guitar.to_absulate_note(S2, 9, Eighth));
+            //         player.play_note(guitar.to_absulate_note(S2, 11, Eighth));
+            //         player.play_note(guitar.to_absulate_note(S2, 9, Quarter));
+            //         player.play_note(guitar.to_absulate_note(S2, 7, Quarter));
+            //         player.play_note(guitar.to_absulate_note(S2, 6, Eighth));
+            //         player.play_note(guitar.to_absulate_note(S2, 7, Eighth));
+
+            //         player.play_note(guitar.to_absulate_note(S2, 6, Quarter));
+            //         player.play_note(guitar.to_absulate_note(S2, 4, Half));
+
+            //         player.play_note(guitar.to_absulate_note(S2, 7, Quarter));
+            //         player.play_note(guitar.to_absulate_note(S2, 9, Quarter));
+            //         player.play_note(guitar.to_absulate_note(S2, 11, Half));
+
+            //         player.play_note(guitar.to_absulate_note(S2, 9, Quarter));
+            //         player.play_note(guitar.to_absulate_note(S2, 7, Eighth));
+            //         player.play_note(guitar.to_absulate_note(S2, 9, Half));
+
+            //         player.play_note(guitar.to_absulate_note(S2, 7, Quarter));
+            //         player.play_note(guitar.to_absulate_note(S2, 6, Quarter));
+            //         player.play_note(guitar.to_absulate_note(S2, 7, Half));
+
+            //         player.play_note(guitar.to_absulate_note(S2, 14, Quarter));
+            //         player.play_note(guitar.to_absulate_note(S2, 14, Quarter));
+            //     }
         });
 
         let app = MyApp {

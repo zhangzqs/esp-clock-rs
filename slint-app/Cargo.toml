@@ -11,9 +11,9 @@ embedded-svc = "0.26.2"
 force-send-sync = "1.1.0"
 tinytga = "0.5.0"
 euclid = "0.22.9" # slint will build error if don't have this
-embedded-graphics-group ={ path = "../libs/embedded-graphics-group" }
+embedded-graphics-group = { path = "../libs/embedded-graphics-group" }
 embedded-graphics = "0.8.1"
-micromath = "2.1.0"
+embedded-tone = { path = "../libs/embedded-tone" }
 
 [build-dependencies]
 slint-build = { version = "1.0.0" }

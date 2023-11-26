@@ -17,3 +17,5 @@ desktop-svc = { path = "../libs/desktop-svc" }
 embedded-software-slint-backend = { path = "../libs/embedded-software-slint-backend" }
 slint-app = { path = "../slint-app" }
 embedded-graphics-group = { path = "../libs/embedded-graphics-group" }
+rodio = "0.17.3"
+embedded-tone = { path = "../libs/embedded-tone" }

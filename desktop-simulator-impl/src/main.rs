@@ -24,6 +24,10 @@ use slint_app::{BootState, MyApp, MyAppDeps};
 use button_driver::{Button, ButtonConfig, PinWrapper};
 use embedded_software_slint_backend::{EmbeddedSoftwarePlatform, RGB888PixelColorAdapter};
 
+use crate::player::RodioPlayer;
+
+mod player;
+
 #[derive(Clone)]
 struct MyButtonPin(Rc<AtomicBool>);
 
@@ -92,6 +96,7 @@ fn main() -> anyhow::Result<()> {
         http_conn: HttpClientAdapterConnection::new(),
         system: MockSystem,
         display_group: display_group.clone(),
+        player: RodioPlayer::new(),
     });
     info!("app has been created");
 

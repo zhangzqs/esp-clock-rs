@@ -94,43 +94,6 @@ fn main() -> anyhow::Result<()> {
     info!("free heap: {}", sys.get_free_heap_size());
     info!("largest free block: {}", sys.get_largest_free_block());
 
-    thread::spawn(move || {
-        let tx = TxRmtDriver::new(
-            peripherals.rmt.channel0,
-            peripherals.pins.gpio0,
-            &TransmitConfig::new().looping(Loop::Endless),
-        )
-        .unwrap();
-        let mut player = EspBeepPlayer::new(tx);
-        player.set_beat_duration_from_bpm(240, Quarter);
-
-        use embedded_tone::{NoteDuration::{Eighth, HalfDotted, Quarter,Half, Sixteenth, Whole}, Guitar, GuitarString, Rest};
-        let mut guitar = Guitar::default();
-
-        for i in 0..12 {
-            guitar.set_capo_fret(20);
-
-            
-            player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Sixteenth));
-            player.play_rest(Rest::new(Sixteenth));
-            player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Sixteenth));
-            player.play_rest(Rest::new(Sixteenth));
-            player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Sixteenth));
-            player.play_rest(Rest::new(Sixteenth));
-            player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Sixteenth));
-            player.play_rest(Rest::new(Sixteenth));
-            player.play_rest(Rest::new(HalfDotted));
-            // player.play_note(guitar.to_absulate_note(GuitarString::S5, 0, Eighth));
-            // player.play_note(guitar.to_absulate_note(GuitarString::S3, 0, Eighth));
-            // player.play_note(guitar.to_absulate_note(GuitarString::S2, 0, Eighth));
-            // player.play_note(guitar.to_absulate_note(GuitarString::S3, 0, Eighth));
-            // player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Eighth));
-            // player.play_note(guitar.to_absulate_note(GuitarString::S3, 0, Eighth));
-            // player.play_note(guitar.to_absulate_note(GuitarString::S2, 0, Eighth));
-            // player.play_note(guitar.to_absulate_note(GuitarString::S3, 0, Eighth));
-        }
-    });
-
     // 初始化ledc控制器
     let mut led = LedcDriver::new(
         peripherals.ledc.channel0,
@@ -235,6 +198,14 @@ fn main() -> anyhow::Result<()> {
         http_conn: connection::MyConnection::new(),
         system: EspSystem,
         display_group: display_group,
+        player: EspBeepPlayer::new(
+            TxRmtDriver::new(
+                peripherals.rmt.channel0,
+                peripherals.pins.gpio0,
+                &TransmitConfig::new().looping(Loop::Endless),
+            )
+            .unwrap(),
+        ),
     });
     info!("slint app init done");
     info!("free heap: {}", sys.get_free_heap_size());
@@ -372,9 +343,9 @@ fn main() -> anyhow::Result<()> {
         .stack_size(8 * 1024)
         .name("Slint UI".into())
         .spawn(|| slint::run_event_loop().map_err(|e| anyhow::anyhow!("{:?}", e)))
-        .unwrap()
-        .join()
-        .unwrap()
         .unwrap();
+    loop {
+        thread::sleep(Duration::from_millis(100));
+    }
     Ok(())
 }

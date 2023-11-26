@@ -2,6 +2,7 @@ use embedded_tone::{NoteDuration, Player};
 use esp_idf_hal::rmt::TxRmtDriver;
 use std::time::Duration;
 use std::thread;
+use esp_idf_hal::rmt::*;
 
 pub struct EspBeepPlayer<'a> {
     beat_duration: std::time::Duration,
@@ -20,8 +21,23 @@ impl<'a> EspBeepPlayer<'a> {
 }
 
 impl<'a> Player for EspBeepPlayer<'a> {
+    fn play_slide(&mut self, slide_note: embedded_tone::SlideNote) {
+    //     let start_freq = slide_note.start_pitch.frequency();
+    //     let end_freq = slide_note.end_pitch.frequency();
+    //     let duration = self.beat_duration.mul_f32(slide_note.duration.into());
+
+    //     let ticks_hz = self.tx.counter_clock().unwrap();
+    //     let ticks_start_count = (ticks_hz.0 as u128 / start_freq as u128 / 2_u128) as u16;
+    //     let ticks_end_count = (ticks_hz.0 as u128 / end_freq as u128 / 2_u128) as u16;
+
+    //     let mut signal = VariableLengthSignal::new();
+    //     (ticks_start_count..=ticks_end_count).step_by(10).for_each(|t| {
+    //         signal.push()
+    //     });
+
+
+    }
     fn play_note(&mut self, note: embedded_tone::Note) {
-        use esp_idf_hal::rmt::*;
         let pitch = note.pitch.frequency();
         let duration = self.beat_duration.mul_f32(note.duration.into());
         // Calculate the frequency for a piezo buzzer.

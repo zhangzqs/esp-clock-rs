@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::note::{Note, NoteDuration, Rest};
+use crate::{note::{Note, NoteDuration, Rest}, SlideNote};
 
 pub trait Player {
     // 每拍的时长
@@ -22,5 +22,8 @@ pub trait Player {
         T: IntoIterator<Item = Note>,
     {
         unimplemented!("play_notes")
+    }
+    fn play_slide(&mut self, slide_note: SlideNote) {
+        unimplemented!("play_slide")
     }
 }

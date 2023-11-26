@@ -10,6 +10,7 @@ use embedded_svc::{
     },
     io::Read,
 };
+use embedded_tone::Player;
 use log::{debug, info};
 use slint::Weak;
 use std::{
@@ -37,7 +38,7 @@ mod hsv;
 
 slint::include_modules!();
 
-pub struct MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE>
+pub struct MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE>
 where
     CONN: Connection<Error = ConnErr> + 'static + Send,
     ConnErr: error::Error + 'static,
@@ -45,19 +46,22 @@ where
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
     EGE: Debug + 'static,
+    TONE: Player + 'static + Send,
 {
     pub http_conn: CONN,
     pub system: SYS,
     pub display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>,
+    pub player: TONE,
 }
 
-pub struct MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE>
+pub struct MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE>
 where
     CONN: Connection<Error = ConnErr> + 'static + Send,
     ConnErr: error::Error + 'static,
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
     EGE: Debug,
+    TONE: Player + 'static + Send,
 {
     app_window: AppWindow,
     home_time_timer: slint::Timer,
@@ -66,9 +70,10 @@ where
     photo_app: Rc<RefCell<PhotoApp<CONN, ConnErr, EGC, EGD>>>,
     clock_app: Rc<RefCell<ClockApp<EGC, EGD, EGE>>>,
     fpstest_app: Rc<RefCell<FPSTestApp<EGC, EGD, EGE>>>,
+    player: Arc<Mutex<TONE>>,
 }
 
-impl<CONN, ConnErr, SYS, EGC, EGD, EGE> MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE>
+impl<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE> MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE>
 where
     CONN: Connection<Error = ConnErr> + 'static + Send,
     ConnErr: error::Error + 'static,
@@ -76,8 +81,9 @@ where
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
     EGE: Debug + 'static,
+    TONE: Player + 'static + Send,
 {
-    pub fn new(deps: MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE>) -> Self {
+    pub fn new(deps: MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE>) -> Self {
         debug!("MyApp::new");
         let app_window = AppWindow::new().expect("Failed to create AppWindow");
         debug!("AppWindow created");
@@ -89,6 +95,45 @@ where
         )));
         let clock_app = Rc::new(RefCell::new(ClockApp::new(deps.display_group.clone())));
         let fpstest_app = Rc::new(RefCell::new(FPSTestApp::new(deps.display_group.clone())));
+        let player = Arc::new(Mutex::new(deps.player));
+
+        let player_ref = player.clone();
+        thread::spawn(move || {
+            let mut player = player_ref.lock().unwrap();
+            use embedded_tone::{
+                Guitar, GuitarString,
+                NoteDuration::{Eighth, Half, HalfDotted, Quarter, Sixteenth, Whole},
+                Rest,
+            };
+
+            let mut guitar = Guitar::default();
+
+            for i in 0..12 {
+                guitar.set_capo_fret(20);
+
+                player.set_beat_duration_from_bpm(240, Quarter);
+                player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Sixteenth));
+                player.play_rest(Rest::new(Sixteenth));
+                player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Sixteenth));
+                player.play_rest(Rest::new(Sixteenth));
+                player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Sixteenth));
+                player.play_rest(Rest::new(Sixteenth));
+                player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Sixteenth));
+                player.play_rest(Rest::new(Sixteenth));
+                player.play_rest(Rest::new(HalfDotted));
+
+                player.set_beat_duration_from_bpm(120, Quarter);
+                player.play_note(guitar.to_absulate_note(GuitarString::S5, 0, Eighth));
+                player.play_note(guitar.to_absulate_note(GuitarString::S3, 0, Eighth));
+                player.play_note(guitar.to_absulate_note(GuitarString::S2, 0, Eighth));
+                player.play_note(guitar.to_absulate_note(GuitarString::S3, 0, Eighth));
+                player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Eighth));
+                player.play_note(guitar.to_absulate_note(GuitarString::S3, 0, Eighth));
+                player.play_note(guitar.to_absulate_note(GuitarString::S2, 0, Eighth));
+                player.play_note(guitar.to_absulate_note(GuitarString::S3, 0, Eighth));
+            }
+        });
+
         let app = MyApp {
             home_time_timer: Self::start_home_time_timer(app_window.as_weak()),
             http_client,
@@ -97,9 +142,11 @@ where
             photo_app,
             clock_app,
             fpstest_app,
+            player,
         };
         info!("MyApp created");
         app.bind_event_app();
+
         app
     }
 

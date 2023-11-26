@@ -140,6 +140,7 @@ pub enum NoteDuration {
     SixtyFourthDotted,
     /// 六十四分音符
     SixtyFourth,
+    Other(f32),
 }
 
 impl From<NoteDuration> for f32 {
@@ -159,6 +160,7 @@ impl From<NoteDuration> for f32 {
             NoteDuration::ThirtySecond => 1.0 / 32.0,
             NoteDuration::SixtyFourthDotted => 3.0 / 128.0,
             NoteDuration::SixtyFourth => 1.0 / 64.0,
+            NoteDuration::Other(x) => x,
         }
     }
 }
@@ -237,4 +239,11 @@ impl Rest {
     pub fn new(duration: NoteDuration) -> Self {
         Rest { duration }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SlideNote {
+    pub start_pitch: AbsulateNotePitch,
+    pub end_pitch: AbsulateNotePitch,
+    pub duration: NoteDuration,
 }

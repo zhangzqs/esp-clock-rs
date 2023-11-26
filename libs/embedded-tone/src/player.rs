@@ -4,22 +4,20 @@ use crate::note::{Note, NoteDuration, Rest};
 
 pub trait Player {
     // 每拍的时长
-    fn new(beat_duration: Duration) -> Self;
+    fn set_beat_duration(&mut self, beat_duration: Duration);
 
     /// bpm: beat per minute
-    fn from_bpm(bpm: u32, note_duration_as_beat: NoteDuration) -> Self
-    where
-        Self: Sized,
-    {
+    fn set_beat_duration_from_bpm(&mut self, bpm: u32, note_duration_as_beat: NoteDuration) {
         // 一分钟有60秒
         // 以给定的音符时值为一拍
         // 一拍的时长为60/bpm秒
         let d: f32 = note_duration_as_beat.into();
-        Self::new(Duration::from_secs_f32(60.0 / bpm as f32 / d))
+        self.set_beat_duration(Duration::from_secs_f32(60.0 / bpm as f32 / d))
     }
-    fn play_note(&self, note: Note);
-    fn play_rest(&self, rest: Rest);
-    fn play_notes<T>(&self, _notes: T)
+
+    fn play_note(&mut self, note: Note);
+    fn play_rest(&mut self, rest: Rest);
+    fn play_notes<T>(&mut self, _notes: T)
     where
         T: IntoIterator<Item = Note>,
     {

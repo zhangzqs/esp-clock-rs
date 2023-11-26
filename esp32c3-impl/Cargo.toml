@@ -47,6 +47,7 @@ embedded-graphics-group = { path = "../libs/embedded-graphics-group" }
 force-send-sync = "1.1.0"
 embedded-graphics-framebuf = "0.5.0"
 hsv = "0.1.1"
+embedded-tone = { path = "../libs/embedded-tone" }
 
 [build-dependencies]
 embuild = "0.31.2"

@@ -264,6 +264,7 @@ export component TimeWeatherHomePage inherits Rectangle {
 }
 
 export component HomePage inherits Rectangle {
+    background: black;
     in property <HomeTimeData> time: {
         year: 2019,
         month: 1,
@@ -275,21 +276,31 @@ export component HomePage inherits Rectangle {
     };
 
     in property <HomeWeatherData> weather;
+    property <bool> black-screen: false;
 
     callback open-menu();
 
     TimeWeatherHomePage {
+        visible: !black-screen;
         time: time;
         weather: weather;
     }
 
     // 单击进入菜单
     public function on-one-button-click() {
-        open-menu();
+        if (black-screen) {
+            black-screen = false;
+        } else {
+            open-menu();
+        }
     }
 
     public function on-one-button-long-pressed-holding(dur: duration) {
         debug("todo switch home page");
+        if (dur > 2000ms) {
+            black-screen = true;
+        }
+
     }
 
     public function on-one-button-long-pressed-held(dur: duration) {

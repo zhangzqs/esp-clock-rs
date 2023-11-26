@@ -12,6 +12,10 @@ use esp_idf_hal::{
     gpio::{AnyIOPin, PinDriver},
     ledc::{config::TimerConfig, LedcDriver, LedcTimerDriver},
     prelude::*,
+    rmt::{
+        config::{Loop, TransmitConfig},
+        TxRmtDriver,
+    },
     spi::{config::Config, Dma, SpiDeviceDriver, SpiDriverConfig},
     task::watchdog,
 };
@@ -27,13 +31,15 @@ use mipidsi::{Builder, ColorInversion, Orientation};
 
 use slint_app::BootState;
 
+use crate::wifi::connect_to_wifi;
 use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
+use embedded_tone::{Note, Player};
+use esp_idf_hal::rmt::FixedLengthSignal;
+use slint_app::System;
 use std::sync::{atomic::AtomicU16, Mutex};
 use std::time::Duration;
 use std::{cell::RefCell, thread};
 use std::{rc::Rc, sync::Arc};
-
-use crate::wifi::connect_to_wifi;
 
 mod wifi;
 #[toml_cfg::toml_config]
@@ -47,31 +53,12 @@ pub struct MyConfig {
 }
 
 mod connection;
+mod system;
 
-use slint_app::System;
-struct EspSystem;
+use system::EspSystem;
 
-unsafe impl Send for EspSystem {}
-unsafe impl Sync for EspSystem {}
-
-impl System for EspSystem {
-    /// 重启
-    fn restart(&self) {
-        unsafe {
-            esp_idf_sys::esp_restart();
-        }
-    }
-
-    /// 获取剩余可用堆内存，这可能比最大连续的可分配块的值还要大
-    fn get_free_heap_size(&self) -> usize {
-        unsafe { esp_idf_sys::esp_get_free_heap_size() as usize }
-    }
-
-    /// 获取最大连续的可分配块
-    fn get_largest_free_block(&self) -> usize {
-        unsafe { esp_idf_sys::heap_caps_get_largest_free_block(esp_idf_sys::MALLOC_CAP_8BIT) }
-    }
-}
+mod player;
+use player::EspBeepPlayer;
 
 fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();
@@ -106,6 +93,43 @@ fn main() -> anyhow::Result<()> {
     info!("SPI init done");
     info!("free heap: {}", sys.get_free_heap_size());
     info!("largest free block: {}", sys.get_largest_free_block());
+
+    thread::spawn(move || {
+        let tx = TxRmtDriver::new(
+            peripherals.rmt.channel0,
+            peripherals.pins.gpio0,
+            &TransmitConfig::new().looping(Loop::Endless),
+        )
+        .unwrap();
+        let mut player = EspBeepPlayer::new(tx);
+        player.set_beat_duration_from_bpm(240, Quarter);
+
+        use embedded_tone::{NoteDuration::{Eighth, HalfDotted, Quarter,Half, Sixteenth, Whole}, Guitar, GuitarString, Rest};
+        let mut guitar = Guitar::default();
+
+        for i in 0..12 {
+            guitar.set_capo_fret(20);
+
+            
+            player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Sixteenth));
+            player.play_rest(Rest::new(Sixteenth));
+            player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Sixteenth));
+            player.play_rest(Rest::new(Sixteenth));
+            player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Sixteenth));
+            player.play_rest(Rest::new(Sixteenth));
+            player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Sixteenth));
+            player.play_rest(Rest::new(Sixteenth));
+            player.play_rest(Rest::new(HalfDotted));
+            // player.play_note(guitar.to_absulate_note(GuitarString::S5, 0, Eighth));
+            // player.play_note(guitar.to_absulate_note(GuitarString::S3, 0, Eighth));
+            // player.play_note(guitar.to_absulate_note(GuitarString::S2, 0, Eighth));
+            // player.play_note(guitar.to_absulate_note(GuitarString::S3, 0, Eighth));
+            // player.play_note(guitar.to_absulate_note(GuitarString::S1, 0, Eighth));
+            // player.play_note(guitar.to_absulate_note(GuitarString::S3, 0, Eighth));
+            // player.play_note(guitar.to_absulate_note(GuitarString::S2, 0, Eighth));
+            // player.play_note(guitar.to_absulate_note(GuitarString::S3, 0, Eighth));
+        }
+    });
 
     // 初始化ledc控制器
     let mut led = LedcDriver::new(
@@ -267,18 +291,12 @@ fn main() -> anyhow::Result<()> {
             servers: [MY_CONFIG.ntp_server],
             sync_mode: SyncMode::Immediate,
             operating_mode: OperatingMode::Poll,
-        })
-        .unwrap();
+        });
         s1.lock().unwrap().replace(_sntp.unwrap());
         info!("sntp init done");
         info!("free heap: {}", sys.get_free_heap_size());
         info!("largest free block: {}", sys.get_largest_free_block());
 
-        // 等待ntp校时
-        while _sntp.get_sync_status() != SyncStatus::Completed {
-            debug!("wait ntp...");
-            thread::sleep(Duration::from_secs(1));
-        }
         u.upgrade_in_event_loop(|ui| {
             ui.invoke_set_boot_state(BootState::Finished);
         })

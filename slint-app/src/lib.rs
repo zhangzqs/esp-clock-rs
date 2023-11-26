@@ -109,18 +109,8 @@ where
                 Rest,
             };
 
-            let mut guitar = Guitar {
-                base: [
-                    AbsulateNotePitch::new(E, O4),
-                    AbsulateNotePitch::new(B, O3),
-                    AbsulateNotePitch::new(G, O3),
-                    AbsulateNotePitch::new(D, O3),
-                    AbsulateNotePitch::new(A, O2),
-                    AbsulateNotePitch::new(E, O2),
-                ],
-                capo_fret: 0,
-            };
-
+            let mut guitar = Guitar::default();
+            
             for i in (4..12).step_by(2) {
                 guitar.set_capo_fret(i);
                 player.set_beat_duration_from_bpm(120, Quarter);

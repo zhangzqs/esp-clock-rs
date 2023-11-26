@@ -92,6 +92,10 @@ fn main() -> anyhow::Result<()> {
     }
     info!("platform has been set");
 
+    let output_settings = OutputSettingsBuilder::new().build();
+    let mut window = Window::new("Desktop Simulator", &output_settings);
+    info!("window has been created");
+
     let app = MyApp::new(MyAppDeps {
         http_conn: HttpClientAdapterConnection::new(),
         system: MockSystem,
@@ -113,10 +117,6 @@ fn main() -> anyhow::Result<()> {
     
     let u = app.get_app_window();
     let button_event_timer = slint::Timer::default();
-
-    let output_settings = OutputSettingsBuilder::new().build();
-    let mut window = Window::new("Desktop Simulator", &output_settings);
-
     button_event_timer.start(
         slint::TimerMode::Repeated,
         Duration::from_millis(10),

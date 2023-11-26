@@ -1,5 +1,8 @@
-build: pkg/wasm_impl_bg.wasm pkg/wasm_impl.js
+build: 
+	wasm-pack build --debug --target web
+
+release:
 	wasm-pack build --release --target web
 
 run: build
-	cd pkg && python3 -m http.server
+	python3 -m http.server

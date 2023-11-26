@@ -110,7 +110,7 @@ where
             };
 
             let mut guitar = Guitar::default();
-            
+
             for i in (4..12).step_by(2) {
                 guitar.set_capo_fret(i);
                 player.set_beat_duration_from_bpm(120, Quarter);

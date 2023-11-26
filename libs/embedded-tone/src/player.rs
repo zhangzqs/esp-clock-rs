@@ -3,6 +3,7 @@ use std::time::Duration;
 use crate::{note::{Note, NoteDuration, Rest}, SlideNote};
 
 pub trait Player {
+    
     // 每拍的时长
     fn set_beat_duration(&mut self, beat_duration: Duration);
 

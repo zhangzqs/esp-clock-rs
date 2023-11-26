@@ -33,8 +33,8 @@ impl GuitarNote {
 }
 
 pub struct Guitar {
-    base: [AbsulateNotePitch; 6],
-    capo_fret: u8,
+    pub base: [AbsulateNotePitch; 6],
+    pub capo_fret: u8,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -86,6 +86,12 @@ impl Guitar {
 
     pub fn get_capo_fret(&self) -> u8 {
         self.capo_fret
+    }
+
+    pub fn to_absulate_note_pitch(&self, s: GuitarString, fret: u8) -> AbsulateNotePitch {
+        let pitch = GuitarNotePitch::new(self.base[s as usize], fret);
+        let pitch = pitch.to_absulate();
+        pitch.add(self.capo_fret as i32)
     }
 
     pub fn to_absulate_note(&self, s: GuitarString, fret: u8, duration: NoteDuration) -> Note {

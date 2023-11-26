@@ -169,7 +169,7 @@ fn main() -> anyhow::Result<()> {
                     top_left: Point::new(0, 0),
                     size: Size::new(240, 240),
                 },
-                Rgb565::GREEN,
+                Rgb565::WHITE,
             )
             .unwrap();
         let fps_ref = fps.clone();

@@ -33,8 +33,8 @@ impl GuitarNote {
 }
 
 pub struct Guitar {
-    pub base: [AbsulateNotePitch; 6],
-    pub capo_fret: u8,
+    base: [AbsulateNotePitch; 6],
+    capo_fret: u8,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]

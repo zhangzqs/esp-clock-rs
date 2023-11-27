@@ -19,7 +19,7 @@ use embedded_graphics_simulator::{
 
 use log::{info, debug};
 
-use slint_app::{BootState, MyApp, MyAppDeps};
+use slint_app::{BootState, MyApp, MyAppDeps, MockSystem};
 
 use button_driver::{Button, ButtonConfig, PinWrapper};
 use embedded_software_slint_backend::{EmbeddedSoftwarePlatform, RGB888PixelColorAdapter};
@@ -34,22 +34,6 @@ struct MyButtonPin(Rc<AtomicBool>);
 impl PinWrapper for MyButtonPin {
     fn is_high(&self) -> bool {
         self.0.load(Ordering::Relaxed)
-    }
-}
-
-struct MockSystem;
-impl slint_app::System for MockSystem {
-    /// 重启
-    fn restart(&self) {}
-
-    /// 获取剩余可用堆内存，这可能比最大连续的可分配块的值还要大
-    fn get_free_heap_size(&self) -> usize {
-        0
-    }
-
-    /// 获取最大连续的可分配块
-    fn get_largest_free_block(&self) -> usize {
-        0
     }
 }
 

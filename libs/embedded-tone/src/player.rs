@@ -28,3 +28,29 @@ pub trait Player {
         unimplemented!("play_slide")
     }
 }
+
+pub struct MockPlayer {
+    beat_duration: Duration,
+}
+
+impl Default for MockPlayer {
+    fn default() -> Self {
+        Self {
+            beat_duration: Duration::from_secs_f32(0.5),
+        }
+    }
+}
+
+impl Player for MockPlayer {
+    fn set_beat_duration(&mut self, beat_duration: Duration) {
+        self.beat_duration = beat_duration;
+    }
+
+    fn play_note(&mut self, note: Note) {
+        println!("play note: {:?}", note);
+    }
+
+    fn play_rest(&mut self, rest: Rest) {
+        println!("play rest: {:?}", rest);
+    }
+}

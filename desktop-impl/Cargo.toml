@@ -14,3 +14,6 @@ log = "0.4.20"
 button-driver = { version = "0.1.2", features = ["std"] }
 desktop-svc = { path = "../libs/desktop-svc" }
 slint-app = { path = "../slint-app" }
+embedded-graphics = "0.8.1"
+embedded-graphics-group = { path = "../libs/embedded-graphics-group" }
+embedded-tone ={ path = "../libs/embedded-tone" }

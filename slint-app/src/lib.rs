@@ -36,6 +36,8 @@ mod fpstest;
 use crate::fpstest::FPSTestApp;
 mod hsv;
 
+pub use system::MockSystem;
+
 slint::include_modules!();
 
 pub struct MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE>
@@ -114,7 +116,7 @@ where
             for i in (4..12).step_by(2) {
                 guitar.set_capo_fret(i);
                 player.set_beat_duration_from_bpm(120, Quarter);
-    
+
                 player.play_slide(SlideNote {
                     start_pitch: guitar.to_absulate_note_pitch(S3, 2),
                     end_pitch: guitar.to_absulate_note_pitch(S3, 8),
@@ -125,10 +127,10 @@ where
                     end_pitch: guitar.to_absulate_note_pitch(S3, 8),
                     duration: Quarter,
                 });
-    
+
                 // 休止停顿
                 player.play_rest(Rest::new(Quarter));
-    
+
                 player.play_slide(SlideNote {
                     start_pitch: guitar.to_absulate_note_pitch(S2, 2),
                     end_pitch: guitar.to_absulate_note_pitch(S2, 10),
@@ -141,7 +143,6 @@ where
                 });
                 player.play_rest(Rest::new(Half));
             }
-
 
             //     guitar.set_capo_fret(20);
             //     player.set_beat_duration_from_bpm(240, Quarter);
@@ -328,8 +329,11 @@ where
     }
 
     pub fn run(&self) -> Result<(), slint::PlatformError> {
-        slint::run_event_loop()?;
-        Ok(())
+        self.app_window.run()
+    }
+
+    pub fn run_event_loop(&self) -> Result<(), slint::PlatformError> {
+        slint::run_event_loop()
     }
 
     pub fn get_app_window(&self) -> Weak<AppWindow> {

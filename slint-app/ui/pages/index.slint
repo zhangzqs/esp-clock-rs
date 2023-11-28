@@ -7,6 +7,7 @@ import { HomeWeatherData, HomeTimeData } from "home/index.slint";
 import { ClockPage } from "clock/index.slint";
 import { Page } from "common/page.slint";
 import { FPSTestPage, FPSTestType } from "fpstest/index.slint";
+import { ProjectorPage } from "projector/index.slint";
 
 export component MultiPage inherits Rectangle {
     property <Page> current-page: Page.Boot;
@@ -89,13 +90,29 @@ export component MultiPage inherits Rectangle {
         update-type(t) => { fpstest-page-update-type(t); }
     }
 
+    in property <string> projector-page-local-ip;
+    in property <int> projector-page-local-port;
+    callback projector-page-enter();
+    callback projector-page-exit();
+    projector-page := ProjectorPage {
+        visible: current-page == Page.Projector;
+        local-ip: projector-page-local-ip;
+        local-port: projector-page-local-port;
+        enter => { projector-page-enter(); }
+        exit => {
+            projector-page-exit();
+            current-page = Page.Home;
+        }
+    }
+
     menu-page := MenuPage {
         visible: current-page == Page.Menu;
         enter-selected-page(page) => {
             current-page = page;
-            if (page == Page.Photo) { photo-page.enter(); }
-            if (page == Page.Clock) { clock-page.enter(); }
-            if (page == Page.FPSTest) { fpstest-page.enter(); }
+            if (page == Page.Photo) { photo-page.on-enter(); }
+            if (page == Page.Clock) { clock-page.on-enter(); }
+            if (page == Page.FPSTest) { fpstest-page.on-enter(); }
+            if (page == Page.Projector) { projector-page.on-enter(); }
         }
     }
 
@@ -123,6 +140,7 @@ export component MultiPage inherits Rectangle {
         if (current-page == Page.Clock) { clock-page.on-one-button-long-pressed-holding(dur); }
         if (current-page == Page.FPSTest) { fpstest-page.on-one-button-long-pressed-holding(dur); }
         if (current-page == Page.Home) { home-page.on-one-button-long-pressed-holding(dur); }
+        if (current-page == Page.Projector) { projector-page.on-one-button-long-pressed-holding(dur); }
     }
 
     public function on-one-button-long-pressed-held(dur: duration) {

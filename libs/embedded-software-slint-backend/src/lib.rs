@@ -1,6 +1,6 @@
+use core::{cell::RefCell, ops::Range};
+
 use std::{
-    cell::RefCell,
-    ops::Range,
     rc::Rc,
     sync::{Arc, Mutex},
     thread,

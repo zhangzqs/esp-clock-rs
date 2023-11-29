@@ -128,6 +128,7 @@ export component MultiPage inherits Rectangle {
         if (current-page == Page.Menu) { menu-page.on-one-button-double-click(); }
         if (current-page == Page.Photo) { photo-page.on-one-button-double-click(); }
         if (current-page == Page.LED) { led-page.on-one-button-double-click(); }
+        if (current-page == Page.Home ) { home-page.on-one-button-double-click(); }
     }
 
     public function on-one-button-triple-click() {
@@ -139,7 +140,6 @@ export component MultiPage inherits Rectangle {
         if (current-page == Page.Photo) { photo-page.on-one-button-long-pressed-holding(dur); }
         if (current-page == Page.Clock) { clock-page.on-one-button-long-pressed-holding(dur); }
         if (current-page == Page.FPSTest) { fpstest-page.on-one-button-long-pressed-holding(dur); }
-        if (current-page == Page.Home) { home-page.on-one-button-long-pressed-holding(dur); }
         if (current-page == Page.Projector) { projector-page.on-one-button-long-pressed-holding(dur); }
     }
 

@@ -295,15 +295,16 @@ export component HomePage inherits Rectangle {
         }
     }
 
-    public function on-one-button-long-pressed-holding(dur: duration) {
-        debug("todo switch home page");
-        if (dur > 2000ms) {
-            black-screen = true;
-        }
+    // 双击黑屏
+    public function on-one-button-double-click() {
+        black-screen = !black-screen;
+    }
 
+    public function on-one-button-long-pressed-holding(dur: duration) {
+        debug("on-one-button-long-pressed-holding");
     }
 
     public function on-one-button-long-pressed-held(dur: duration) {
-        debug("todo switch home page");
+        debug("on-one-button-long-pressed-held");
     }
 }

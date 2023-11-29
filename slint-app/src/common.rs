@@ -2,7 +2,7 @@ use std::{
     fmt::Debug,
     sync::{
         mpsc::{self},
-        Arc, Mutex, atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
     },
     thread,
     time::Duration,
@@ -25,6 +25,7 @@ use crate::FPSTestType;
 #[derive(Debug, Clone, Copy)]
 enum TestFPSAppEvent {
     UpdateType(FPSTestType),
+    Exit,
 }
 
 pub struct FPSTestApp<EGC, EGD, EGE>
@@ -44,7 +45,6 @@ where
     event_sender: mpsc::Sender<TestFPSAppEvent>,
     event_receiver: Arc<Mutex<mpsc::Receiver<TestFPSAppEvent>>>,
     aria: Rectangle,
-    exit_signal: Arc<AtomicBool>,
 }
 
 impl<EGC, EGD, EGE> FPSTestApp<EGC, EGD, EGE>
@@ -75,7 +75,6 @@ where
             event_sender,
             event_receiver: Arc::new(Mutex::new(event_receiver)),
             aria,
-            exit_signal: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -90,29 +89,53 @@ where
         let display_ref = self.display.clone();
 
         let recv_ref = self.event_receiver.clone();
-        let exit_signal = self.exit_signal.clone();
+
         let aria = self.aria;
         self.join_handle = Some(thread::spawn(move || {
-            exit_signal.store(false, Ordering::SeqCst);
+            let mut display = display_ref.lock().unwrap();
             let recv = recv_ref.lock().unwrap();
+
+            let fps = Arc::new(Mutex::new(0));
+            let fps_exit_signal = Arc::new(Mutex::new(false));
+            let fps_exit_signal_ref = fps_exit_signal.clone();
+            let fps_clone1 = fps.clone();
+            let fps_clone2 = fps.clone();
+            let fps_join_handler = thread::spawn(move || loop {
+                let mut fps = fps_clone1.lock().unwrap();
+                info!("fps: {}", *fps);
+                *fps = 0;
+                drop(fps);
+                thread::sleep(Duration::from_secs(1));
+                if *fps_exit_signal_ref.lock().unwrap() {
+                    break;
+                }
+            });
 
             let mut current_type = FPSTestType::HSVFullScreen;
             let mut cnt = 0;
-            while !exit_signal.load(Ordering::SeqCst) {
-                let mut display = display_ref.lock().unwrap();
-                cnt = (cnt + 1) % 360;
+            loop {
                 if let Ok(event) = recv.try_recv() {
                     info!("get event: {:?}", event);
                     match event {
+                        TestFPSAppEvent::Exit => {
+                            break;
+                        }
                         TestFPSAppEvent::UpdateType(t) => {
                             current_type = t;
                         }
                     }
                 }
+
+                *fps_clone2.lock().unwrap() += 1;
+                cnt = (cnt + 1) % 360;
                 Self::draw_by_type(&mut display, aria, current_type, cnt as f32);
+
+                
                 thread::sleep(Duration::from_millis(10));
             }
             debug!("fps app thread will exit");
+            *fps_exit_signal.lock().unwrap() = true;
+            fps_join_handler.join().unwrap();
         }));
     }
 
@@ -122,7 +145,9 @@ where
             return;
         }
 
-        self.exit_signal.store(true, Ordering::SeqCst);
+        self.event_sender.send(TestFPSAppEvent::Exit).unwrap();
+
+        thread::sleep(Duration::from_secs(5));
         debug!("wait for fpstest app thread exit");
         self.join_handle.take().unwrap().join().unwrap();
         debug!("fpstest app thread exited");
@@ -131,56 +156,5 @@ where
             .lock()
             .unwrap()
             .switch_to_logical_display(self.old_display_id);
-    }
-
-    pub fn update_type(&mut self, t: FPSTestType) {
-        info!("update type to {:?}", t);
-        self.event_sender
-            .send(TestFPSAppEvent::UpdateType(t))
-            .unwrap();
-    }
-
-    fn draw_by_type(
-        display: &mut LogicalDisplay<EGC, EGD>,
-        aria: Rectangle,
-        current_type: FPSTestType,
-        hue: f32,
-    ) {
-        if current_type == FPSTestType::HSVFullScreen {
-            let (r, g, b) = hsv_to_rgb(hue, 1.0, 1.0);
-            display
-                .fill_solid(&aria, Rgb888::new(r, g, b).into())
-                .unwrap();
-        } else {
-            let max_dist = (aria.size.width as f32).hypot(aria.size.height as f32) / 2.0;
-            display
-                .fill_contiguous(
-                    &aria,
-                    aria.points().map(|p| {
-                        let (x, y) = (p - aria.center()).into();
-                        let (x, y) = (x as f32, y as f32);
-                        // 转换为极坐标
-                        let (r, theta) = (x.hypot(y), y.atan2(x));
-                        if theta.is_nan() {
-                            return Rgb888::new(0, 0, 0).into();
-                        }
-                        let mut deg = theta.to_degrees();
-                        if deg < 0.0 {
-                            deg += 360.0;
-                        }
-                        let per = r / max_dist;
-                        let (r, g, b) = match current_type {
-                            FPSTestType::HSVRadial1 => hsv_to_rgb(deg, 1.0, 1.0),
-                            FPSTestType::HSVRadial2 => hsv_to_rgb(deg, per, 1.0),
-                            FPSTestType::HSVRadial3 => hsv_to_rgb(deg, 1.0 - per, 1.0),
-                            FPSTestType::HSVRadial4 => hsv_to_rgb(deg, 1.0, per),
-                            FPSTestType::HSVRadial5 => hsv_to_rgb(deg, 1.0, 1.0 - per),
-                            _ => todo!(),
-                        };
-                        Rgb888::new(r, g, b).into()
-                    }),
-                )
-                .unwrap();
-        }
     }
 }

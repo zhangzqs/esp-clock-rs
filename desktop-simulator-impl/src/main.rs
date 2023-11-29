@@ -17,9 +17,9 @@ use embedded_graphics_simulator::{
     sdl2::Keycode, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
 };
 
-use log::{info, debug};
+use log::{debug, info};
 
-use slint_app::{BootState, MyApp, MyAppDeps, MockSystem};
+use slint_app::{BootState, MockSystem, MyApp, MyAppDeps};
 
 use button_driver::{Button, ButtonConfig, PinWrapper};
 use embedded_software_slint_backend::{EmbeddedSoftwarePlatform, RGB888PixelColorAdapter};
@@ -98,17 +98,20 @@ fn main() -> anyhow::Result<()> {
             ..Default::default()
         },
     );
-    
+
     let u = app.get_app_window();
     let button_event_timer = slint::Timer::default();
     button_event_timer.start(
         slint::TimerMode::Repeated,
         Duration::from_millis(10),
         move || {
-            let physical_display_update_ref = physical_display.clone();
+            {
+                let physical_display_update_ref = physical_display.clone();
+                let display = physical_display_update_ref.lock().unwrap();
+                window.update(&display);
+            }
+
             let button_state_ref = button_state.clone();
-            let display = physical_display_update_ref.lock().unwrap();
-            window.update(&display);
             for event in window.events() {
                 match event {
                     SimulatorEvent::KeyUp { keycode, .. } => match keycode {
@@ -127,13 +130,19 @@ fn main() -> anyhow::Result<()> {
             if button.clicks() > 0 {
                 let clicks = button.clicks();
                 debug!("Clicks: {}", clicks);
-                if let Some(ui) = u.upgrade() { ui.invoke_on_one_button_clicks(clicks as i32); }
+                if let Some(ui) = u.upgrade() {
+                    ui.invoke_on_one_button_clicks(clicks as i32);
+                }
             } else if let Some(dur) = button.current_holding_time() {
                 debug!("Held for {dur:?}");
-                if let Some(ui) = u.upgrade() { ui.invoke_on_one_button_long_pressed_holding(dur.as_millis() as i64); }
+                if let Some(ui) = u.upgrade() {
+                    ui.invoke_on_one_button_long_pressed_holding(dur.as_millis() as i64);
+                }
             } else if let Some(dur) = button.held_time() {
                 debug!("Total holding time {dur:?}");
-                if let Some(ui) = u.upgrade() { ui.invoke_on_one_button_long_pressed_held(dur.as_millis() as i64); }
+                if let Some(ui) = u.upgrade() {
+                    ui.invoke_on_one_button_long_pressed_held(dur.as_millis() as i64);
+                }
             }
             button.reset();
         },
@@ -141,7 +150,9 @@ fn main() -> anyhow::Result<()> {
 
     // 模拟启动过程
     let u = app.get_app_window();
-    if let Some(ui) = u.upgrade() { ui.invoke_set_boot_state(BootState::Booting); }
+    if let Some(ui) = u.upgrade() {
+        ui.invoke_set_boot_state(BootState::Booting);
+    }
     thread::spawn(move || {
         thread::sleep(Duration::from_secs(1));
         u.upgrade_in_event_loop(|ui| {
@@ -167,7 +178,9 @@ fn main() -> anyhow::Result<()> {
         slint::TimerMode::Repeated,
         Duration::from_secs(1),
         move || {
-            if let Some(ui) = ui.upgrade() { ui.set_fps(*fps.borrow()); }
+            if let Some(ui) = ui.upgrade() {
+                ui.set_fps(*fps.borrow());
+            }
             info!("FPS: {}", *fps.borrow());
             *fps.borrow_mut() = 0;
         },

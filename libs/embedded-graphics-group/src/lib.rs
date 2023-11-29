@@ -113,8 +113,8 @@ where
 
         let parent_ref = self.parent.clone();
         let parent = parent_ref.lock().unwrap();
-        let mut phy_display = parent.physical_display.lock().unwrap();
-
+                let mut phy_display = parent.physical_display.lock().unwrap();
+        
         let origin = self.aria.top_left;
         phy_display.fill_solid(
             &Rectangle::new(

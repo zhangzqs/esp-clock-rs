@@ -4,7 +4,7 @@ use embedded_svc::io::{Read, Write};
 use esp_idf_hal::io::{ErrorType, EspIOError};
 use esp_idf_svc::http::client::{Configuration, EspHttpConnection};
 use esp_idf_sys::{EspError, ESP_ERR_HTTP_EAGAIN, ESP_FAIL};
-use log::{debug, error, info, warn};
+use log::error;
 use std::result::Result;
 use std::time::Duration;
 

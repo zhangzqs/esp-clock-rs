@@ -1,5 +1,5 @@
 use slint_app::System;
-use esp_idf_sys;
+
 pub struct EspSystem;
 
 unsafe impl Send for EspSystem {}

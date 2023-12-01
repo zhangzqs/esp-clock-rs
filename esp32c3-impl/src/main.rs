@@ -1,12 +1,8 @@
 use display_interface_spi::SPIInterface;
-use embedded_graphics::{
-    pixelcolor::{Rgb565, Rgb888},
-    prelude::*,
-    primitives::Rectangle,
-};
+use embedded_graphics::{pixelcolor::Rgb565, prelude::*, primitives::Rectangle};
+use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
 use embedded_hal::spi::MODE_3;
 use embedded_software_slint_backend::{EmbeddedSoftwarePlatform, RGB565PixelColorAdapter};
-use embedded_svc::http::client::Connection;
 use esp_idf_hal::{
     delay::FreeRtos,
     gpio::{AnyIOPin, PinDriver},
@@ -17,31 +13,36 @@ use esp_idf_hal::{
         TxRmtDriver,
     },
     spi::{config::Config, Dma, SpiDeviceDriver, SpiDriverConfig},
-    task::watchdog,
 };
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
-    http::client::EspHttpConnection,
     nvs::{EspDefaultNvsPartition, EspNvs},
-    sntp::{EspSntp, OperatingMode, SntpConf, SyncMode, SyncStatus},
+    sntp::{EspSntp, OperatingMode, SntpConf, SyncMode},
 };
 use esp_idf_sys as _;
 use log::*;
 use mipidsi::{Builder, ColorInversion, Orientation};
+use slint_app::{BootState, System};
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
+};
 
-use slint_app::BootState;
-
-use crate::{wifi::connect_to_wifi, led_controller::EspLEDController};
-use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
-use embedded_tone::{Note, Player};
-use esp_idf_hal::rmt::FixedLengthSignal;
-use slint_app::System;
-use std::sync::{atomic::AtomicU16, Mutex};
-use std::time::Duration;
-use std::{cell::RefCell, thread};
-use std::{rc::Rc, sync::Arc};
-
+mod connection;
+mod evil_apple;
+mod led_controller;
+mod player;
+mod system;
 mod wifi;
+
+use crate::{
+    led_controller::EspLEDController, player::EspBeepPlayer, system::EspSystem,
+    wifi::connect_to_wifi,
+};
+
 #[toml_cfg::toml_config]
 pub struct MyConfig {
     #[default("")]
@@ -51,16 +52,6 @@ pub struct MyConfig {
     #[default("ntp.aliyun.com")]
     ntp_server: &'static str,
 }
-
-mod connection;
-mod system;
-
-use system::EspSystem;
-
-mod player;
-use player::EspBeepPlayer;
-mod evil_apple;
-mod led_controller;
 
 fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();
@@ -120,7 +111,7 @@ fn main() -> anyhow::Result<()> {
         .set_duty(screen_ledc.get_max_duty() / 3)
         .unwrap();
 
-    let mut beep_tx = TxRmtDriver::new(
+    let beep_tx = TxRmtDriver::new(
         peripherals.rmt.channel0,
         peripherals.pins.gpio0,
         &TransmitConfig::new().looping(Loop::Endless),
@@ -200,7 +191,7 @@ fn main() -> anyhow::Result<()> {
     let app = slint_app::MyApp::new(slint_app::MyAppDeps {
         http_conn: connection::MyConnection::new(),
         system: EspSystem,
-        display_group: display_group,
+        display_group,
         player: EspBeepPlayer::new(beep_tx),
         eval_apple: evil_apple::EvilAppleBLEImpl,
         screen_brightness_controller: EspLEDController::new(screen_ledc),
@@ -217,9 +208,9 @@ fn main() -> anyhow::Result<()> {
     let w1 = wifi.clone();
     let s1 = sntp.clone();
 
-    app.get_app_window().upgrade().map(|ui| {
+    if let Some(ui) = app.get_app_window().upgrade() {
         ui.invoke_set_boot_state(BootState::Booting);
-    });
+    }
     let u = app.get_app_window();
     thread::Builder::new().stack_size(4096).spawn(move || {
         u.upgrade_in_event_loop(|ui| {

@@ -31,7 +31,7 @@ use mipidsi::{Builder, ColorInversion, Orientation};
 
 use slint_app::BootState;
 
-use crate::wifi::connect_to_wifi;
+use crate::{wifi::connect_to_wifi, led_controller::EspLEDController};
 use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
 use embedded_tone::{Note, Player};
 use esp_idf_hal::rmt::FixedLengthSignal;
@@ -59,6 +59,8 @@ use system::EspSystem;
 
 mod player;
 use player::EspBeepPlayer;
+mod evil_apple;
+mod led_controller;
 
 fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();
@@ -76,25 +78,21 @@ fn main() -> anyhow::Result<()> {
     let rst = PinDriver::output(peripherals.pins.gpio8)?;
 
     // 初始化SPI引脚
-    let mut delay = FreeRtos;
     let spi = SpiDeviceDriver::new_single(
         peripherals.spi2,
         peripherals.pins.gpio6,
         peripherals.pins.gpio7,
         Option::<AnyIOPin>::None,
         Option::<AnyIOPin>::None,
-        &SpiDriverConfig::default().dma(Dma::Auto(128)),
+        &SpiDriverConfig::default().dma(Dma::Auto(4096)),
         &Config::default()
             .baudrate(80.MHz().into())
             .data_mode(MODE_3)
             .write_only(true)
             .queue_size(128),
     )?;
-    info!("SPI init done");
-    info!("free heap: {}", sys.get_free_heap_size());
-    info!("largest free block: {}", sys.get_largest_free_block());
 
-    // 初始化ledc控制器
+    // 设置底部灯为关闭
     let mut led = LedcDriver::new(
         peripherals.ledc.channel0,
         LedcTimerDriver::new(
@@ -105,37 +103,42 @@ fn main() -> anyhow::Result<()> {
         peripherals.pins.gpio2,
     )
     .unwrap();
-    info!("ledc controller init done");
-    info!("free heap: {}", sys.get_free_heap_size());
-    info!("largest free block: {}", sys.get_largest_free_block());
+    led.set_duty(0).unwrap();
 
-    thread::spawn(move || {
-        let max_duty = led.get_max_duty();
-        for numerator in (0..256).chain((0..256).rev()).cycle() {
-            led.set_duty(max_duty * numerator / 256).unwrap();
-            thread::sleep(Duration::from_millis(10));
-        }
-    });
-    info!("ledc controller thread init done");
-    info!("free heap: {}", sys.get_free_heap_size());
-    info!("largest free block: {}", sys.get_largest_free_block());
+    // 设置屏幕背光亮度为33%
+    let mut screen_ledc = LedcDriver::new(
+        peripherals.ledc.channel1,
+        LedcTimerDriver::new(
+            peripherals.ledc.timer1,
+            &TimerConfig::new().frequency(25.kHz().into()),
+        )
+        .unwrap(),
+        peripherals.pins.gpio10,
+    )
+    .unwrap();
+    screen_ledc
+        .set_duty(screen_ledc.get_max_duty() / 3)
+        .unwrap();
+
+    let mut beep_tx = TxRmtDriver::new(
+        peripherals.rmt.channel0,
+        peripherals.pins.gpio0,
+        &TransmitConfig::new().looping(Loop::Endless),
+    )
+    .unwrap();
 
     // 初始化显示屏驱动
-    let mut physical_display = Arc::new(Mutex::new(
+    let physical_display = Arc::new(Mutex::new(
         Builder::st7789(SPIInterface::new(spi, dc, cs))
             .with_display_size(240, 240)
             .with_framebuffer_size(240, 240)
             .with_orientation(Orientation::Portrait(false))
             .with_invert_colors(ColorInversion::Inverted)
-            .init(&mut delay, Some(rst))
+            .init(&mut FreeRtos, Some(rst))
             .unwrap(),
     ));
 
     let display_group = Arc::new(Mutex::new(DisplayGroup::new(physical_display.clone(), 2)));
-
-    info!("display init done");
-    info!("free heap: {}", sys.get_free_heap_size());
-    info!("largest free block: {}", sys.get_largest_free_block());
 
     let nvs = EspDefaultNvsPartition::take()?;
     let nvs_a = EspNvs::new(nvs.clone(), "test_ns", true)?;
@@ -198,14 +201,9 @@ fn main() -> anyhow::Result<()> {
         http_conn: connection::MyConnection::new(),
         system: EspSystem,
         display_group: display_group,
-        player: EspBeepPlayer::new(
-            TxRmtDriver::new(
-                peripherals.rmt.channel0,
-                peripherals.pins.gpio0,
-                &TransmitConfig::new().looping(Loop::Endless),
-            )
-            .unwrap(),
-        ),
+        player: EspBeepPlayer::new(beep_tx),
+        eval_apple: evil_apple::EvilAppleBLEImpl,
+        screen_brightness_controller: EspLEDController::new(screen_ledc),
     });
     info!("slint app init done");
     info!("free heap: {}", sys.get_free_heap_size());
@@ -347,5 +345,4 @@ fn main() -> anyhow::Result<()> {
     loop {
         thread::sleep(Duration::from_millis(100));
     }
-    Ok(())
 }

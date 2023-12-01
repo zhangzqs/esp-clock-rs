@@ -8,6 +8,7 @@ import { ClockPage } from "clock/index.slint";
 import { Page } from "common/page.slint";
 import { FPSTestPage, FPSTestType } from "fpstest/index.slint";
 import { ProjectorPage } from "projector/index.slint";
+import { EvilApplePage } from "evilapple/index.slint";
 
 export component MultiPage inherits Rectangle {
     property <Page> current-page: Page.Boot;
@@ -101,6 +102,19 @@ export component MultiPage inherits Rectangle {
         enter => { projector-page-enter(); }
         exit => {
             projector-page-exit();
+            current-page = Page.Home;
+        }
+    }
+
+    in property <string> evilapple-page-device-name;
+    callback evilapple-page-enter();
+    callback evilapple-page-exit();
+    evilapple-page := EvilApplePage {
+        visible: current-page == Page.EvilApple;
+        device-name: evilapple-page-device-name;
+        enter => { evilapple-page-enter(); }
+        exit => {
+            evilapple-page-exit();
             current-page = Page.Home;
         }
     }

@@ -1,0 +1,37 @@
+export component EvilApplePage inherits Rectangle {
+    in property <string> device-name;
+    callback enter();
+    callback exit();
+    
+    background: black;
+    height: 240px;
+    width: 240px;
+    
+    VerticalLayout {
+        padding: 20px;
+        alignment: space-between;
+        Text {
+            text: "正在攻击...";
+            color: red;
+            font-size: 20px;
+        }
+        Text {
+            text: device-name;
+            color: white;
+            font-size: 20px;
+        }
+    }
+
+
+    // 进入页面
+    public function on-enter() {
+        enter();
+    }
+
+    // 长按3秒退出
+    public function on-one-button-long-pressed-holding(dur: duration) {
+        if (dur > 3000ms) {
+            exit();
+        }
+    }
+}

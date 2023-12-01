@@ -39,11 +39,17 @@ mod fpstest;
 use crate::fpstest::FPSTestApp;
 mod hsv;
 
+mod evil_apple;
+pub use crate::evil_apple::{EvilApple, EvilAppleApp};
+
 pub use system::MockSystem;
+
+mod led_controller;
+pub use led_controller::LEDController;
 
 slint::include_modules!();
 
-pub struct MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE>
+pub struct MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>
 where
     CONN: Connection<Error = ConnErr> + 'static + Send,
     ConnErr: error::Error + 'static,
@@ -52,14 +58,18 @@ where
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
     EGE: Debug + 'static,
     TONE: Player + 'static + Send,
+    EA: EvilApple + 'static,
+    LC: LEDController + 'static,
 {
     pub http_conn: CONN,
     pub system: SYS,
     pub display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>,
     pub player: TONE,
+    pub eval_apple: EA,
+    pub screen_brightness_controller: LC,
 }
 
-pub struct MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE>
+pub struct MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>
 where
     CONN: Connection<Error = ConnErr> + 'static + Send,
     ConnErr: error::Error + 'static,
@@ -67,6 +77,8 @@ where
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
     EGE: Debug,
     TONE: Player + 'static + Send,
+    EA: EvilApple,
+    LC: LEDController + 'static,
 {
     app_window: AppWindow,
     home_time_timer: slint::Timer,
@@ -77,9 +89,11 @@ where
     fpstest_app: Rc<RefCell<FPSTestApp<EGC, EGD, EGE>>>,
     player: Arc<Mutex<TONE>>,
     projector_app: Rc<RefCell<ProjectorApp<EGC, EGD, EGE>>>,
+    evil_apple_app: Rc<RefCell<EvilAppleApp<EA>>>,
+    screen_brightness_controller: Rc<RefCell<LC>>,
 }
 
-impl<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE> MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE>
+impl<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC> MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>
 where
     CONN: Connection<Error = ConnErr> + 'static + Send,
     ConnErr: error::Error + 'static,
@@ -88,8 +102,10 @@ where
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
     EGE: Debug + 'static,
     TONE: Player + 'static + Send,
+    EA: EvilApple,
+    LC: LEDController + 'static,
 {
-    pub fn new(deps: MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE>) -> Self {
+    pub fn new(deps: MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>) -> Self {
         debug!("MyApp::new");
         let app_window = AppWindow::new().expect("Failed to create AppWindow");
         debug!("AppWindow created");
@@ -103,7 +119,7 @@ where
         let fpstest_app = Rc::new(RefCell::new(FPSTestApp::new(deps.display_group.clone())));
         let projector_app = Rc::new(RefCell::new(ProjectorApp::new(deps.display_group.clone(), app_window.as_weak())));
         let player = Arc::new(Mutex::new(deps.player));
-
+        let evil_apple_app = Rc::new(RefCell::new(EvilAppleApp::new(deps.eval_apple)));
         // let player_ref = player.clone();
         // thread::spawn(move || {
         //     let mut player = player_ref.lock().unwrap();
@@ -226,6 +242,8 @@ where
             fpstest_app,
             player,
             projector_app,
+            evil_apple_app,
+            screen_brightness_controller: Rc::new(RefCell::new(deps.screen_brightness_controller)),
         };
         info!("MyApp created");
         app.bind_event_app();

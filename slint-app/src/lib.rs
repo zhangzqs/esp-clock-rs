@@ -10,15 +10,16 @@ use embedded_svc::{
     },
     io::Read,
 };
-use embedded_tone::{AbsulateNotePitch, Player, SlideNote};
+use embedded_tone::{AbsulateNotePitch, RawTonePlayer, SlideNote};
 use log::{debug, info};
 use slint::Weak;
 use std::{
     cell::RefCell,
     error,
     fmt::Debug,
+    net::UdpSocket,
     rc::Rc,
-    sync::{Arc, Mutex}, net::UdpSocket,
+    sync::{Arc, Mutex},
 };
 use std::{thread, time::Duration};
 use time::{OffsetDateTime, UtcOffset};
@@ -47,6 +48,9 @@ pub use system::MockSystem;
 mod led_controller;
 pub use led_controller::LEDController;
 
+mod music;
+use crate::music::MusicApp;
+
 slint::include_modules!();
 
 pub struct MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>
@@ -57,9 +61,9 @@ where
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
     EGE: Debug + 'static,
-    TONE: Player + 'static + Send,
+    TONE: RawTonePlayer + 'static + Send,
     EA: EvilApple + 'static,
-    LC: LEDController + 'static,
+    LC: LEDController + 'static + Send,
 {
     pub http_conn: CONN,
     pub system: SYS,
@@ -67,6 +71,7 @@ where
     pub player: TONE,
     pub eval_apple: EA,
     pub screen_brightness_controller: LC,
+    pub blue_led: LC,
 }
 
 pub struct MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>
@@ -76,9 +81,9 @@ where
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
     EGE: Debug,
-    TONE: Player + 'static + Send,
+    TONE: RawTonePlayer + 'static + Send,
     EA: EvilApple,
-    LC: LEDController + 'static,
+    LC: LEDController + 'static + Send,
 {
     app_window: AppWindow,
     home_time_timer: slint::Timer,
@@ -87,13 +92,14 @@ where
     photo_app: Rc<RefCell<PhotoApp<CONN, ConnErr, EGC, EGD>>>,
     clock_app: Rc<RefCell<ClockApp<EGC, EGD, EGE>>>,
     fpstest_app: Rc<RefCell<FPSTestApp<EGC, EGD, EGE>>>,
-    player: Arc<Mutex<TONE>>,
     projector_app: Rc<RefCell<ProjectorApp<EGC, EGD, EGE>>>,
     evil_apple_app: Rc<RefCell<EvilAppleApp<EA>>>,
-    screen_brightness_controller: Rc<RefCell<LC>>,
+    music_app: Rc<RefCell<MusicApp<TONE, LC>>>,
+    _screen_led_ctl: Arc<Mutex<LC>>,
 }
 
-impl<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC> MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>
+impl<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>
+    MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>
 where
     CONN: Connection<Error = ConnErr> + 'static + Send,
     ConnErr: error::Error + 'static,
@@ -101,137 +107,33 @@ where
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
     EGE: Debug + 'static,
-    TONE: Player + 'static + Send,
+    TONE: RawTonePlayer + 'static + Send,
     EA: EvilApple,
-    LC: LEDController + 'static,
+    LC: LEDController + 'static + Send,
 {
     pub fn new(deps: MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>) -> Self {
-        debug!("MyApp::new");
         let app_window = AppWindow::new().expect("Failed to create AppWindow");
         debug!("AppWindow created");
         let http_client = Arc::new(Mutex::new(Client::wrap(deps.http_conn)));
-        debug!("HttpClient created");
         let photo_app = Rc::new(RefCell::new(PhotoApp::new(
             http_client.clone(),
             deps.display_group.clone(),
         )));
         let clock_app = Rc::new(RefCell::new(ClockApp::new(deps.display_group.clone())));
         let fpstest_app = Rc::new(RefCell::new(FPSTestApp::new(deps.display_group.clone())));
-        let projector_app = Rc::new(RefCell::new(ProjectorApp::new(deps.display_group.clone(), app_window.as_weak())));
+        let projector_app = Rc::new(RefCell::new(ProjectorApp::new(
+            deps.display_group.clone(),
+            app_window.as_weak(),
+        )));
         let player = Arc::new(Mutex::new(deps.player));
         let evil_apple_app = Rc::new(RefCell::new(EvilAppleApp::new(deps.eval_apple)));
-        // let player_ref = player.clone();
-        // thread::spawn(move || {
-        //     let mut player = player_ref.lock().unwrap();
-        //     use embedded_tone::{
-        //         Guitar,
-        //         GuitarString::*,
-        //         NoteDuration::{Eighth, Half, HalfDotted, Quarter, Sixteenth},
-        //         NoteName::*,
-        //         Octave::*,
-        //         Rest,
-        //     };
-
-        //     let mut guitar = Guitar::default();
-
-        //     for i in (4..12).step_by(2) {
-        //         guitar.set_capo_fret(i);
-        //         player.set_beat_duration_from_bpm(120, Quarter);
-
-        //         player.play_slide(SlideNote {
-        //             start_pitch: guitar.to_absulate_note_pitch(S3, 2),
-        //             end_pitch: guitar.to_absulate_note_pitch(S3, 8),
-        //             duration: Quarter,
-        //         });
-        //         player.play_slide(SlideNote {
-        //             start_pitch: guitar.to_absulate_note_pitch(S3, 2),
-        //             end_pitch: guitar.to_absulate_note_pitch(S3, 8),
-        //             duration: Quarter,
-        //         });
-
-        //         // 休止停顿
-        //         player.play_rest(Rest::new(Quarter));
-
-        //         player.play_slide(SlideNote {
-        //             start_pitch: guitar.to_absulate_note_pitch(S2, 2),
-        //             end_pitch: guitar.to_absulate_note_pitch(S2, 10),
-        //             duration: Quarter,
-        //         });
-        //         player.play_slide(SlideNote {
-        //             start_pitch: guitar.to_absulate_note_pitch(S2, 16),
-        //             end_pitch: guitar.to_absulate_note_pitch(S2, 0),
-        //             duration: Quarter,
-        //         });
-        //         player.play_rest(Rest::new(Half));
-        //     }
-
-        //     //     guitar.set_capo_fret(20);
-        //     //     player.set_beat_duration_from_bpm(240, Quarter);
-        //     //     player.play_note(guitar.to_absulate_note(S1, 0, Sixteenth));
-        //     //     player.play_rest(Rest::new(Sixteenth));
-        //     //     player.play_note(guitar.to_absulate_note(S1, 0, Sixteenth));
-        //     //     player.play_rest(Rest::new(Sixteenth));
-        //     //     player.play_note(guitar.to_absulate_note(S1, 0, Sixteenth));
-        //     //     player.play_rest(Rest::new(Sixteenth));
-        //     //     player.play_note(guitar.to_absulate_note(S1, 0, Sixteenth));
-        //     //     player.play_rest(Rest::new(Sixteenth));
-        //     //     player.play_rest(Rest::new(HalfDotted));
-
-        //     //     player.set_beat_duration_from_bpm(60, Quarter);
-        //     //     player.play_note(guitar.to_absulate_note(S5, 0, Eighth));
-        //     //     player.play_note(guitar.to_absulate_note(S3, 0, Eighth));
-        //     //     player.play_note(guitar.to_absulate_note(S2, 0, Eighth));
-        //     //     player.play_note(guitar.to_absulate_note(S3, 0, Eighth));
-        //     //     player.play_note(guitar.to_absulate_note(S1, 0, Eighth));
-        //     //     player.play_note(guitar.to_absulate_note(S3, 0, Eighth));
-        //     //     player.play_note(guitar.to_absulate_note(S2, 0, Eighth));
-        //     //     player.play_note(guitar.to_absulate_note(S3, 0, Eighth));
-
-        //     //     for i in 3..12 {
-        //     //         guitar.set_capo_fret(i);
-        //     //         player.set_beat_duration_from_bpm(100, Quarter);
-
-        //     //         player.play_rest(Rest::new(Quarter));
-        //     //         player.play_slide(SlideNote {
-        //     //             start_pitch: guitar.to_absulate_note_pitch(S4, 2),
-        //     //             end_pitch: guitar.to_absulate_note_pitch(S4, 8),
-        //     //             duration: Quarter,
-        //     //         });
-        //     //         player.play_note(guitar.to_absulate_note(S2, 7, Quarter));
-        //     //         player.play_note(guitar.to_absulate_note(S2, 9, Quarter));
-        //     //         player.play_note(guitar.to_absulate_note(S2, 11, Half));
-
-        //     //         player.play_note(guitar.to_absulate_note(S2, 12, Eighth));
-        //     //         player.play_note(guitar.to_absulate_note(S2, 11, Eighth));
-        //     //         player.play_note(guitar.to_absulate_note(S2, 9, Half));
-
-        //     //         player.play_note(guitar.to_absulate_note(S2, 9, Eighth));
-        //     //         player.play_note(guitar.to_absulate_note(S2, 11, Eighth));
-        //     //         player.play_note(guitar.to_absulate_note(S2, 9, Quarter));
-        //     //         player.play_note(guitar.to_absulate_note(S2, 7, Quarter));
-        //     //         player.play_note(guitar.to_absulate_note(S2, 6, Eighth));
-        //     //         player.play_note(guitar.to_absulate_note(S2, 7, Eighth));
-
-        //     //         player.play_note(guitar.to_absulate_note(S2, 6, Quarter));
-        //     //         player.play_note(guitar.to_absulate_note(S2, 4, Half));
-
-        //     //         player.play_note(guitar.to_absulate_note(S2, 7, Quarter));
-        //     //         player.play_note(guitar.to_absulate_note(S2, 9, Quarter));
-        //     //         player.play_note(guitar.to_absulate_note(S2, 11, Half));
-
-        //     //         player.play_note(guitar.to_absulate_note(S2, 9, Quarter));
-        //     //         player.play_note(guitar.to_absulate_note(S2, 7, Eighth));
-        //     //         player.play_note(guitar.to_absulate_note(S2, 9, Half));
-
-        //     //         player.play_note(guitar.to_absulate_note(S2, 7, Quarter));
-        //     //         player.play_note(guitar.to_absulate_note(S2, 6, Quarter));
-        //     //         player.play_note(guitar.to_absulate_note(S2, 7, Half));
-
-        //     //         player.play_note(guitar.to_absulate_note(S2, 14, Quarter));
-        //     //         player.play_note(guitar.to_absulate_note(S2, 14, Quarter));
-        //     //     }
-        // });
-
+        let screen_led_ctl = Arc::new(Mutex::new(deps.screen_brightness_controller));
+        let blue_led = Arc::new(Mutex::new(deps.blue_led));
+        let music_app = Rc::new(RefCell::new(MusicApp::new(
+            app_window.as_weak(),
+            player.clone(),
+            blue_led.clone(),
+        )));
         let app = MyApp {
             home_time_timer: Self::start_home_time_timer(app_window.as_weak()),
             http_client,
@@ -240,10 +142,10 @@ where
             photo_app,
             clock_app,
             fpstest_app,
-            player,
             projector_app,
             evil_apple_app,
-            screen_brightness_controller: Rc::new(RefCell::new(deps.screen_brightness_controller)),
+            music_app,
+            _screen_led_ctl: screen_led_ctl,
         };
         info!("MyApp created");
         app.bind_event_app();
@@ -314,6 +216,16 @@ where
             ui.on_projector_page_exit(move || {
                 info!("on_projector_page_exit");
                 projector_app.borrow_mut().exit();
+            });
+            let music_app = self.music_app.clone();
+            ui.on_music_page_enter(move || {
+                info!("on_music_page_enter");
+                music_app.borrow_mut().enter();
+            });
+            let music_app = self.music_app.clone();
+            ui.on_music_page_exit(move || {
+                info!("on_music_page_exit");
+                music_app.borrow_mut().exit();
             });
         }
     }

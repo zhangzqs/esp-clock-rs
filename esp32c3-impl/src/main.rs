@@ -68,6 +68,7 @@ fn main() -> anyhow::Result<()> {
     let dc = PinDriver::output(peripherals.pins.gpio4)?;
     let rst = PinDriver::output(peripherals.pins.gpio8)?;
 
+    
     // 初始化SPI引脚
     let spi = SpiDeviceDriver::new_single(
         peripherals.spi2,
@@ -78,13 +79,13 @@ fn main() -> anyhow::Result<()> {
         &SpiDriverConfig::default().dma(Dma::Auto(4096)),
         &Config::default()
             .baudrate(80.MHz().into())
-            .data_mode(MODE_3)
-            .write_only(true)
-            .queue_size(128),
+            .data_mode(MODE_3),
+            // .write_only(true)
+            // .queue_size(128),
     )?;
 
     // 设置底部灯为关闭
-    let mut led = LedcDriver::new(
+    let mut blue_led = LedcDriver::new(
         peripherals.ledc.channel0,
         LedcTimerDriver::new(
             peripherals.ledc.timer0,
@@ -94,7 +95,7 @@ fn main() -> anyhow::Result<()> {
         peripherals.pins.gpio2,
     )
     .unwrap();
-    led.set_duty(0).unwrap();
+    blue_led.set_duty(0).unwrap();
 
     // 设置屏幕背光亮度为33%
     let mut screen_ledc = LedcDriver::new(
@@ -108,7 +109,7 @@ fn main() -> anyhow::Result<()> {
     )
     .unwrap();
     screen_ledc
-        .set_duty(screen_ledc.get_max_duty() / 3)
+        .set_duty(screen_ledc.get_max_duty())
         .unwrap();
 
     let beep_tx = TxRmtDriver::new(
@@ -195,6 +196,7 @@ fn main() -> anyhow::Result<()> {
         player: EspBeepPlayer::new(beep_tx),
         eval_apple: evil_apple::EvilAppleBLEImpl,
         screen_brightness_controller: EspLEDController::new(screen_ledc),
+        blue_led: EspLEDController::new(blue_led),
     });
     info!("slint app init done");
     info!("free heap: {}", sys.get_free_heap_size());

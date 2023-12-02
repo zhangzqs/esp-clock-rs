@@ -1,0 +1,40 @@
+export component MusicPage inherits Rectangle {
+    in property <string> note;
+    in property <float> percent;
+
+    callback enter();
+    callback exit();
+
+    background: black;
+
+    VerticalLayout {
+        Text {
+            text: "正在演奏";
+            font-size: 20px;
+            color: white;
+        }
+        // Text {
+        //     text: note;
+        //     font-size: 40px;
+        //     color: white;
+        // }
+        Rectangle {
+            width: percent * 240px;
+            height: 20px;
+            background: red;
+        }
+    }
+    
+
+    // 进入页面
+    public function on-enter() {
+        enter();
+    }
+
+    // 长按3秒退出
+    public function on-one-button-long-pressed-holding(dur: duration) {
+        if (dur > 3000ms) {
+            exit();
+        }
+    }
+}

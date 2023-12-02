@@ -1,0 +1,11 @@
+[package]
+name = "desktop-tone"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+embedded-tone = { path = "../.." }
+midly = "0.5.3"
+rodio = "0.17.3"

@@ -9,6 +9,7 @@ import { Page } from "common/page.slint";
 import { FPSTestPage, FPSTestType } from "fpstest/index.slint";
 import { ProjectorPage } from "projector/index.slint";
 import { EvilApplePage } from "evilapple/index.slint";
+import { MusicPage } from "music/index.slint";
 
 export component MultiPage inherits Rectangle {
     property <Page> current-page: Page.Boot;
@@ -119,6 +120,21 @@ export component MultiPage inherits Rectangle {
         }
     }
 
+    in property <string> music-page-note;
+    in property <float> music-page-percent;
+    callback music-page-enter();
+    callback music-page-exit();
+    music-page := MusicPage {
+        visible: current-page == Page.Music;
+        note: music-page-note;
+        percent: music-page-percent;
+        enter => { music-page-enter(); }
+        exit => {
+            music-page-exit();
+            current-page = Page.Home;
+        }
+    }
+
     menu-page := MenuPage {
         visible: current-page == Page.Menu;
         enter-selected-page(page) => {
@@ -127,6 +143,7 @@ export component MultiPage inherits Rectangle {
             if (page == Page.Clock) { clock-page.on-enter(); }
             if (page == Page.FPSTest) { fpstest-page.on-enter(); }
             if (page == Page.Projector) { projector-page.on-enter(); }
+            if (page == Page.Music) { music-page.on-enter(); }
         }
     }
 
@@ -155,6 +172,7 @@ export component MultiPage inherits Rectangle {
         if (current-page == Page.Clock) { clock-page.on-one-button-long-pressed-holding(dur); }
         if (current-page == Page.FPSTest) { fpstest-page.on-one-button-long-pressed-holding(dur); }
         if (current-page == Page.Projector) { projector-page.on-one-button-long-pressed-holding(dur); }
+        if (current-page == Page.Music) { music-page.on-one-button-long-pressed-holding(dur); }
     }
 
     public function on-one-button-long-pressed-held(dur: duration) {

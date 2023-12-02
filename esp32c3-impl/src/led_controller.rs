@@ -1,5 +1,6 @@
 use esp_idf_hal::ledc::LedcDriver;
 
+use log::info;
 use slint_app::LEDController;
 pub struct EspLEDController<'a> {
     ledc: LedcDriver<'a>,
@@ -19,6 +20,11 @@ impl LEDController for EspLEDController<'_> {
     }
 
     fn set_brightness(&mut self, brightness: u32) {
+        info!("set brightness: {}", brightness);
         self.ledc.set_duty(brightness).unwrap();
+    }
+
+    fn get_brightness(&self) -> u32 {
+        self.ledc.get_duty()
     }
 }

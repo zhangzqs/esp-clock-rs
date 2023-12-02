@@ -65,6 +65,11 @@ export component AppWindow inherits Window {
         projector-page-local-port: projector-page-port;
         projector-page-enter => { projector-page-enter(); }
         projector-page-exit => { projector-page-exit(); }
+
+        music-page-note: music-page-note;
+        music-page-percent: music-page-percent;
+        music-page-enter => { music-page-enter(); }
+        music-page-exit => { music-page-exit(); }
     }
     // 设置启动状态
     public function set-boot-state(state: BootState) {
@@ -96,6 +101,12 @@ export component AppWindow inherits Window {
     in property <int> projector-page-port;
     callback projector-page-enter();
     callback projector-page-exit();
+
+    // music页相关
+    in property <string> music-page-note;
+    in property <float> music-page-percent;
+    callback music-page-enter();
+    callback music-page-exit();
 
     // 触发点击事件
     // count: 点击次数

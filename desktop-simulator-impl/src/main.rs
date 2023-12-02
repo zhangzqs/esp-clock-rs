@@ -19,7 +19,7 @@ use embedded_graphics_simulator::{
 
 use log::{debug, info};
 
-use slint_app::{BootState, MockSystem, MyApp, MyAppDeps};
+use slint_app::{BootState, MockSystem, MyApp, MyAppDeps, EvilApple, LEDController};
 
 use button_driver::{Button, ButtonConfig, PinWrapper};
 use embedded_software_slint_backend::{EmbeddedSoftwarePlatform, RGB888PixelColorAdapter};
@@ -34,6 +34,27 @@ struct MyButtonPin(Rc<AtomicBool>);
 impl PinWrapper for MyButtonPin {
     fn is_high(&self) -> bool {
         self.0.load(Ordering::Relaxed)
+    }
+}
+
+struct MockEvilApple;
+
+impl EvilApple for MockEvilApple {
+    fn attack_once(&self, data: &[u8]) {
+        info!("attack once");
+    }
+}
+
+struct MockLEDController;
+
+impl LEDController for MockLEDController {
+    fn get_max_brightness(&self) -> u32 {
+        info!("get max brightness");
+        return 0;
+    }
+
+    fn set_brightness(&mut self, brightness: u32) {
+        info!("set brightness {}", brightness);
     }
 }
 
@@ -85,6 +106,8 @@ fn main() -> anyhow::Result<()> {
         system: MockSystem,
         display_group: display_group.clone(),
         player: RodioPlayer::new(),
+        eval_apple: MockEvilApple,
+        screen_brightness_controller: MockLEDController,
     });
     info!("app has been created");
 

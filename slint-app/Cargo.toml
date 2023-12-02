@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-slint = { version = "1.3.0", default-features = false, features = ["compat-1-0", "unsafe-single-threaded"] }
+slint = { git="https://github.com/zhangzqs/slint", branch = "fix-esp-std", default-features = false, features = ["compat-1-2", "unsafe-single-threaded"] }
 log = { version = "0.4.17" }
 time = "0.3.25"
 embedded-svc = "0.26.2"
@@ -14,4 +14,4 @@ embedded-graphics = "0.8.1"
 embedded-tone = { path = "../libs/embedded-tone" }
 
 [build-dependencies]
-slint-build = { version = "1.0.0" }
+slint-build = { version = "1.3.2" }

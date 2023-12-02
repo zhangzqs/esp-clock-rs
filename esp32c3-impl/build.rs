@@ -3,7 +3,6 @@ fn main() -> anyhow::Result<()> {
         anyhow::bail!("You need to create a `cfg.toml` file with your Wi-Fi credentials! Use `config.example.toml` as a template.");
     }
 
-    embuild::build::CfgArgs::output_propagated("ESP_IDF")?;
-    embuild::build::LinkArgs::output_propagated("ESP_IDF")?;
+    embuild::espidf::sysenv::output();
     Ok(())
 }

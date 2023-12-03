@@ -10,6 +10,7 @@ import { FPSTestPage, FPSTestType } from "fpstest/index.slint";
 import { ProjectorPage } from "projector/index.slint";
 import { EvilApplePage } from "evilapple/index.slint";
 import { MusicPage, MusicItem } from "music/index.slint";
+import { NetworkMoniterPage } from "network/index.slint";
 
 export component MultiPage inherits Rectangle {
     property <Page> current-page: Page.Boot;
@@ -133,6 +134,12 @@ export component MultiPage inherits Rectangle {
             music-page-exit();
             current-page = Page.Home;
         }
+    }
+
+    in property <image> network-monitor-plot;
+    network-monitor-page := NetworkMoniterPage {
+        visible: current-page == Page.Network;
+        plot: network-monitor-plot;
     }
 
     menu-page := MenuPage {

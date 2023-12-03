@@ -1,8 +1,9 @@
-component NetworkMoniter inherits Rectangle {
+export component NetworkMoniterPage inherits Rectangle {
     width: 240px;
     height: 240px;
     background: black;
     in property <string> ip: "127.0.0.1";
+    in property <image> plot;
 
     VerticalLayout {
         padding: 8px;
@@ -84,12 +85,8 @@ component NetworkMoniter inherits Rectangle {
         }
         Rectangle {
             height: 50%;
-            Text {
-                horizontal-alignment: center;
-                vertical-alignment: center;
-                text: "图表区域";
-                font-size: 50px;
-                color: white;
+            Image {
+                source: plot;
             }
         }
     }

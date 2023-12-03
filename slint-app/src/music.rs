@@ -25,7 +25,7 @@ fn get_music(i: MusicItem) -> &'static [u8] {
         MusicItem::Fontaine => include_bytes!("../music/fontaine.mid"),
         MusicItem::Klee => include_bytes!("../music/Klee.mid"),
         MusicItem::LaVaguelette => include_bytes!("../music/ql.mid"),
-        MusicItem::Nahida =>  include_bytes!("../music/nxd.mid"),
+        MusicItem::Nahida => include_bytes!("../music/nxd.mid"),
         MusicItem::IveNeverForgotten => include_bytes!("../music/wbcwj.mid"),
     }
 }
@@ -146,7 +146,8 @@ where
                     (event.delta.as_int() as u64 * tempo as u64) / tpqn as u64,
                 );
                 thread::sleep(dur);
-                player.off();
+                // thread::sleep(dur.mul_f32(0.99));
+                // thread::sleep(dur.mul_f32(0.01));
 
                 match e {
                     midly::live::LiveEvent::Midi { channel, message } => match message {
@@ -155,7 +156,9 @@ where
                             player.off();
                         }
                         midly::MidiMessage::NoteOn { key, vel } => {
-                            if vel != 0 {
+                            if vel == 0 {
+                                player.off();
+                            } else {
                                 println!("key: {}, vel: {}", key, vel);
                                 let p = AbsulateNotePitch::from_midi_note_key(key.as_int())
                                     .add(current_half_steps);

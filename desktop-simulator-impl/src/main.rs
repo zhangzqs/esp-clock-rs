@@ -19,7 +19,7 @@ use embedded_graphics_simulator::{
 
 use log::{debug, info};
 
-use slint_app::{BootState, MockSystem, MyApp, MyAppDeps, EvilApple, LEDController};
+use slint_app::{BootState, EvilApple, LEDController, MockSystem, MyApp, MyAppDeps};
 
 use button_driver::{Button, ButtonConfig, PinWrapper};
 use embedded_software_slint_backend::{EmbeddedSoftwarePlatform, RGB888PixelColorAdapter};
@@ -45,16 +45,30 @@ impl EvilApple for MockEvilApple {
     }
 }
 
-struct MockLEDController;
+struct MockLEDController {
+    brightness: u32,
+}
+
+impl Default for MockLEDController {
+    fn default() -> Self {
+        Self { brightness: 1000 }
+    }
+}
 
 impl LEDController for MockLEDController {
     fn get_max_brightness(&self) -> u32 {
         info!("get max brightness");
-        return 0;
+        return 1000;
     }
 
     fn set_brightness(&mut self, brightness: u32) {
         info!("set brightness {}", brightness);
+        self.brightness = brightness;
+    }
+
+    fn get_brightness(&self) -> u32 {
+        info!("get brightness");
+        self.brightness
     }
 }
 
@@ -107,7 +121,8 @@ fn main() -> anyhow::Result<()> {
         display_group: display_group.clone(),
         player: RodioPlayer::new(),
         eval_apple: MockEvilApple,
-        screen_brightness_controller: MockLEDController,
+        screen_brightness_controller: MockLEDController::default(),
+        blue_led: MockLEDController::default(),
     });
     info!("app has been created");
 

@@ -40,7 +40,7 @@ impl PinWrapper for MyButtonPin {
 struct MockEvilApple;
 
 impl EvilApple for MockEvilApple {
-    fn attack_once(&self, data: &[u8]) {
+    fn attack_once(&self, _data: &[u8]) {
         info!("attack once");
     }
 }
@@ -58,7 +58,7 @@ impl Default for MockLEDController {
 impl LEDController for MockLEDController {
     fn get_max_brightness(&self) -> u32 {
         info!("get max brightness");
-        return 1000;
+        1000
     }
 
     fn set_brightness(&mut self, brightness: u32) {

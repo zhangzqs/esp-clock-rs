@@ -1,6 +1,6 @@
-use embedded_io::ErrorType;
+
 use embedded_svc::http::{
-    server::{Connection, Handler},
+    server::{Connection},
     Headers, Query,
 };
 
@@ -32,9 +32,9 @@ impl Connection for HttpServer {
 
     fn initiate_response<'a>(
         &'a mut self,
-        status: u16,
-        message: Option<&'a str>,
-        headers: &'a [(&'a str, &'a str)],
+        _status: u16,
+        _message: Option<&'a str>,
+        _headers: &'a [(&'a str, &'a str)],
     ) -> Result<(), Self::Error> {
         todo!()
     }
@@ -53,13 +53,13 @@ impl embedded_io::ErrorType for HttpServer {
 }
 
 impl embedded_io::Read for HttpServer {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
+    fn read(&mut self, _buf: &mut [u8]) -> Result<usize, Self::Error> {
         todo!()
     }
 }
 
 impl embedded_io::Write for HttpServer {
-    fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
+    fn write(&mut self, _buf: &[u8]) -> Result<usize, Self::Error> {
         todo!()
     }
 
@@ -79,7 +79,7 @@ impl Query for HttpServer {
 }
 
 impl Headers for HttpServer {
-    fn header(&self, name: &str) -> Option<&'_ str> {
+    fn header(&self, _name: &str) -> Option<&'_ str> {
         todo!()
     }
 }

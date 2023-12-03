@@ -16,10 +16,10 @@ use slint::Weak;
 use std::sync::mpsc;
 
 fn get_music(i: MusicItem) -> &'static [u8] {
-    const DATA3: &'static [u8] = include_bytes!("../music/qqz.mid");
-    const DATA4: &'static [u8] = include_bytes!("../music/gy.mid");
-    const DATA8: &'static [u8] = include_bytes!("../music/ldjj.mid");
-    const DATA9: &'static [u8] = include_bytes!("../music/yaoyao.mid");
+    const DATA3: &[u8] = include_bytes!("../music/qqz.mid");
+    const DATA4: &[u8] = include_bytes!("../music/gy.mid");
+    const DATA8: &[u8] = include_bytes!("../music/ldjj.mid");
+    const DATA9: &[u8] = include_bytes!("../music/yaoyao.mid");
 
     match i {
         MusicItem::Fontaine => include_bytes!("../music/fontaine.mid"),
@@ -100,7 +100,7 @@ where
             if exit_signal.load(Ordering::SeqCst) {
                 return;
             }
-            if let Err(_) = event {
+            if event.is_err() {
                 continue;
             }
 
@@ -150,8 +150,8 @@ where
                 // thread::sleep(dur.mul_f32(0.01));
 
                 match e {
-                    midly::live::LiveEvent::Midi { channel, message } => match message {
-                        midly::MidiMessage::NoteOff { key, vel } => {
+                    midly::live::LiveEvent::Midi { channel: _, message } => match message {
+                        midly::MidiMessage::NoteOff { key: _, vel: _ } => {
                             println!("off");
                             player.off();
                         }

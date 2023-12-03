@@ -31,7 +31,7 @@ where
             tone_player: player,
             whole_duration: Duration::from_secs(4),
             slide_note_samples: 50,
-            delay: delay,
+            delay,
         }
     }
 

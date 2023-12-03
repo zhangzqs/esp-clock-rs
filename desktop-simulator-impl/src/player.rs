@@ -1,7 +1,7 @@
-use std::{thread, time::Duration};
 
-use embedded_tone::{Note, RawTonePlayer, Rest, SlideNote};
-use rodio::{dynamic_mixer, source::SineWave, Source};
+
+use embedded_tone::{RawTonePlayer};
+use rodio::{source::SineWave};
 
 pub struct RodioPlayer {
     _stream: rodio::OutputStream,

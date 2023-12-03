@@ -1,8 +1,8 @@
-use embedded_tone::{NoteDuration, RawTonePlayer};
+use embedded_tone::{RawTonePlayer};
 use esp_idf_hal::rmt::TxRmtDriver;
 use esp_idf_hal::rmt::*;
-use std::thread;
-use std::time::Duration;
+
+
 
 pub struct EspBeepPlayer<'a> {
     tx: TxRmtDriver<'a>,

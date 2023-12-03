@@ -10,14 +10,13 @@ use embedded_svc::{
     },
     io::Read,
 };
-use embedded_tone::{AbsulateNotePitch, RawTonePlayer, SlideNote};
+use embedded_tone::RawTonePlayer;
 use log::{debug, info};
 use slint::Weak;
 use std::{
     cell::RefCell,
     error,
     fmt::Debug,
-    net::UdpSocket,
     rc::Rc,
     sync::{Arc, Mutex},
 };

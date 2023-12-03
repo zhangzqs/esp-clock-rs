@@ -3,7 +3,7 @@ use std::io::Read;
 use std::str::FromStr;
 
 use embedded_io::{ErrorType, Write as _};
-use embedded_svc::http::client::{Client, Connection};
+use embedded_svc::http::client::{Connection};
 use embedded_svc::http::Method;
 use embedded_svc::http::Status;
 use reqwest;
@@ -29,6 +29,12 @@ pub struct HttpClientAdapterConnection {
     request: Option<reqwest::blocking::RequestBuilder>,
     response: Option<reqwest::blocking::Response>,
     req_buffer: Vec<u8>,
+}
+
+impl Default for HttpClientAdapterConnection {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl HttpClientAdapterConnection {
@@ -238,10 +244,10 @@ mod tests {
         let url: &str = "http://ifconfig.net/";
         let mut client = Client::<HttpClientAdapterConnection>::wrap(conn);
         let req = client.request(Method::Get, url, &headers).unwrap();
-        let mut resp = req.submit().unwrap();
+        let resp = req.submit().unwrap();
         println!("<- {} {}", resp.status(), resp.status_message().unwrap());
         let req = client.request(Method::Get, url, &headers).unwrap();
-        let mut resp = req.submit().unwrap();
+        let resp = req.submit().unwrap();
         println!("<- {} {}", resp.status(), resp.status_message().unwrap());
     }
 }

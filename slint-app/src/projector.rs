@@ -160,26 +160,10 @@ where
             .lock()
             .unwrap()
             .switch_to_logical_display(new_display_id as isize);
-        let mut display = display_ref.lock().unwrap();
         let recv = recv.lock().unwrap();
 
-        let fps = Arc::new(Mutex::new(0));
-        let fps_ref = fps.clone();
-        let fps_exit = Arc::new(Mutex::new(false));
-        let fps_exit_ref = fps_exit.clone();
-        let fps_join_handler = thread::spawn(move || loop {
-            thread::sleep(Duration::from_secs(1));
-            let mut fps = fps_ref.lock().unwrap();
-            info!("fps: {}", *fps);
-            *fps = 0;
-            drop(fps);
-            if *fps_exit_ref.lock().unwrap() {
-                break;
-            }
-        });
-    
         let mut y = 0;
-        let rows = 120;
+        let rows = 20;
         let mut buf = vec![0u8; 240 * rows * 3];
         loop {
             if let Ok(event) = recv.try_recv() {
@@ -194,7 +178,9 @@ where
                 error!("read from stream error: {}", e);
                 break;
             }
-            display
+            display_ref
+                .lock()
+                .unwrap()
                 .fill_contiguous(
                     &Rectangle {
                         top_left: Point { x: 0, y: y as _ },
@@ -212,17 +198,9 @@ where
                 )
                 .unwrap();
             y = (y + rows) % 240;
-            if y == 0 {
-                let mut fps = fps.lock().unwrap();
-                *fps += 1;
-            }
             thread::sleep(Duration::from_millis(10));
         }
 
-        *fps_exit.lock().unwrap() = true;
-        fps_join_handler.join().unwrap();
-        info!("wait for fps thread exit"); 
-        drop(display);
         // 断开连接后切换到原来的逻辑屏幕
         display_group
             .lock()

@@ -9,7 +9,7 @@ import { Page } from "common/page.slint";
 import { FPSTestPage, FPSTestType } from "fpstest/index.slint";
 import { ProjectorPage } from "projector/index.slint";
 import { EvilApplePage } from "evilapple/index.slint";
-import { MusicPage } from "music/index.slint";
+import { MusicPage, MusicItem } from "music/index.slint";
 
 export component MultiPage inherits Rectangle {
     property <Page> current-page: Page.Boot;
@@ -17,9 +17,7 @@ export component MultiPage inherits Rectangle {
     // BootPage
     boot-page := BootPage {
         visible: current-page == Page.Boot;
-        boot-finish => {
-            current-page = Page.Home;
-        }
+        boot-finish => { enter-page(Page.Home); }
     }
 
     public function boot-page-set-state(state: BootState) {
@@ -122,12 +120,14 @@ export component MultiPage inherits Rectangle {
 
     in property <string> music-page-note;
     in property <float> music-page-percent;
+    callback music-page-switch(MusicItem);
     callback music-page-enter();
     callback music-page-exit();
     music-page := MusicPage {
         visible: current-page == Page.Music;
         note: music-page-note;
         percent: music-page-percent;
+        switch(i) => { music-page-switch(i); }
         enter => { music-page-enter(); }
         exit => {
             music-page-exit();
@@ -137,14 +137,16 @@ export component MultiPage inherits Rectangle {
 
     menu-page := MenuPage {
         visible: current-page == Page.Menu;
-        enter-selected-page(page) => {
-            current-page = page;
-            if (page == Page.Photo) { photo-page.on-enter(); }
-            if (page == Page.Clock) { clock-page.on-enter(); }
-            if (page == Page.FPSTest) { fpstest-page.on-enter(); }
-            if (page == Page.Projector) { projector-page.on-enter(); }
-            if (page == Page.Music) { music-page.on-enter(); }
-        }
+        enter-selected-page(page) => { enter-page(page); }
+    }
+
+    public function enter-page(page: Page) {
+        current-page = page;
+        if (page == Page.Photo) { photo-page.on-enter(); }
+        if (page == Page.Clock) { clock-page.on-enter(); }
+        if (page == Page.FPSTest) { fpstest-page.on-enter(); }
+        if (page == Page.Projector) { projector-page.on-enter(); }
+        if (page == Page.Music) { music-page.on-enter(); }
     }
 
     public function on-one-button-click() {
@@ -153,6 +155,8 @@ export component MultiPage inherits Rectangle {
         if (current-page == Page.Photo) { photo-page.on-one-button-click(); }
         if (current-page == Page.LED) { led-page.on-one-button-click(); }
         if (current-page == Page.FPSTest) { fpstest-page.on-one-button-click(); }
+        if (current-page == Page.Music) { music-page.on-one-button-click(); }
+
     }
 
     public function on-one-button-double-click() {

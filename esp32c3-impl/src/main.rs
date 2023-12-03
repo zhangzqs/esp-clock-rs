@@ -68,7 +68,6 @@ fn main() -> anyhow::Result<()> {
     let dc = PinDriver::output(peripherals.pins.gpio4)?;
     let rst = PinDriver::output(peripherals.pins.gpio8)?;
 
-    
     // 初始化SPI引脚
     let spi = SpiDeviceDriver::new_single(
         peripherals.spi2,
@@ -80,8 +79,8 @@ fn main() -> anyhow::Result<()> {
         &Config::default()
             .baudrate(80.MHz().into())
             .data_mode(MODE_3),
-            // .write_only(true)
-            // .queue_size(128),
+        // .write_only(true)
+        // .queue_size(128),
     )?;
 
     // 设置底部灯为关闭
@@ -108,9 +107,7 @@ fn main() -> anyhow::Result<()> {
         peripherals.pins.gpio10,
     )
     .unwrap();
-    screen_ledc
-        .set_duty(screen_ledc.get_max_duty())
-        .unwrap();
+    screen_ledc.set_duty(screen_ledc.get_max_duty()).unwrap();
 
     let beep_tx = TxRmtDriver::new(
         peripherals.rmt.channel0,

@@ -10,9 +10,7 @@ pub struct EspBeepPlayer<'a> {
 
 impl<'a> EspBeepPlayer<'a> {
     pub fn new(tx: TxRmtDriver<'a>) -> Self {
-        Self {
-            tx,
-        }
+        Self { tx }
     }
 }
 

@@ -11,6 +11,7 @@ use embedded_svc::{
     io::Read,
 };
 use embedded_tone::RawTonePlayer;
+use home::HomeApp;
 use log::{debug, info};
 use slint::Weak;
 use std::{
@@ -50,6 +51,8 @@ pub use led_controller::LEDController;
 mod music;
 use crate::music::MusicApp;
 
+mod home;
+
 slint::include_modules!();
 
 pub struct MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>
@@ -85,7 +88,6 @@ where
     LC: LEDController + 'static + Send,
 {
     app_window: AppWindow,
-    home_time_timer: slint::Timer,
     system: SYS,
     http_client: Arc<Mutex<Client<CONN>>>, // 这个需要多线程传递共享
     photo_app: Rc<RefCell<PhotoApp<CONN, ConnErr, EGC, EGD>>>,
@@ -95,6 +97,7 @@ where
     evil_apple_app: Rc<RefCell<EvilAppleApp<EA>>>,
     music_app: Rc<RefCell<MusicApp<TONE, LC>>>,
     _screen_led_ctl: Arc<Mutex<LC>>,
+    home_app: Rc<RefCell<HomeApp>>,
 }
 
 impl<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>
@@ -133,8 +136,8 @@ where
             player.clone(),
             blue_led.clone(),
         )));
+        let home_app = Rc::new(RefCell::new(HomeApp::new(app_window.as_weak())));
         let app = MyApp {
-            home_time_timer: Self::start_home_time_timer(app_window.as_weak()),
             http_client,
             app_window,
             system: deps.system,
@@ -145,6 +148,7 @@ where
             evil_apple_app,
             music_app,
             _screen_led_ctl: screen_led_ctl,
+            home_app,
         };
         info!("MyApp created");
         app.bind_event_app();
@@ -232,29 +236,6 @@ where
                 music_app.borrow_mut().switch(i);
             });
         }
-    }
-
-    fn start_home_time_timer(w: Weak<AppWindow>) -> slint::Timer {
-        let t = slint::Timer::default();
-        t.start(
-            slint::TimerMode::Repeated,
-            Duration::from_secs(1),
-            move || {
-                let t = OffsetDateTime::now_utc().to_offset(UtcOffset::from_hms(8, 0, 0).unwrap());
-                if let Some(ui) = w.upgrade() {
-                    ui.set_home_page_time(HomeTimeData {
-                        day: t.day() as i32,
-                        hour: t.hour() as i32,
-                        minute: t.minute() as i32,
-                        month: t.month() as i32,
-                        second: t.second() as i32,
-                        week: t.weekday().number_days_from_sunday() as i32,
-                        year: t.year(),
-                    });
-                }
-            },
-        );
-        t
     }
 
     fn _update_ip(&self) {

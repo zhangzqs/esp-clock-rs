@@ -3,7 +3,8 @@ import { BootState } from "pages/boot/index.slint";
 import { HomeWeatherData, HomeTimeData } from "pages/home/index.slint";
 import "fonts/microsoft-yahei.ttf";
 import { FPSTestType } from "pages/fpstest/index.slint";
-
+import { Page } from "pages/common/page.slint";
+import { MusicItem } from "pages/music/index.slint"; 
 
 export component AppWindow inherits Window {
     default-font-family: "Microsoft YaHei";
@@ -47,16 +48,30 @@ export component AppWindow inherits Window {
         z: 0;
         home-page-time: home-page-time;
         home-page-weather: home-page-weather;
+        
         photo-page-enter => { photo-page-enter(); }
         photo-page-request-next => { photo-page-request-next(); }
         photo-page-request-auto-play => { photo-page-request-auto-play(); }
         photo-page-request-stop-auto-play => { photo-page-request-stop-auto-play(); }
         photo-page-exit => { photo-page-exit(); }
+
         clock-page-enter => { clock-page-enter(); }
         clock-page-exit => { clock-page-exit(); }
+
         fpstest-page-enter => { fpstest-page-enter(); }
         fpstest-page-exit => { fpstest-page-exit(); }
         fpstest-page-update-type(t) => { fpstest-page-update-type(t); }
+
+        projector-page-local-ip: projector-page-ip;
+        projector-page-local-port: projector-page-port;
+        projector-page-enter => { projector-page-enter(); }
+        projector-page-exit => { projector-page-exit(); }
+
+        music-page-note: music-page-note;
+        music-page-percent: music-page-percent;
+        music-page-switch(i) => { music-page-switch(i); }
+        music-page-enter => { music-page-enter(); }
+        music-page-exit => { music-page-exit(); }
     }
     // 设置启动状态
     public function set-boot-state(state: BootState) {
@@ -83,6 +98,18 @@ export component AppWindow inherits Window {
     callback fpstest-page-exit();
     callback fpstest-page-update-type(FPSTestType);
 
+    // projector页相关
+    in property <string> projector-page-ip;
+    in property <int> projector-page-port;
+    callback projector-page-enter();
+    callback projector-page-exit();
+
+    // music页相关
+    in property <string> music-page-note;
+    in property <float> music-page-percent;
+    callback music-page-switch(MusicItem);
+    callback music-page-enter();
+    callback music-page-exit();
 
     // 触发点击事件
     // count: 点击次数

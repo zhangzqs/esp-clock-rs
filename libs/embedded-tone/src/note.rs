@@ -55,7 +55,7 @@ pub enum NoteName {
     Bb,
     B,
 }
- 
+
 impl From<u8> for NoteName {
     fn from(x: u8) -> Self {
         match x {
@@ -84,6 +84,7 @@ impl From<NoteName> for u8 {
 
 #[derive(Debug, Clone, Copy)]
 pub enum Octave {
+    O0,
     O1,
     O2,
     O3,
@@ -92,19 +93,24 @@ pub enum Octave {
     O6,
     O7,
     O8,
+    O9,
+    O10,
 }
 
 impl From<u8> for Octave {
     fn from(x: u8) -> Self {
         match x {
-            0 => Octave::O1,
-            1 => Octave::O2,
-            2 => Octave::O3,
-            3 => Octave::O4,
-            4 => Octave::O5,
-            5 => Octave::O6,
-            6 => Octave::O7,
-            7 => Octave::O8,
+            0 => Octave::O0,
+            1 => Octave::O1,
+            2 => Octave::O2,
+            3 => Octave::O3,
+            4 => Octave::O4,
+            5 => Octave::O5,
+            6 => Octave::O6,
+            7 => Octave::O7,
+            8 => Octave::O8,
+            9 => Octave::O9,
+            10 => Octave::O10,
             _ => panic!("invalid octave"),
         }
     }
@@ -185,7 +191,7 @@ impl AbsulateNotePitch {
         AbsulateNotePitch::new((note_type as u8).into(), (octave as u8).into())
     }
 
-    pub fn frequency(&self) -> f32 {
+    pub fn frequency(&self) -> u32 {
         // 以A4为基准音，频率为440Hz
         let base = AbsulateNotePitch::new(NoteName::A, Octave::O4);
         const BASE_FREQ: f32 = 440f32;
@@ -198,7 +204,22 @@ impl AbsulateNotePitch {
         let half_tone = d - base_d;
 
         // 计算频率
-        BASE_FREQ * 2.0f32.powf(half_tone as f32 / 12.0)
+        (BASE_FREQ * 2.0f32.powf(half_tone as f32 / 12.0)) as u32
+    }
+
+    pub fn to_midi_note_key(&self) -> u8 {
+        let o = self.octave as u8;
+        let n = self.note_type as u8;
+        o * 12 + n
+    }
+
+    pub fn from_midi_note_key(key: u8) -> Self {
+        let o = key / 12;
+        let n = key % 12;
+        Self {
+            note_type: NoteName::from(n),
+            octave: Octave::from(o),
+        }
     }
 }
 

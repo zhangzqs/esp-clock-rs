@@ -1,12 +1,8 @@
 use display_interface_spi::SPIInterface;
-use embedded_graphics::{
-    pixelcolor::{Rgb565, Rgb888},
-    prelude::*,
-    primitives::Rectangle,
-};
+use embedded_graphics::{pixelcolor::Rgb565, prelude::*, primitives::Rectangle};
+use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
 use embedded_hal::spi::MODE_3;
 use embedded_software_slint_backend::{EmbeddedSoftwarePlatform, RGB565PixelColorAdapter};
-use embedded_svc::http::client::Connection;
 use esp_idf_hal::{
     delay::FreeRtos,
     gpio::{AnyIOPin, PinDriver},
@@ -17,31 +13,36 @@ use esp_idf_hal::{
         TxRmtDriver,
     },
     spi::{config::Config, Dma, SpiDeviceDriver, SpiDriverConfig},
-    task::watchdog,
 };
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
-    http::client::EspHttpConnection,
     nvs::{EspDefaultNvsPartition, EspNvs},
-    sntp::{EspSntp, OperatingMode, SntpConf, SyncMode, SyncStatus},
+    sntp::{EspSntp, OperatingMode, SntpConf, SyncMode},
 };
 use esp_idf_sys as _;
 use log::*;
 use mipidsi::{Builder, ColorInversion, Orientation};
+use slint_app::{BootState, System};
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
+};
 
-use slint_app::BootState;
-
-use crate::wifi::connect_to_wifi;
-use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
-use embedded_tone::{Note, Player};
-use esp_idf_hal::rmt::FixedLengthSignal;
-use slint_app::System;
-use std::sync::{atomic::AtomicU16, Mutex};
-use std::time::Duration;
-use std::{cell::RefCell, thread};
-use std::{rc::Rc, sync::Arc};
-
+mod connection;
+mod evil_apple;
+mod led_controller;
+mod player;
+mod system;
 mod wifi;
+
+use crate::{
+    led_controller::EspLEDController, player::EspBeepPlayer, system::EspSystem,
+    wifi::connect_to_wifi,
+};
+
 #[toml_cfg::toml_config]
 pub struct MyConfig {
     #[default("")]
@@ -51,14 +52,6 @@ pub struct MyConfig {
     #[default("ntp.aliyun.com")]
     ntp_server: &'static str,
 }
-
-mod connection;
-mod system;
-
-use system::EspSystem;
-
-mod player;
-use player::EspBeepPlayer;
 
 fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();
@@ -76,26 +69,22 @@ fn main() -> anyhow::Result<()> {
     let rst = PinDriver::output(peripherals.pins.gpio8)?;
 
     // 初始化SPI引脚
-    let mut delay = FreeRtos;
     let spi = SpiDeviceDriver::new_single(
         peripherals.spi2,
         peripherals.pins.gpio6,
         peripherals.pins.gpio7,
         Option::<AnyIOPin>::None,
         Option::<AnyIOPin>::None,
-        &SpiDriverConfig::default().dma(Dma::Auto(128)),
+        &SpiDriverConfig::default().dma(Dma::Auto(4096)),
         &Config::default()
             .baudrate(80.MHz().into())
-            .data_mode(MODE_3)
-            .write_only(true)
-            .queue_size(128),
+            .data_mode(MODE_3),
+        // .write_only(true)
+        // .queue_size(128),
     )?;
-    info!("SPI init done");
-    info!("free heap: {}", sys.get_free_heap_size());
-    info!("largest free block: {}", sys.get_largest_free_block());
 
-    // 初始化ledc控制器
-    let mut led = LedcDriver::new(
+    // 设置底部灯为关闭
+    let mut blue_led = LedcDriver::new(
         peripherals.ledc.channel0,
         LedcTimerDriver::new(
             peripherals.ledc.timer0,
@@ -105,37 +94,40 @@ fn main() -> anyhow::Result<()> {
         peripherals.pins.gpio2,
     )
     .unwrap();
-    info!("ledc controller init done");
-    info!("free heap: {}", sys.get_free_heap_size());
-    info!("largest free block: {}", sys.get_largest_free_block());
+    blue_led.set_duty(0).unwrap();
 
-    thread::spawn(move || {
-        let max_duty = led.get_max_duty();
-        for numerator in (0..256).chain((0..256).rev()).cycle() {
-            led.set_duty(max_duty * numerator / 256).unwrap();
-            thread::sleep(Duration::from_millis(10));
-        }
-    });
-    info!("ledc controller thread init done");
-    info!("free heap: {}", sys.get_free_heap_size());
-    info!("largest free block: {}", sys.get_largest_free_block());
+    // 设置屏幕背光亮度为33%
+    let mut screen_ledc = LedcDriver::new(
+        peripherals.ledc.channel1,
+        LedcTimerDriver::new(
+            peripherals.ledc.timer1,
+            &TimerConfig::new().frequency(25.kHz().into()),
+        )
+        .unwrap(),
+        peripherals.pins.gpio10,
+    )
+    .unwrap();
+    screen_ledc.set_duty(screen_ledc.get_max_duty()).unwrap();
+
+    let beep_tx = TxRmtDriver::new(
+        peripherals.rmt.channel0,
+        peripherals.pins.gpio0,
+        &TransmitConfig::new().looping(Loop::Endless),
+    )
+    .unwrap();
 
     // 初始化显示屏驱动
-    let mut physical_display = Arc::new(Mutex::new(
+    let physical_display = Arc::new(Mutex::new(
         Builder::st7789(SPIInterface::new(spi, dc, cs))
             .with_display_size(240, 240)
             .with_framebuffer_size(240, 240)
             .with_orientation(Orientation::Portrait(false))
             .with_invert_colors(ColorInversion::Inverted)
-            .init(&mut delay, Some(rst))
+            .init(&mut FreeRtos, Some(rst))
             .unwrap(),
     ));
 
     let display_group = Arc::new(Mutex::new(DisplayGroup::new(physical_display.clone(), 2)));
-
-    info!("display init done");
-    info!("free heap: {}", sys.get_free_heap_size());
-    info!("largest free block: {}", sys.get_largest_free_block());
 
     let nvs = EspDefaultNvsPartition::take()?;
     let nvs_a = EspNvs::new(nvs.clone(), "test_ns", true)?;
@@ -197,15 +189,11 @@ fn main() -> anyhow::Result<()> {
     let app = slint_app::MyApp::new(slint_app::MyAppDeps {
         http_conn: connection::MyConnection::new(),
         system: EspSystem,
-        display_group: display_group,
-        player: EspBeepPlayer::new(
-            TxRmtDriver::new(
-                peripherals.rmt.channel0,
-                peripherals.pins.gpio0,
-                &TransmitConfig::new().looping(Loop::Endless),
-            )
-            .unwrap(),
-        ),
+        display_group,
+        player: EspBeepPlayer::new(beep_tx),
+        eval_apple: evil_apple::EvilAppleBLEImpl,
+        screen_brightness_controller: EspLEDController::new(screen_ledc),
+        blue_led: EspLEDController::new(blue_led),
     });
     info!("slint app init done");
     info!("free heap: {}", sys.get_free_heap_size());
@@ -219,9 +207,9 @@ fn main() -> anyhow::Result<()> {
     let w1 = wifi.clone();
     let s1 = sntp.clone();
 
-    app.get_app_window().upgrade().map(|ui| {
+    if let Some(ui) = app.get_app_window().upgrade() {
         ui.invoke_set_boot_state(BootState::Booting);
-    });
+    }
     let u = app.get_app_window();
     thread::Builder::new().stack_size(4096).spawn(move || {
         u.upgrade_in_event_loop(|ui| {
@@ -347,5 +335,4 @@ fn main() -> anyhow::Result<()> {
     loop {
         thread::sleep(Duration::from_millis(100));
     }
-    Ok(())
 }

@@ -1,56 +1,73 @@
-use std::time::Duration;
+use core::time::Duration;
 
-use crate::{note::{Note, NoteDuration, Rest}, SlideNote};
+use crate::{
+    note::{Note, NoteDuration, Rest},
+    SlideNote,
+};
 
-pub trait Player {
-    
-    // 每拍的时长
-    fn set_beat_duration(&mut self, beat_duration: Duration);
+pub trait RawTonePlayer {
+    fn tone(&mut self, freq: u32);
+    fn off(&mut self);
+}
+
+pub struct TonePlayer<P, D>
+where
+    P: RawTonePlayer,
+    D: Fn(Duration),
+{
+    tone_player: P,
+    whole_duration: Duration, // 一个全音符的时间
+    slide_note_samples: usize,
+    delay: D,
+}
+
+impl<P, D> TonePlayer<P, D>
+where
+    P: RawTonePlayer,
+    D: Fn(Duration),
+{
+    pub fn new(player: P, delay: D) -> Self {
+        Self {
+            tone_player: player,
+            whole_duration: Duration::from_secs(4),
+            slide_note_samples: 50,
+            delay,
+        }
+    }
 
     /// bpm: beat per minute
-    fn set_beat_duration_from_bpm(&mut self, bpm: u32, note_duration_as_beat: NoteDuration) {
+    pub fn set_beat_duration_from_bpm(&mut self, bpm: u32, note_duration_as_beat: NoteDuration) {
         // 一分钟有60秒
         // 以给定的音符时值为一拍
         // 一拍的时长为60/bpm秒
         let d: f32 = note_duration_as_beat.into();
-        self.set_beat_duration(Duration::from_secs_f32(60.0 / bpm as f32 / d))
+        self.whole_duration = Duration::from_secs_f32(60.0 / bpm as f32 / d);
     }
 
-    fn play_note(&mut self, note: Note);
-    fn play_rest(&mut self, rest: Rest);
-    fn play_notes<T>(&mut self, _notes: T)
-    where
-        T: IntoIterator<Item = Note>,
-    {
-        unimplemented!("play_notes")
+    pub fn play_note(&mut self, note: Note) {
+        let pitch = note.pitch.frequency();
+        let duration = self.whole_duration.mul_f32(note.duration.into());
+        self.tone_player.tone(pitch);
+        (self.delay)(duration);
+        self.tone_player.off();
     }
-    fn play_slide(&mut self, slide_note: SlideNote) {
-        unimplemented!("play_slide")
+    pub fn play_rest(&mut self, rest: Rest) {
+        let dur = self.whole_duration.mul_f32(rest.duration.into());
+        (self.delay)(dur);
     }
-}
+    pub fn play_slide(&mut self, slide_note: SlideNote) {
+        let t = self.whole_duration.mul_f32(slide_note.duration.into());
+        let n = (t.as_secs_f32() * self.slide_note_samples as f32) as usize;
+        let start_freq = slide_note.start_pitch.frequency() as f32;
+        let end_freq = slide_note.end_pitch.frequency() as f32;
+        let freq_step = (end_freq - start_freq) / n as f32;
 
-pub struct MockPlayer {
-    beat_duration: Duration,
-}
-
-impl Default for MockPlayer {
-    fn default() -> Self {
-        Self {
-            beat_duration: Duration::from_secs_f32(0.5),
+        for i in 0..n {
+            let freq = (start_freq + freq_step * i as f32) as u32;
+            let t = t / n as u32;
+            self.tone_player.tone(freq);
+            (self.delay)(t);
+            self.tone_player.off();
         }
-    }
-}
-
-impl Player for MockPlayer {
-    fn set_beat_duration(&mut self, beat_duration: Duration) {
-        self.beat_duration = beat_duration;
-    }
-
-    fn play_note(&mut self, note: Note) {
-        println!("play note: {:?}", note);
-    }
-
-    fn play_rest(&mut self, rest: Rest) {
-        println!("play rest: {:?}", rest);
     }
 }

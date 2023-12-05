@@ -17,9 +17,9 @@ use embedded_graphics_simulator::{
     sdl2::Keycode, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
 };
 
-use log::{info, debug};
+use log::{debug, info};
 
-use slint_app::{BootState, MyApp, MyAppDeps, MockSystem};
+use slint_app::{BootState, EvilApple, LEDController, MockSystem, MyApp, MyAppDeps};
 
 use button_driver::{Button, ButtonConfig, PinWrapper};
 use embedded_software_slint_backend::{EmbeddedSoftwarePlatform, RGB888PixelColorAdapter};
@@ -34,6 +34,41 @@ struct MyButtonPin(Rc<AtomicBool>);
 impl PinWrapper for MyButtonPin {
     fn is_high(&self) -> bool {
         self.0.load(Ordering::Relaxed)
+    }
+}
+
+struct MockEvilApple;
+
+impl EvilApple for MockEvilApple {
+    fn attack_once(&self, _data: &[u8]) {
+        info!("attack once");
+    }
+}
+
+struct MockLEDController {
+    brightness: u32,
+}
+
+impl Default for MockLEDController {
+    fn default() -> Self {
+        Self { brightness: 1000 }
+    }
+}
+
+impl LEDController for MockLEDController {
+    fn get_max_brightness(&self) -> u32 {
+        info!("get max brightness");
+        1000
+    }
+
+    fn set_brightness(&mut self, brightness: u32) {
+        info!("set brightness {}", brightness);
+        self.brightness = brightness;
+    }
+
+    fn get_brightness(&self) -> u32 {
+        info!("get brightness");
+        self.brightness
     }
 }
 
@@ -85,6 +120,9 @@ fn main() -> anyhow::Result<()> {
         system: MockSystem,
         display_group: display_group.clone(),
         player: RodioPlayer::new(),
+        eval_apple: MockEvilApple,
+        screen_brightness_controller: MockLEDController::default(),
+        blue_led: MockLEDController::default(),
     });
     info!("app has been created");
 
@@ -98,17 +136,20 @@ fn main() -> anyhow::Result<()> {
             ..Default::default()
         },
     );
-    
+
     let u = app.get_app_window();
     let button_event_timer = slint::Timer::default();
     button_event_timer.start(
         slint::TimerMode::Repeated,
         Duration::from_millis(10),
         move || {
-            let physical_display_update_ref = physical_display.clone();
+            {
+                let physical_display_update_ref = physical_display.clone();
+                let display = physical_display_update_ref.lock().unwrap();
+                window.update(&display);
+            }
+
             let button_state_ref = button_state.clone();
-            let display = physical_display_update_ref.lock().unwrap();
-            window.update(&display);
             for event in window.events() {
                 match event {
                     SimulatorEvent::KeyUp { keycode, .. } => match keycode {
@@ -127,13 +168,19 @@ fn main() -> anyhow::Result<()> {
             if button.clicks() > 0 {
                 let clicks = button.clicks();
                 debug!("Clicks: {}", clicks);
-                if let Some(ui) = u.upgrade() { ui.invoke_on_one_button_clicks(clicks as i32); }
+                if let Some(ui) = u.upgrade() {
+                    ui.invoke_on_one_button_clicks(clicks as i32);
+                }
             } else if let Some(dur) = button.current_holding_time() {
                 debug!("Held for {dur:?}");
-                if let Some(ui) = u.upgrade() { ui.invoke_on_one_button_long_pressed_holding(dur.as_millis() as i64); }
+                if let Some(ui) = u.upgrade() {
+                    ui.invoke_on_one_button_long_pressed_holding(dur.as_millis() as i64);
+                }
             } else if let Some(dur) = button.held_time() {
                 debug!("Total holding time {dur:?}");
-                if let Some(ui) = u.upgrade() { ui.invoke_on_one_button_long_pressed_held(dur.as_millis() as i64); }
+                if let Some(ui) = u.upgrade() {
+                    ui.invoke_on_one_button_long_pressed_held(dur.as_millis() as i64);
+                }
             }
             button.reset();
         },
@@ -141,7 +188,9 @@ fn main() -> anyhow::Result<()> {
 
     // 模拟启动过程
     let u = app.get_app_window();
-    if let Some(ui) = u.upgrade() { ui.invoke_set_boot_state(BootState::Booting); }
+    if let Some(ui) = u.upgrade() {
+        ui.invoke_set_boot_state(BootState::Booting);
+    }
     thread::spawn(move || {
         thread::sleep(Duration::from_secs(1));
         u.upgrade_in_event_loop(|ui| {
@@ -167,7 +216,9 @@ fn main() -> anyhow::Result<()> {
         slint::TimerMode::Repeated,
         Duration::from_secs(1),
         move || {
-            if let Some(ui) = ui.upgrade() { ui.set_fps(*fps.borrow()); }
+            if let Some(ui) = ui.upgrade() {
+                ui.set_fps(*fps.borrow());
+            }
             info!("FPS: {}", *fps.borrow());
             *fps.borrow_mut() = 0;
         },

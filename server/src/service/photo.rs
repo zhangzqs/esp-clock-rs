@@ -1,4 +1,4 @@
-use image::{ImageDecoder, imageops::FilterType, GenericImageView};
+use image::{imageops::FilterType, GenericImageView};
 use poem_openapi::{OpenApi, payload::{Attachment, AttachmentType}};
 
 
@@ -10,7 +10,7 @@ impl Photo {
     async fn photo(&self) -> Attachment<Vec<u8>> {
         let resp = reqwest::get("http://little-paimon.zzq:5000/img").await.unwrap();
         let bytes = resp.bytes().await.unwrap();
-        let img = image::load_from_memory(&bytes.to_vec()).unwrap();
+        let img = image::load_from_memory(&bytes).unwrap();
         // 将图片缩放为 240x240
         let img = img.resize(240, 240, FilterType::Nearest);
         let mut bytes = Vec::new();

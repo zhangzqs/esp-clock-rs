@@ -1,0 +1,83 @@
+export enum MusicItem {
+    Fontaine,
+    Klee,
+    LaVaguelette,
+    Nahida,
+    IveNeverForgotten,
+}
+
+export component MusicPage inherits Rectangle {
+    function music-item-to-chinese(item: MusicItem) -> string {
+        if (item == MusicItem.Fontaine) { return "枫丹主题曲"; }
+        if (item == MusicItem.Klee) { return "可莉主题曲"; }
+        if (item == MusicItem.LaVaguelette) { return "轻链"; }
+        if (item == MusicItem.Nahida) { return "纳西妲PV曲"; }
+        if (item == MusicItem.IveNeverForgotten) { return "我不曾忘记"; }
+
+        return "unknown";
+    }
+
+    in property <string> note;
+    in property <float> percent;
+
+    property <[MusicItem]> music-list: [
+        MusicItem.Fontaine,
+        MusicItem.Klee,
+        MusicItem.LaVaguelette,
+        MusicItem.Nahida,
+        MusicItem.IveNeverForgotten,
+    ];
+    property <int> current-music-id: 0;
+
+    callback switch(MusicItem);
+    callback enter();
+    callback exit();
+
+    background: black;
+
+    VerticalLayout {
+        alignment: space-between;
+        Text {
+            text: "正在演奏";
+            font-size: 30px;
+            color: white;
+        }
+        Text {
+            text: music-item-to-chinese(music-list[current-music-id]);
+            font-size: 20px;
+            color: white;
+        }
+        // Text {
+        //     text: note;
+        //     font-size: 40px;
+        //     color: white;
+        // }
+        Rectangle {
+            width: percent * 240px;
+            height: 5px;
+            background: red;
+            animate width {
+                duration: 500ms;
+                easing: ease-in-out;
+            }
+        }
+    }
+
+    // 进入页面
+    public function on-enter() {
+        enter();
+    }
+
+    // 单机按键切换音乐
+    public function on-one-button-click() {
+        current-music-id = Math.mod(current-music-id + 1, music-list.length);
+        switch(music-list[current-music-id]);
+    }
+
+    // 长按3秒退出
+    public function on-one-button-long-pressed-holding(dur: duration) {
+        if (dur > 3000ms) {
+            exit();
+        }
+    }
+}

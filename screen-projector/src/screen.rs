@@ -18,7 +18,7 @@ impl Capturer {
             w,
             h,
             capturer: Some(capturer),
-            sleep: Duration::new(1, 0) / 60,
+            sleep: Duration::new(1, 0) / 120,
         }
     }
     fn reload(&mut self) {
@@ -51,7 +51,7 @@ impl Capturer {
                         Err(error) => {
                             std::thread::sleep(self.sleep);
                             if error.kind() != WouldBlock {
-                                std::thread::sleep(std::time::Duration::from_millis(200));
+                                std::thread::sleep(std::time::Duration::from_millis(20));
                                 self.reload();
                             }
                             continue;
@@ -60,7 +60,7 @@ impl Capturer {
                     return unsafe { from_raw_parts(buffer.as_ptr(), buffer.len()) };
                 }
                 None => {
-                    std::thread::sleep(std::time::Duration::from_millis(200));
+                    std::thread::sleep(std::time::Duration::from_millis(20));
                     self.reload();
                     continue;
                 }

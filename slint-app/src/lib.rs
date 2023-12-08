@@ -11,8 +11,8 @@ use embedded_svc::{
     io::Read,
 };
 use embedded_tone::RawTonePlayer;
-use home::HomeApp;
 use log::{debug, info};
+use network::NetworkMonitorApp;
 use slint::Weak;
 use std::{
     cell::RefCell,
@@ -52,6 +52,9 @@ mod music;
 use crate::music::MusicApp;
 
 mod home;
+use crate::home::HomeApp;
+
+mod network;
 
 slint::include_modules!();
 
@@ -98,6 +101,7 @@ where
     music_app: Rc<RefCell<MusicApp<TONE, LC>>>,
     _screen_led_ctl: Arc<Mutex<LC>>,
     home_app: Rc<RefCell<HomeApp>>,
+    network_monitor_app: Rc<RefCell<NetworkMonitorApp>>,
 }
 
 impl<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>
@@ -137,6 +141,8 @@ where
             blue_led.clone(),
         )));
         let home_app = Rc::new(RefCell::new(HomeApp::new(app_window.as_weak())));
+        let network_monitor_app =
+            Rc::new(RefCell::new(NetworkMonitorApp::new(app_window.as_weak())));
         let app = MyApp {
             http_client,
             app_window,
@@ -149,6 +155,7 @@ where
             music_app,
             _screen_led_ctl: screen_led_ctl,
             home_app,
+            network_monitor_app,
         };
         info!("MyApp created");
         app.bind_event_app();

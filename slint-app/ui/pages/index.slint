@@ -18,7 +18,7 @@ export component MultiPage inherits Rectangle {
     // BootPage
     boot-page := BootPage {
         visible: current-page == Page.Boot;
-        boot-finish => { enter-page(Page.Home); }
+        boot-finish => { enter-page(Page.Music); }
     }
 
     public function boot-page-set-state(state: BootState) {
@@ -136,10 +136,10 @@ export component MultiPage inherits Rectangle {
         }
     }
 
-    in property <image> network-monitor-plot;
+    in property <image> network-monitor-page-plot;
     network-monitor-page := NetworkMoniterPage {
         visible: current-page == Page.Network;
-        plot: network-monitor-plot;
+        plot: network-monitor-page-plot;
     }
 
     menu-page := MenuPage {

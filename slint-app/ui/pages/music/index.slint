@@ -1,19 +1,28 @@
 export enum MusicItem {
+    SinnersFinale,
     Fontaine,
     Klee,
     LaVaguelette,
     Nahida,
     IveNeverForgotten,
+    KondaVillage,
+    BlossomsOfSummer,
+    InnocentAge,
+    MondstadtMedley,
 }
 
 export component MusicPage inherits Rectangle {
     function music-item-to-chinese(item: MusicItem) -> string {
+        if (item == MusicItem.SinnersFinale) { return "罪人的终幕"; }
         if (item == MusicItem.Fontaine) { return "枫丹主题曲"; }
         if (item == MusicItem.Klee) { return "可莉主题曲"; }
         if (item == MusicItem.LaVaguelette) { return "轻链"; }
         if (item == MusicItem.Nahida) { return "纳西妲PV曲"; }
         if (item == MusicItem.IveNeverForgotten) { return "我不曾忘记"; }
-
+        if (item == MusicItem.KondaVillage) { return "绀田村"; }
+        if (item == MusicItem.BlossomsOfSummer) { return "宵宫PV"; }
+        if (item == MusicItem.InnocentAge) { return "无虑无猜的岁月"; }
+        if (item == MusicItem.MondstadtMedley) { return "MondstadtMedley"; }
         return "unknown";
     }
 
@@ -21,13 +30,18 @@ export component MusicPage inherits Rectangle {
     in property <float> percent;
 
     property <[MusicItem]> music-list: [
+        MusicItem.KondaVillage,
+        MusicItem.BlossomsOfSummer,
+        MusicItem.InnocentAge,
+        MusicItem.MondstadtMedley,
+        MusicItem.SinnersFinale,
         MusicItem.Fontaine,
         MusicItem.Klee,
         MusicItem.LaVaguelette,
         MusicItem.Nahida,
         MusicItem.IveNeverForgotten,
     ];
-    property <int> current-music-id: 0;
+    property <int> current-music-id: -1;
 
     callback switch(MusicItem);
     callback enter();
@@ -43,7 +57,7 @@ export component MusicPage inherits Rectangle {
             color: white;
         }
         Text {
-            text: music-item-to-chinese(music-list[current-music-id]);
+            text: current-music-id == -1 ? "未播放" : music-item-to-chinese(music-list[current-music-id]);
             font-size: 20px;
             color: white;
         }

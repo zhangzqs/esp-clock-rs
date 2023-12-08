@@ -72,6 +72,8 @@ export component AppWindow inherits Window {
         music-page-switch(i) => { music-page-switch(i); }
         music-page-enter => { music-page-enter(); }
         music-page-exit => { music-page-exit(); }
+
+        network-monitor-page-plot: network-monitor-page-plot;
     }
     // 设置启动状态
     public function set-boot-state(state: BootState) {
@@ -110,6 +112,9 @@ export component AppWindow inherits Window {
     callback music-page-switch(MusicItem);
     callback music-page-enter();
     callback music-page-exit();
+
+    // network
+    in property <image> network-monitor-page-plot;
 
     // 触发点击事件
     // count: 点击次数

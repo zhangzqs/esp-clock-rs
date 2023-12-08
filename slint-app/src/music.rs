@@ -16,17 +16,17 @@ use slint::Weak;
 use std::sync::mpsc;
 
 fn get_music(i: MusicItem) -> &'static [u8] {
-    const DATA3: &[u8] = include_bytes!("../music/qqz.mid");
-    const DATA4: &[u8] = include_bytes!("../music/gy.mid");
-    const DATA8: &[u8] = include_bytes!("../music/ldjj.mid");
-    const DATA9: &[u8] = include_bytes!("../music/yaoyao.mid");
-
     match i {
-        MusicItem::Fontaine => include_bytes!("../music/fontaine.mid"),
+        MusicItem::Fontaine => include_bytes!("../music/Fontaine__HOYO-MiX.mid"),
         MusicItem::Klee => include_bytes!("../music/Klee.mid"),
-        MusicItem::LaVaguelette => include_bytes!("../music/ql.mid"),
-        MusicItem::Nahida => include_bytes!("../music/nxd.mid"),
-        MusicItem::IveNeverForgotten => include_bytes!("../music/wbcwj.mid"),
+        MusicItem::LaVaguelette => include_bytes!("../music/Story_Teaser_La_vaguelette__Genshin_Impact.mid"),
+        MusicItem::Nahida => include_bytes!("../music/Nahida_trailer.mid"),
+        MusicItem::IveNeverForgotten => include_bytes!("../music/我不曾忘记.mid"),
+        MusicItem::SinnersFinale => include_bytes!("../music/Sinners_Finale_Genshin_Impact.mid"),
+        MusicItem::KondaVillage => include_bytes!("../music/Konda_Village_BGM_Morning_Genshin_Impact.mid"),
+        MusicItem::BlossomsOfSummer => include_bytes!("../music/Blossoms_of_Summer_Night__Dimeng_Yuan_from_Genshin_Impact.mid"),
+        MusicItem::InnocentAge => include_bytes!("../music/Genshin Impact - Innocent Age.mid"),
+        MusicItem::MondstadtMedley=>include_bytes!("../music/Genshin_Impact_OST_-_Mondstadt_Medley_Piano.mid"),
     }
 }
 

@@ -8,3 +8,6 @@ clippy:
 	cd server && cargo clippy --fix --allow-dirty && cd -
 	cd screen-projector && cargo clippy --fix --allow-dirty && cd -
 	cd desktop-simulator-impl && cargo clippy --fix --allow-dirty && cd -
+
+cloc:
+	cloc . --vcs git

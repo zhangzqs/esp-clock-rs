@@ -3,7 +3,7 @@ use std::io::Read;
 use std::str::FromStr;
 
 use embedded_io::{ErrorType, Write as _};
-use embedded_svc::http::client::{Connection};
+use embedded_svc::http::client::Connection;
 use embedded_svc::http::Method;
 use embedded_svc::http::Status;
 use reqwest;
@@ -211,7 +211,7 @@ impl Connection for HttpClientAdapterConnection {
 
 #[cfg(test)]
 mod tests {
-    use embedded_svc::utils::io;
+    use embedded_svc::{utils::io, http::client::Client};
 
     use super::*;
 

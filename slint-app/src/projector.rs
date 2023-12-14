@@ -33,7 +33,7 @@ where
     EGE: Debug,
 {
     // 外部传递进来的字段
-    display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>,
+    display_group: Arc<Mutex<DisplayGroup<EGD>>>,
 
     // 内部使用字段
     old_display_id: isize,
@@ -50,7 +50,7 @@ where
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
     EGE: Debug,
 {
-    pub fn new(display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>, app: Weak<AppWindow>) -> Self {
+    pub fn new(display_group: Arc<Mutex<DisplayGroup<EGD>>>, app: Weak<AppWindow>) -> Self {
         let old_display_id = display_group
             .lock()
             .unwrap()
@@ -147,7 +147,7 @@ where
     }
 
     fn handle_client(
-        display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>,
+        display_group: Arc<Mutex<DisplayGroup<EGD>>>,
         new_display_id: usize,
         old_display_id: isize,
         recv: Arc<Mutex<mpsc::Receiver<ProjectorAppEvent>>>,

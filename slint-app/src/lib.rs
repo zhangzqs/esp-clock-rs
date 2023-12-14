@@ -6,9 +6,10 @@ use embedded_graphics_group::DisplayGroup;
 use embedded_svc::{
     http::{
         client::{Client, Connection},
+        server::FnHandler,
         Method,
     },
-    io::Read,
+    io::{Read, Write},
 };
 use embedded_tone::RawTonePlayer;
 use log::{debug, info};
@@ -18,8 +19,9 @@ use std::{
     cell::RefCell,
     error,
     fmt::Debug,
+    marker::PhantomData,
     rc::Rc,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, MutexGuard},
 };
 use std::{thread, time::Duration};
 use time::{OffsetDateTime, UtcOffset};
@@ -58,6 +60,9 @@ mod network;
 mod server;
 use crate::server::HttpServerApp;
 
+mod server;
+use server::HttpServerApp;
+
 slint::include_modules!();
 
 pub struct MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>
@@ -74,7 +79,7 @@ where
 {
     pub http_conn: CONN,
     pub system: SYS,
-    pub display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>,
+    pub display_group: Arc<Mutex<DisplayGroup<EGD>>>,
     pub player: TONE,
     pub eval_apple: EA,
     pub screen_brightness_controller: LC,
@@ -104,7 +109,7 @@ where
     _screen_led_ctl: Arc<Mutex<LC>>,
     home_app: Rc<RefCell<HomeApp>>,
     network_monitor_app: Rc<RefCell<NetworkMonitorApp>>,
-    server_app: Rc<RefCell<HttpServerApp>>,
+    http_server_app: Rc<RefCell<HttpServerApp>>,
 }
 
 impl<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>
@@ -146,10 +151,11 @@ where
         let home_app = Rc::new(RefCell::new(HomeApp::new(app_window.as_weak())));
         let network_monitor_app =
             Rc::new(RefCell::new(NetworkMonitorApp::new(app_window.as_weak())));
-        let server_app = Rc::new(RefCell::new(HttpServerApp::new()));
+
+        let http_server_app = Rc::new(RefCell::new(HttpServerApp::new()));
         let app = MyApp {
-            http_client,
             app_window,
+            http_client,
             system: deps.system,
             photo_app,
             clock_app,
@@ -160,11 +166,10 @@ where
             _screen_led_ctl: screen_led_ctl,
             home_app,
             network_monitor_app,
-            server_app,
+            http_server_app,
         };
         info!("MyApp created");
         app.bind_event_app();
-
         app
     }
 

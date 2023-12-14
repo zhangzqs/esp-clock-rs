@@ -34,10 +34,10 @@ where
     EGE: Debug,
 {
     // 外部传递进来的字段
-    display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>,
+    display_group: Arc<Mutex<DisplayGroup<EGD>>>,
 
     // 内部使用字段
-    display: Arc<Mutex<LogicalDisplay<EGC, EGD>>>,
+    display: Arc<Mutex<LogicalDisplay<EGD>>>,
     old_display_id: isize,
     new_display_id: usize,
     join_handle: Option<thread::JoinHandle<()>>,
@@ -53,7 +53,7 @@ where
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
     EGE: Debug,
 {
-    pub fn new(display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>) -> Self {
+    pub fn new(display_group: Arc<Mutex<DisplayGroup<EGD>>>) -> Self {
         let old_display_id = display_group
             .lock()
             .unwrap()
@@ -141,7 +141,7 @@ where
     }
 
     fn draw_by_type(
-        display: &mut LogicalDisplay<EGC, EGD>,
+        display: &mut LogicalDisplay<EGD>,
         aria: Rectangle,
         current_type: FPSTestType,
         hue: f32,

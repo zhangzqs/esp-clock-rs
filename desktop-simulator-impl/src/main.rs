@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     env::set_var,
+    net::SocketAddr,
     rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -10,7 +11,7 @@ use std::{
     time::Duration,
 };
 
-use desktop_svc::http::client::HttpClientAdapterConnection;
+use desktop_svc::http::client::HttpClientConnection;
 use embedded_graphics::{pixelcolor::Rgb888, prelude::*, primitives::Rectangle};
 use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
 use embedded_graphics_simulator::{
@@ -116,7 +117,7 @@ fn main() -> anyhow::Result<()> {
     info!("window has been created");
 
     let app = MyApp::new(MyAppDeps {
-        http_conn: HttpClientAdapterConnection::new(),
+        http_conn: HttpClientConnection::new(),
         system: MockSystem,
         display_group: display_group.clone(),
         player: RodioPlayer::new(),

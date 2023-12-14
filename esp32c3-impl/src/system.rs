@@ -1,6 +1,15 @@
 use slint_app::System;
 
-pub struct EspSystem;
+#[derive(Clone, Copy)]
+pub struct EspSystem {
+    wifi: Arc<Mutex<Option<EspWifi<'static>>>>,
+}
+
+impl EspSystem {
+    pub fn new(wifi: Arc<Mutex<EspWifi<'static>>>) -> Self {
+        Self { wifi }
+    }
+}
 
 unsafe impl Send for EspSystem {}
 unsafe impl Sync for EspSystem {}
@@ -21,5 +30,15 @@ impl System for EspSystem {
     /// 获取最大连续的可分配块
     fn get_largest_free_block(&self) -> usize {
         unsafe { esp_idf_sys::heap_caps_get_largest_free_block(esp_idf_sys::MALLOC_CAP_8BIT) }
+    }
+
+    fn get_sta_netif(&self) -> Option<embedded_svc::ipv4::IpInfo> {
+        let wifi = self.wifi.lock().unwrap();
+        if wifi.is_none() {
+            return None;
+        }
+        let netif = wifi.wifi().sta_netif();
+        let ip_info = netif.get_ip_info().unwrap();
+        Some(ip_info)
     }
 }

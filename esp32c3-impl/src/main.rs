@@ -1,8 +1,10 @@
+use anyhow::Ok;
 use display_interface_spi::SPIInterface;
 use embedded_graphics::{pixelcolor::Rgb565, prelude::*, primitives::Rectangle};
 use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
 use embedded_hal::spi::MODE_3;
 use embedded_software_slint_backend::{EmbeddedSoftwarePlatform, RGB565PixelColorAdapter};
+use embedded_svc::http::Method;
 use esp_idf_hal::{
     delay::FreeRtos,
     gpio::{AnyIOPin, PinDriver},
@@ -16,6 +18,7 @@ use esp_idf_hal::{
 };
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
+    http::server::EspHttpServer,
     nvs::{EspDefaultNvsPartition, EspNvs},
     sntp::{EspSntp, OperatingMode, SntpConf, SyncMode},
 };
@@ -57,7 +60,7 @@ fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
 
-    let sys = EspSystem;
+    
     info!("start free heap: {}", sys.get_free_heap_size());
     info!("start largest free block: {}", sys.get_largest_free_block());
 
@@ -79,8 +82,6 @@ fn main() -> anyhow::Result<()> {
         &Config::default()
             .baudrate(80.MHz().into())
             .data_mode(MODE_3),
-        // .write_only(true)
-        // .queue_size(128),
     )?;
 
     // 设置底部灯为关闭
@@ -186,30 +187,31 @@ fn main() -> anyhow::Result<()> {
         info!("largest free block: {}", sys.get_largest_free_block());
     }
 
+
+    // 连接wifi并NTP校时
+    let sysloop = EspSystemEventLoop::take()?;
+    let wifi = Arc::new(Mutex::new(None));
+    let sntp = Arc::new(Mutex::new(None));
+    let system = EspSystem::new(wifi.clone());
+
     let app = slint_app::MyApp::new(slint_app::MyAppDeps {
         http_conn: connection::MyConnection::new(),
-        system: EspSystem,
+        system,
         display_group,
         player: EspBeepPlayer::new(beep_tx),
         eval_apple: evil_apple::EvilAppleBLEImpl,
         screen_brightness_controller: EspLEDController::new(screen_ledc),
         blue_led: EspLEDController::new(blue_led),
     });
+    if let Some(ui) = app.get_app_window().upgrade() {
+        ui.invoke_set_boot_state(BootState::Booting);
+    }
     info!("slint app init done");
     info!("free heap: {}", sys.get_free_heap_size());
     info!("largest free block: {}", sys.get_largest_free_block());
 
-    // 连接wifi并NTP校时
-    let sysloop = EspSystemEventLoop::take()?;
-    let wifi = Arc::new(Mutex::new(None));
-    let sntp = Arc::new(Mutex::new(None));
-
     let w1 = wifi.clone();
     let s1 = sntp.clone();
-
-    if let Some(ui) = app.get_app_window().upgrade() {
-        ui.invoke_set_boot_state(BootState::Booting);
-    }
     let u = app.get_app_window();
     thread::Builder::new().stack_size(4096).spawn(move || {
         u.upgrade_in_event_loop(|ui| {
@@ -262,11 +264,6 @@ fn main() -> anyhow::Result<()> {
         .unwrap();
     })?;
 
-    let sys = EspSystem;
-    info!("wifi thread init done");
-    info!("free heap: {}", sys.get_free_heap_size());
-    info!("largest free block: {}", sys.get_largest_free_block());
-
     // 按键驱动
     let ui = app.get_app_window();
     thread::spawn(move || {
@@ -298,11 +295,8 @@ fn main() -> anyhow::Result<()> {
             thread::sleep(Duration::from_millis(10));
         }
     });
-    info!("button driver thread init done");
-    info!("free heap: {}", sys.get_free_heap_size());
-    info!("largest free block: {}", sys.get_largest_free_block());
 
-    // 性能监视器
+    // ESP性能监视器
     let u = app.get_app_window();
     let perf_timer = slint::Timer::default();
     perf_timer.start(
@@ -322,17 +316,7 @@ fn main() -> anyhow::Result<()> {
             *fps_ref.borrow_mut() = 0;
         },
     );
-    info!("free mem timer init done");
-    info!("free heap: {}", sys.get_free_heap_size());
-    info!("largest free block: {}", sys.get_largest_free_block());
 
-    // 放到新线程，防止阻塞看门狗
-    thread::Builder::new()
-        .stack_size(8 * 1024)
-        .name("Slint UI".into())
-        .spawn(|| slint::run_event_loop().map_err(|e| anyhow::anyhow!("{:?}", e)))
-        .unwrap();
-    loop {
-        thread::sleep(Duration::from_millis(100));
-    }
+    slint::run_event_loop().map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    Ok(())
 }

@@ -1,10 +1,11 @@
 use std::{
+    error,
     sync::{
         mpsc::{self},
         Arc, Mutex,
     },
     thread,
-    time::Duration, error,
+    time::Duration,
 };
 
 use embedded_graphics::{
@@ -20,7 +21,7 @@ use embedded_svc::{
     },
     io::Read,
 };
-use log::{debug, info, error};
+use log::{debug, error, info};
 
 use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
 
@@ -40,10 +41,10 @@ where
 {
     // 外部传递进来的字段
     client: Arc<Mutex<Client<CONN>>>,
-    display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>,
+    display_group: Arc<Mutex<DisplayGroup<EGD>>>,
 
     // 内部使用字段
-    display: Arc<Mutex<LogicalDisplay<EGC, EGD>>>,
+    display: Arc<Mutex<LogicalDisplay<EGD>>>,
     old_display_id: isize,
     new_display_id: usize,
     join_handle: Option<thread::JoinHandle<()>>,
@@ -60,7 +61,7 @@ where
 {
     pub fn new(
         client: Arc<Mutex<Client<CONN>>>,
-        display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>,
+        display_group: Arc<Mutex<DisplayGroup<EGD>>>,
     ) -> Self {
         let old_display_id = display_group
             .lock()
@@ -165,9 +166,8 @@ where
             .switch_to_logical_display(self.old_display_id);
     }
 
-    fn load_image_to_screen(client: &mut Client<CONN>, display: &mut LogicalDisplay<EGC, EGD>) -> bool {
-        let req = client
-            .request(Method::Get, "http://192.168.242.118:3000/api/photo", &[]);
+    fn load_image_to_screen(client: &mut Client<CONN>, display: &mut LogicalDisplay<EGD>) -> bool {
+        let req = client.request(Method::Get, "http://192.168.242.118:3000/api/photo", &[]);
         if let Err(e) = req {
             error!("create request failed: {}", e);
             return false;

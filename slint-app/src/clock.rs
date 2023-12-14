@@ -233,10 +233,10 @@ where
     EGE: Debug,
 {
     // 外部传递进来的字段
-    display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>,
+    display_group: Arc<Mutex<DisplayGroup<EGD>>>,
 
     // 内部使用字段
-    display: Arc<Mutex<LogicalDisplay<EGC, EGD>>>,
+    display: Arc<Mutex<LogicalDisplay<EGD>>>,
     old_display_id: isize,
     new_display_id: usize,
     join_handle: Option<thread::JoinHandle<()>>,
@@ -255,7 +255,7 @@ where
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
     EGE: Debug,
 {
-    pub fn new(display_group: Arc<Mutex<DisplayGroup<EGC, EGD>>>) -> Self {
+    pub fn new(display_group: Arc<Mutex<DisplayGroup<EGD>>>) -> Self {
         let old_display_id = display_group
             .lock()
             .unwrap()
@@ -331,7 +331,7 @@ where
             .switch_to_logical_display(self.old_display_id);
     }
 
-    fn app_loop(display: &mut LogicalDisplay<EGC, EGD>, state: &mut ClockAppState) {
+    fn app_loop(display: &mut LogicalDisplay<EGD>, state: &mut ClockAppState) {
         let t = OffsetDateTime::now_utc().to_offset(UtcOffset::from_hms(8, 0, 0).unwrap());
         let (h, m, s) = (t.hour(), t.minute(), t.second());
         let (h0, h1) = (h / 10, h % 10);
@@ -339,7 +339,7 @@ where
         let (s0, s1) = (s / 10, s % 10);
 
         // dx为左上角x坐标，dy为左上角y坐标，r为圆半径，gap为水平或垂直两圆之间的圆心距离
-        let draw_digist = |display: &mut LogicalDisplay<EGC, EGD>,
+        let draw_digist = |display: &mut LogicalDisplay<EGD>,
                            digist: u8,
                            dx: i32,
                            dy: i32,
@@ -368,7 +368,7 @@ where
                 }
             }
         };
-        let clear_digit = |display: &mut LogicalDisplay<EGC, EGD>, dx: i32, dy: i32, gap: i32| {
+        let clear_digit = |display: &mut LogicalDisplay<EGD>, dx: i32, dy: i32, gap: i32| {
             display
                 .fill_solid(
                     &Rectangle::new(

@@ -1,32 +1,34 @@
-use std::{usize, sync::{Arc, Mutex}};
+use std::{
+    sync::{Arc, Mutex},
+    usize,
+};
 
 use embedded_graphics::{
-    draw_target::DrawTarget, geometry::{OriginDimensions, Size}, pixelcolor::PixelColor, primitives::Rectangle,
+    draw_target::DrawTarget,
+    geometry::{OriginDimensions, Size},
+    primitives::Rectangle,
 };
 use log::info;
 
-
-pub struct LogicalDisplay<C, D>
+pub struct LogicalDisplay<D>
 where
-    C: PixelColor,
-    D: DrawTarget<Color = C>,
+    D: DrawTarget,
 {
-    parent: Arc<Mutex<DisplayGroup<C, D>>>,
+    parent: Arc<Mutex<DisplayGroup<D>>>,
     aria: Rectangle,
     is_active: bool,
     id: usize,
 }
 
-impl<C, D> LogicalDisplay<C, D>
+impl<D> LogicalDisplay<D>
 where
-    C: PixelColor,
-    D: DrawTarget<Color = C>,
+    D: DrawTarget,
 {
-    pub fn new(parent: Arc<Mutex<DisplayGroup<C, D>>>, aria: Rectangle) -> Arc<Mutex<Self>> {
+    pub fn new(parent: Arc<Mutex<DisplayGroup<D>>>, aria: Rectangle) -> Arc<Mutex<Self>> {
         let mut parent_mut_ref = parent.lock().unwrap();
         let id = parent_mut_ref.logical_displays.len();
         let child = Arc::new(Mutex::new(Self {
-            parent:parent.clone(),
+            parent: parent.clone(),
             aria,
             is_active: false,
             id,
@@ -39,28 +41,26 @@ where
     pub fn get_aria(&self) -> Rectangle {
         self.aria
     }
-    
+
     pub fn get_id(&self) -> usize {
         self.id
     }
 }
 
-impl<C, D> OriginDimensions for LogicalDisplay<C, D>
+impl<D> OriginDimensions for LogicalDisplay<D>
 where
-    C: PixelColor,
-    D: DrawTarget<Color = C>,
+    D: DrawTarget,
 {
     fn size(&self) -> embedded_graphics::geometry::Size {
         self.aria.size
     }
 }
 
-impl<C, D> DrawTarget for LogicalDisplay<C, D>
+impl<D> DrawTarget for LogicalDisplay<D>
 where
-    C: PixelColor,
-    D: DrawTarget<Color = C>,
+    D: DrawTarget,
 {
-    type Color = C;
+    type Color = D::Color;
 
     type Error = D::Error;
 
@@ -98,10 +98,7 @@ where
         let origin = self.aria.top_left;
         // 过滤并填充
         phy_display.fill_contiguous(
-            &Rectangle::new(
-                origin + area.top_left,
-                area.size,
-            ),
+            &Rectangle::new(origin + area.top_left, area.size),
             colors.into_iter(),
         )
     }
@@ -113,16 +110,10 @@ where
 
         let parent_ref = self.parent.clone();
         let parent = parent_ref.lock().unwrap();
-                let mut phy_display = parent.physical_display.lock().unwrap();
-        
+        let mut phy_display = parent.physical_display.lock().unwrap();
+
         let origin = self.aria.top_left;
-        phy_display.fill_solid(
-            &Rectangle::new(
-                origin + area.top_left,
-                area.size,
-            ),
-            color,
-        )
+        phy_display.fill_solid(&Rectangle::new(origin + area.top_left, area.size), color)
     }
 
     fn clear(&mut self, color: Self::Color) -> Result<(), Self::Error> {
@@ -136,26 +127,21 @@ where
 
         phy_display.clear(color)
     }
-
-
-
 }
 
-pub struct DisplayGroup<C, D>
+pub struct DisplayGroup<D>
 where
-    C: PixelColor,
-    D: DrawTarget<Color = C>,
+    D: DrawTarget,
 {
     physical_display: Arc<Mutex<D>>,
     physical_display_size: Size,
-    logical_displays: Vec<Arc<Mutex<LogicalDisplay<C, D>>>>,
+    logical_displays: Vec<Arc<Mutex<LogicalDisplay<D>>>>,
     current_active_display: isize,
 }
 
-impl<C, D> DisplayGroup<C, D>
+impl<D> DisplayGroup<D>
 where
-    C: PixelColor,
-    D: DrawTarget<Color = C>,
+    D: DrawTarget,
 {
     pub fn new(physical_display: Arc<Mutex<D>>, initial_logical_display_capacity: usize) -> Self {
         info!("DisplayGroup::new");
@@ -176,7 +162,7 @@ where
         self.current_active_display
     }
 
-    pub fn switch_to_logical_display(&mut self, index: isize) -> Arc<Mutex<LogicalDisplay<C, D>>> {
+    pub fn switch_to_logical_display(&mut self, index: isize) -> Arc<Mutex<LogicalDisplay<D>>> {
         if index < 0 || index >= self.logical_displays.len() as isize {
             panic!("index out of range");
         }

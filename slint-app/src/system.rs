@@ -7,6 +7,9 @@ pub trait System: Send + Sync {
 
     /// 获取最大连续的可分配块
     fn get_largest_free_block(&self) -> usize;
+
+    /// 获取当前STA模式的网络信息
+    fn get_sta_netif(&self) -> Option<embedded_svc::ipv4::IpInfo>;
 }
 
 pub struct MockSystem;
@@ -23,5 +26,9 @@ impl System for MockSystem {
     /// 获取最大连续的可分配块
     fn get_largest_free_block(&self) -> usize {
         0
+    }
+
+    fn get_sta_netif(&self) -> Option<embedded_svc::ipv4::IpInfo> {
+        None
     }
 }

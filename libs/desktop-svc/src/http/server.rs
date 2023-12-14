@@ -48,7 +48,6 @@ pub struct HttpServer<'a> {
     handler_404: Arc<Mutex<Box<dyn Handler<HttpServerConnection> + Send + 'a>>>,
     exit_signal: Arc<AtomicBool>,
     join_handle: Option<thread::JoinHandle<()>>,
-    thread_pool: Arc<ThreadPool>,
 }
 
 impl<'a: 'static> HttpServer<'a> {
@@ -68,17 +67,14 @@ impl<'a: 'static> HttpServer<'a> {
             handler_404: Arc::new(Mutex::new(Box::new(DefaultHandle404))),
             exit_signal,
             join_handle: None,
-            thread_pool: Arc::new(ThreadPool::default()),
         };
 
         let handlers_map_clone = handlers_map.clone();
         let handler_404_clone = res.handler_404.clone();
-        let thread_pool_clone = res.thread_pool.clone();
 
         res.join_handle = Some(thread::spawn(move || {
             let handler_404_clone = handler_404_clone.clone();
             let handlers_map_clone = handlers_map_clone.clone();
-            let thread_pool_clone = thread_pool_clone.clone();
 
             for stream in listener.incoming() {
                 if exit_signal_clone.load(std::sync::atomic::Ordering::Relaxed) {
@@ -86,36 +82,30 @@ impl<'a: 'static> HttpServer<'a> {
                 }
                 let handler_404_clone = handler_404_clone.clone();
                 let handlers_map_clone = handlers_map_clone.clone();
-                let thread_pool_clone = thread_pool_clone.clone();
                 match stream {
                     Ok(s) => {
                         // 有新的连接
-                        let res = thread_pool_clone.try_execute(move || {
-                            let handler_404_clone = handler_404_clone.clone();
-                            let handlers_map_clone = handlers_map_clone.clone();
+                        let handler_404_clone = handler_404_clone.clone();
+                        let handlers_map_clone = handlers_map_clone.clone();
 
-                            let conn = HttpServerConnection::new(s);
-                            if let Err(e) = conn {
-                                warn!("encountered IO error: {}", e);
-                                return;
-                            }
-                            let mut conn = conn.unwrap();
-                            let handlers_map = handlers_map_clone.read().unwrap();
-                            let handler = handlers_map.get(&(conn.path.to_string(), conn.method()));
-
-                            let res = if let Some(h) = handler {
-                                h.lock().unwrap().handle(&mut conn)
-                            } else {
-                                handler_404_clone.lock().unwrap().handle(&mut conn)
-                            };
-                            if let Err(e) = res {
-                                conn.handle_error(e);
-                            }
-                            debug!("request complete");
-                        });
-                        if let Err(e) = res {
+                        let conn = HttpServerConnection::new(s);
+                        if let Err(e) = conn {
                             warn!("encountered IO error: {}", e);
+                            return;
                         }
+                        let mut conn = conn.unwrap();
+                        let handlers_map = handlers_map_clone.read().unwrap();
+                        let handler = handlers_map.get(&(conn.path.to_string(), conn.method()));
+
+                        let res = if let Some(h) = handler {
+                            h.lock().unwrap().handle(&mut conn)
+                        } else {
+                            handler_404_clone.lock().unwrap().handle(&mut conn)
+                        };
+                        if let Err(e) = res {
+                            conn.handle_error(e);
+                        }
+                        debug!("request complete");
                     }
                     Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                         // 没有新的连接，继续等待

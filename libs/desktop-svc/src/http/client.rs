@@ -24,20 +24,20 @@ fn method_type_convert(method: Method) -> reqwest::Method {
     }
 }
 
-pub struct HttpClientAdapterConnection {
+pub struct HttpClientConnection {
     client: reqwest::blocking::Client,
     request: Option<reqwest::blocking::RequestBuilder>,
     response: Option<reqwest::blocking::Response>,
     req_buffer: Vec<u8>,
 }
 
-impl Default for HttpClientAdapterConnection {
+impl Default for HttpClientConnection {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl HttpClientAdapterConnection {
+impl HttpClientConnection {
     pub fn new() -> Self {
         Self {
             client: reqwest::blocking::Client::new(),
@@ -60,7 +60,7 @@ impl HttpClientAdapterConnection {
     }
 }
 
-impl embedded_svc::http::Headers for HttpClientAdapterConnection {
+impl embedded_svc::http::Headers for HttpClientConnection {
     fn header(&self, name: &str) -> Option<&'_ str> {
         self.assert_response();
         self.response
@@ -72,7 +72,7 @@ impl embedded_svc::http::Headers for HttpClientAdapterConnection {
     }
 }
 
-impl Status for HttpClientAdapterConnection {
+impl Status for HttpClientConnection {
     fn status(&self) -> u16 {
         self.assert_response();
         self.response.as_ref().unwrap().status().as_u16()
@@ -126,11 +126,11 @@ impl Error for HttpClientAdapterConnectionError {
     }
 }
 
-impl ErrorType for HttpClientAdapterConnection {
+impl ErrorType for HttpClientConnection {
     type Error = HttpClientAdapterConnectionError;
 }
 
-impl embedded_io::Read for HttpClientAdapterConnection {
+impl embedded_io::Read for HttpClientConnection {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         self.assert_response();
         let u = self.response.as_mut().unwrap().read(buf).unwrap();
@@ -138,7 +138,7 @@ impl embedded_io::Read for HttpClientAdapterConnection {
     }
 }
 
-impl embedded_io::Write for HttpClientAdapterConnection {
+impl embedded_io::Write for HttpClientConnection {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
         self.assert_request();
         self.req_buffer.extend_from_slice(buf);
@@ -152,7 +152,7 @@ impl embedded_io::Write for HttpClientAdapterConnection {
     }
 }
 
-impl Connection for HttpClientAdapterConnection {
+impl Connection for HttpClientConnection {
     type Headers = Self;
 
     type Read = Self;
@@ -217,11 +217,11 @@ mod tests {
 
     #[test]
     fn test_http_client_adapter() {
-        let conn = HttpClientAdapterConnection::new();
+        let conn = HttpClientConnection::new();
         // Prepare headers and URL
         let headers = [("accept", "text/plain")];
         let url: &str = "http://ifconfig.net/";
-        let mut client = Client::<HttpClientAdapterConnection>::wrap(conn);
+        let mut client = Client::<HttpClientConnection>::wrap(conn);
         let req = client.request(Method::Get, url, &headers).unwrap();
         println!("-> GET {}", url);
         let mut resp = req.submit().unwrap();
@@ -238,11 +238,11 @@ mod tests {
 
     #[test]
     fn test_http_client_adapter_repeat() {
-        let conn = HttpClientAdapterConnection::new();
+        let conn = HttpClientConnection::new();
         // Prepare headers and URL
         let headers = [("accept", "text/plain")];
         let url: &str = "http://ifconfig.net/";
-        let mut client = Client::<HttpClientAdapterConnection>::wrap(conn);
+        let mut client = Client::<HttpClientConnection>::wrap(conn);
         let req = client.request(Method::Get, url, &headers).unwrap();
         let resp = req.submit().unwrap();
         println!("<- {} {}", resp.status(), resp.status_message().unwrap());

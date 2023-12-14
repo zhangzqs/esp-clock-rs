@@ -3264,6 +3264,7 @@ dependencies = [
 name = "slint-app"
 version = "0.1.0"
 dependencies = [
+ "desktop-svc",
  "embedded-graphics",
  "embedded-graphics-framebuf",
  "embedded-graphics-group",

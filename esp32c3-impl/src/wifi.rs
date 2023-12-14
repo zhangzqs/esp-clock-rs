@@ -17,7 +17,7 @@ pub fn connect_to_wifi(
     modem: impl peripheral::Peripheral<P = esp_idf_hal::modem::Modem> + 'static,
     sysloop: EspSystemEventLoop,
     nvs: Option<EspNvsPartition<NvsDefault>>,
-) -> Result<Box<EspWifi<'static>>> {
+) -> Result<EspWifi<'static>> {
     if ssid.is_empty() {
         bail!("Missing WiFi name")
     }
@@ -67,5 +67,5 @@ pub fn connect_to_wifi(
     let ip_info = wifi.wifi().sta_netif().get_ip_info()?;
     info!("Wifi DHCP info: {:?}", ip_info);
 
-    Ok(Box::new(esp_wifi))
+    Ok(esp_wifi)
 }

@@ -1,7 +1,5 @@
-
-
-use embedded_tone::{RawTonePlayer};
-use rodio::{source::SineWave};
+use embedded_tone::RawTonePlayer;
+use rodio::{source::SineWave, Source};
 
 pub struct RodioPlayer {
     _stream: rodio::OutputStream,
@@ -27,5 +25,6 @@ impl RawTonePlayer for RodioPlayer {
 
     fn off(&mut self) {
         self.sink.stop();
+        self.sink.sleep_until_end();
     }
 }

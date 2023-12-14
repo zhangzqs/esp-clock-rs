@@ -7,6 +7,8 @@ use std::{
     time::Duration,
 };
 
+use log::info;
+
 use embedded_svc::{
     http::{
         server::{Connection, FnHandler, Handler, HandlerResult, Request},
@@ -26,11 +28,12 @@ impl HttpServerApp {
         let server = Arc::new(Mutex::new(None));
         let server_ref = server.clone();
         thread::spawn(move || {
-            thread::sleep(Duration::from_secs(10));
+            thread::sleep(Duration::from_secs(20));
             let mut server = HttpServer::new(Configuration {
                 listen_addr: SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), 8080)),
             })
             .unwrap();
+            info!("starting server");
             server
                 .handler(
                     "/ping",

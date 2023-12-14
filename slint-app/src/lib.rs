@@ -55,6 +55,8 @@ mod home;
 use crate::home::HomeApp;
 
 mod network;
+mod server;
+use crate::server::HttpServerApp;
 
 slint::include_modules!();
 
@@ -102,6 +104,7 @@ where
     _screen_led_ctl: Arc<Mutex<LC>>,
     home_app: Rc<RefCell<HomeApp>>,
     network_monitor_app: Rc<RefCell<NetworkMonitorApp>>,
+    server_app: Rc<RefCell<HttpServerApp>>,
 }
 
 impl<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>
@@ -143,6 +146,7 @@ where
         let home_app = Rc::new(RefCell::new(HomeApp::new(app_window.as_weak())));
         let network_monitor_app =
             Rc::new(RefCell::new(NetworkMonitorApp::new(app_window.as_weak())));
+        let server_app = Rc::new(RefCell::new(HttpServerApp::new()));
         let app = MyApp {
             http_client,
             app_window,
@@ -156,6 +160,7 @@ where
             _screen_led_ctl: screen_led_ctl,
             home_app,
             network_monitor_app,
+            server_app,
         };
         info!("MyApp created");
         app.bind_event_app();

@@ -5,7 +5,10 @@ edition = "2021"
 
 
 [dependencies]
-slint = { git="https://github.com/zhangzqs/slint", branch = "fix-esp-std", default-features = false, features = ["compat-1-2", "unsafe-single-threaded"] }
+slint = { git = "https://github.com/zhangzqs/slint", branch = "fix-esp-std", default-features = false, features = [
+    "compat-1-2",
+    "unsafe-single-threaded",
+] }
 anyhow = "1.0.44"
 embedded-graphics = "0.8.0"
 embedded-graphics-simulator = "0.5.0"
@@ -17,5 +20,5 @@ desktop-svc = { path = "../libs/desktop-svc" }
 embedded-software-slint-backend = { path = "../libs/embedded-software-slint-backend" }
 slint-app = { path = "../slint-app" }
 embedded-graphics-group = { path = "../libs/embedded-graphics-group" }
-rodio = "0.17.3"
 embedded-tone = { path = "../libs/embedded-tone" }
+beep = "0.3.0"

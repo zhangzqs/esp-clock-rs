@@ -1,14 +1,11 @@
+use std::sync::{Arc, Mutex};
+
+use esp_idf_svc::wifi::EspWifi;
 use slint_app::System;
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct EspSystem {
-    wifi: Arc<Mutex<Option<EspWifi<'static>>>>,
-}
-
-impl EspSystem {
-    pub fn new(wifi: Arc<Mutex<EspWifi<'static>>>) -> Self {
-        Self { wifi }
-    }
+    pub wifi: Arc<Mutex<Option<EspWifi<'static>>>>,
 }
 
 unsafe impl Send for EspSystem {}
@@ -37,7 +34,8 @@ impl System for EspSystem {
         if wifi.is_none() {
             return None;
         }
-        let netif = wifi.wifi().sta_netif();
+        let wifi = wifi.as_ref().unwrap();
+        let netif = wifi.sta_netif();
         let ip_info = netif.get_ip_info().unwrap();
         Some(ip_info)
     }

@@ -1,30 +1,22 @@
 use embedded_tone::RawTonePlayer;
-use rodio::{source::SineWave, Source};
 
-pub struct RodioPlayer {
-    _stream: rodio::OutputStream,
-    sink: rodio::Sink,
+pub struct RodioPlayer;
+
+impl RodioPlayer {
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 unsafe impl Send for RodioPlayer {}
 
-impl RodioPlayer {
-    pub fn new() -> Self {
-        let (_stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
-        let sink = rodio::Sink::try_new(&stream_handle).unwrap();
-
-        Self { _stream, sink }
-    }
-}
 
 impl RawTonePlayer for RodioPlayer {
     fn tone(&mut self, freq: u32) {
-        self.off();
-        self.sink.append(SineWave::new(freq as f32));
+        beep::beep(freq as u16).unwrap();
     }
 
     fn off(&mut self) {
-        self.sink.stop();
-        self.sink.sleep_until_end();
+        beep::beep(0).unwrap();
     }
 }

@@ -1,4 +1,3 @@
-use anyhow::Ok;
 use display_interface_spi::SPIInterface;
 use embedded_graphics::{pixelcolor::Rgb565, prelude::*, primitives::Rectangle};
 use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
@@ -59,10 +58,16 @@ pub struct MyConfig {
 fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
-
-    
-    info!("start free heap: {}", sys.get_free_heap_size());
-    info!("start largest free block: {}", sys.get_largest_free_block());
+    esp_idf_svc::log::set_target_level("wifi", log::LevelFilter::Info)?;
+    let sysloop = EspSystemEventLoop::take()?;
+    let wifi = Arc::new(Mutex::new(None));
+    let sntp = Arc::new(Mutex::new(None));
+    let system = EspSystem { wifi: wifi.clone() };
+    info!("start free heap: {}", system.get_free_heap_size());
+    info!(
+        "start largest free block: {}",
+        system.get_largest_free_block()
+    );
 
     let peripherals = Peripherals::take().unwrap();
     // 所有引脚定义
@@ -137,7 +142,7 @@ fn main() -> anyhow::Result<()> {
     nvs_a.set_i32("test_key", cnt + 1).unwrap();
 
     info!("nvs init done");
-    info!("free heap: {}", sys.get_free_heap_size());
+    info!("free heap: {}", system.get_free_heap_size());
 
     let fps = Rc::new(RefCell::new(0));
     {
@@ -183,20 +188,13 @@ fn main() -> anyhow::Result<()> {
         )))
         .unwrap();
         info!("slint platform init done");
-        info!("free heap: {}", sys.get_free_heap_size());
-        info!("largest free block: {}", sys.get_largest_free_block());
+        info!("free heap: {}", system.get_free_heap_size());
+        info!("largest free block: {}", system.get_largest_free_block());
     }
-
-
-    // 连接wifi并NTP校时
-    let sysloop = EspSystemEventLoop::take()?;
-    let wifi = Arc::new(Mutex::new(None));
-    let sntp = Arc::new(Mutex::new(None));
-    let system = EspSystem::new(wifi.clone());
 
     let app = slint_app::MyApp::new(slint_app::MyAppDeps {
         http_conn: connection::MyConnection::new(),
-        system,
+        system: system.clone(),
         display_group,
         player: EspBeepPlayer::new(beep_tx),
         eval_apple: evil_apple::EvilAppleBLEImpl,
@@ -207,13 +205,15 @@ fn main() -> anyhow::Result<()> {
         ui.invoke_set_boot_state(BootState::Booting);
     }
     info!("slint app init done");
-    info!("free heap: {}", sys.get_free_heap_size());
-    info!("largest free block: {}", sys.get_largest_free_block());
+    info!("free heap: {}", system.get_free_heap_size());
+    info!("largest free block: {}", system.get_largest_free_block());
 
     let w1 = wifi.clone();
     let s1 = sntp.clone();
     let u = app.get_app_window();
+    let system_ref = system.clone();
     thread::Builder::new().stack_size(4096).spawn(move || {
+        let system = system_ref;
         u.upgrade_in_event_loop(|ui| {
             ui.invoke_set_boot_state(BootState::Connecting);
         })
@@ -226,8 +226,8 @@ fn main() -> anyhow::Result<()> {
             Some(nvs),
         );
         info!("try wifi connect");
-        info!("free heap: {}", sys.get_free_heap_size());
-        info!("largest free block: {}", sys.get_largest_free_block());
+        info!("free heap: {}", system.get_free_heap_size());
+        info!("largest free block: {}", system.get_largest_free_block());
 
         if _wifi.is_err() {
             let err = _wifi.err().unwrap();
@@ -240,8 +240,8 @@ fn main() -> anyhow::Result<()> {
         }
         w1.lock().unwrap().replace(_wifi.unwrap());
         info!("wifi connected");
-        info!("free heap: {}", sys.get_free_heap_size());
-        info!("largest free block: {}", sys.get_largest_free_block());
+        info!("free heap: {}", system.get_free_heap_size());
+        info!("largest free block: {}", system.get_largest_free_block());
 
         u.upgrade_in_event_loop(|ui| {
             ui.invoke_set_boot_state(BootState::BootSuccess);
@@ -255,8 +255,8 @@ fn main() -> anyhow::Result<()> {
         });
         s1.lock().unwrap().replace(_sntp.unwrap());
         info!("sntp init done");
-        info!("free heap: {}", sys.get_free_heap_size());
-        info!("largest free block: {}", sys.get_largest_free_block());
+        info!("free heap: {}", system.get_free_heap_size());
+        info!("largest free block: {}", system.get_largest_free_block());
 
         u.upgrade_in_event_loop(|ui| {
             ui.invoke_set_boot_state(BootState::Finished);
@@ -303,9 +303,8 @@ fn main() -> anyhow::Result<()> {
         slint::TimerMode::Repeated,
         Duration::from_secs(1),
         move || {
-            let sys = EspSystem;
-            let free = sys.get_free_heap_size();
-            let largest = sys.get_largest_free_block();
+            let free = system.get_free_heap_size();
+            let largest = system.get_largest_free_block();
             let fps_ref = fps.clone();
             u.upgrade().map(move |ui| {
                 ui.set_memory(free as i32);

@@ -57,8 +57,6 @@ mod home;
 use crate::home::HomeApp;
 
 mod network;
-mod server;
-use crate::server::HttpServerApp;
 
 mod server;
 use server::HttpServerApp;

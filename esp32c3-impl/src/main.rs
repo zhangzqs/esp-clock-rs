@@ -28,6 +28,7 @@ use mipidsi::{Builder, ColorInversion, Orientation};
 use slint_app::{BootState, System};
 use std::{
     cell::RefCell,
+    marker::PhantomData,
     rc::Rc,
     sync::{Arc, Mutex},
     thread,
@@ -59,6 +60,15 @@ impl<'a> slint_app::Server<'a> for EspHttpServerWrapper<'a> {
         self.0.handler(uri, method, handler)?;
         Ok(self)
     }
+
+    fn new() -> Self {
+        Self(
+            EspHttpServer::new(&Configuration {
+                ..Default::default()
+            })
+            .unwrap(),
+        )
+    }
 }
 
 #[toml_cfg::toml_config]
@@ -74,17 +84,7 @@ pub struct MyConfig {
 fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
-    esp_idf_svc::log::set_target_level("wifi", log::LevelFilter::Info)?;
-    let sysloop = EspSystemEventLoop::take()?;
-    let wifi = Arc::new(Mutex::new(None));
-    let sntp = Arc::new(Mutex::new(None));
-    let system = EspSystem { wifi: wifi.clone() };
-    info!("start free heap: {}", system.get_free_heap_size());
-    info!(
-        "start largest free block: {}",
-        system.get_largest_free_block()
-    );
-
+    // esp_idf_svc::log::set_target_level("wifi", log::LevelFilter::Info)?;
     let peripherals = Peripherals::take().unwrap();
     // 所有引脚定义
     let btn_pin = PinDriver::input(peripherals.pins.gpio9)?;
@@ -158,7 +158,6 @@ fn main() -> anyhow::Result<()> {
     nvs_a.set_i32("test_key", cnt + 1).unwrap();
 
     info!("nvs init done");
-    info!("free heap: {}", system.get_free_heap_size());
 
     let fps = Rc::new(RefCell::new(0));
     {
@@ -204,22 +203,13 @@ fn main() -> anyhow::Result<()> {
         )))
         .unwrap();
         info!("slint platform init done");
-        info!("free heap: {}", system.get_free_heap_size());
-        info!("largest free block: {}", system.get_largest_free_block());
     }
 
-    let mut server = EspHttpServer::new(&Configuration {
-        ..Default::default()
-    })
-    .unwrap();
+    let sysloop = EspSystemEventLoop::take()?;
+    let wifi = Arc::new(Mutex::new(None));
+    let sntp = Arc::new(Mutex::new(None));
+    let system = EspSystem { wifi: wifi.clone() };
 
-    server
-        .fn_handler("/ping", Method::Get, |req| {
-            let mut resp = req.into_ok_response().unwrap();
-            resp.write_all(b"pong").unwrap();
-            Ok(())
-        })
-        .unwrap();
     let app = slint_app::MyApp::new(slint_app::MyAppDeps {
         http_conn: connection::MyConnection::new(),
         system: system.clone(),
@@ -228,7 +218,7 @@ fn main() -> anyhow::Result<()> {
         eval_apple: evil_apple::EvilAppleBLEImpl,
         screen_brightness_controller: EspLEDController::new(screen_ledc),
         blue_led: EspLEDController::new(blue_led),
-        http_server: EspHttpServerWrapper(server),
+        http_server: PhantomData::<EspHttpServerWrapper>,
     });
     if let Some(ui) = app.get_app_window().upgrade() {
         ui.invoke_set_boot_state(BootState::Booting);

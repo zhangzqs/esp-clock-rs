@@ -76,7 +76,6 @@ where
     EA: EvilApple + 'static,
     LC: LEDController + 'static + Send,
     SVR: Server<'static>,
-
 {
     pub http_conn: CONN,
     pub system: SYS,
@@ -85,7 +84,7 @@ where
     pub eval_apple: EA,
     pub screen_brightness_controller: LC,
     pub blue_led: LC,
-    pub http_server: SVR,
+    pub http_server: PhantomData<SVR>,
 }
 
 pub struct MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC, SVR>
@@ -156,7 +155,7 @@ where
         let network_monitor_app =
             Rc::new(RefCell::new(NetworkMonitorApp::new(app_window.as_weak())));
 
-        let http_server_app = Rc::new(RefCell::new(HttpServerApp::new(deps.http_server)));
+        let http_server_app = Rc::new(RefCell::new(HttpServerApp::new()));
         let app = MyApp {
             app_window,
             http_client,

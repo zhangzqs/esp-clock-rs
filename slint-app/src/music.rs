@@ -146,8 +146,6 @@ where
                     (event.delta.as_int() as u64 * tempo as u64) / tpqn as u64,
                 );
                 thread::sleep(dur);
-                // thread::sleep(dur.mul_f32(0.99));
-                // thread::sleep(dur.mul_f32(0.01));
 
                 match e {
                     midly::live::LiveEvent::Midi { channel: _, message } => match message {

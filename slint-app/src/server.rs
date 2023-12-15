@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     fmt::Display,
+    marker::PhantomData,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     rc::Rc,
     sync::{Arc, Mutex},
@@ -21,6 +22,8 @@ use embedded_svc::{
 pub trait Server<'a> {
     type Conn<'r>: Connection;
     type HttpServerError: std::error::Error;
+
+    fn new() -> Self;
 
     fn handler<H>(
         &mut self,
@@ -48,26 +51,31 @@ pub struct HttpServerApp<S>
 where
     S: Server<'static>,
 {
-    server: S,
+    _phantom: PhantomData<S>,
 }
 
 impl<S> HttpServerApp<S>
 where
     S: Server<'static>,
 {
-    pub fn new(server: S) -> Self {
-        let mut s = Self { server: server };
-        s.bind();
-        s
-    }
+    pub fn new() -> Self {
+        thread::spawn(|| {
+            thread::sleep(Duration::from_secs(2));
+            let mut server = S::new();
+            server
+                .fn_handler("/ping", Method::Get, |req| {
+                    let mut resp = req.into_ok_response().unwrap();
+                    resp.write_all(b"pong").unwrap();
+                    Ok(())
+                })
+                .unwrap();
+            loop {
+                thread::sleep(Duration::from_secs(1));
+            }
+        });
 
-    fn bind(&mut self) {
-        self.server
-            .fn_handler("/ping", Method::Get, |req| {
-                let mut resp = req.into_ok_response().unwrap();
-                resp.write_all(b"pong").unwrap();
-                Ok(())
-            })
-            .unwrap();
+        Self {
+            _phantom: PhantomData,
+        }
     }
 }

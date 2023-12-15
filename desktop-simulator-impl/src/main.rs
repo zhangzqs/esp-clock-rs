@@ -22,6 +22,7 @@ use embedded_graphics_simulator::{
 };
 
 use embedded_svc::http::{server::Handler, Method};
+use embedded_tone::RawTonePlayer;
 use log::{debug, info};
 
 use slint_app::{BootState, EvilApple, LEDController, MockSystem, MyApp, MyAppDeps};
@@ -74,6 +75,18 @@ impl LEDController for MockLEDController {
     fn get_brightness(&self) -> u32 {
         info!("get brightness");
         self.brightness
+    }
+}
+
+struct MockPlayer;
+
+impl RawTonePlayer for MockPlayer {
+    fn tone(&mut self, freq: u32) {
+        info!("tone {}", freq);
+    }
+
+    fn off(&mut self) {
+        info!("off");
     }
 }
 
@@ -148,7 +161,8 @@ fn main() -> anyhow::Result<()> {
         http_conn: HttpClientConnection::new(),
         system: MockSystem,
         display_group: display_group.clone(),
-        player: RodioPlayer::new(),
+        // player: RodioPlayer::new(),
+        player: MockPlayer,
         eval_apple: MockEvilApple,
         screen_brightness_controller: MockLEDController::default(),
         blue_led: MockLEDController::default(),

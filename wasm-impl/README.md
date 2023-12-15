@@ -1,1 +1,0 @@
-wasm实验，由于wasm环境不支持std::thread，std::time::Instant等，故暂时不支持wasm目标，后续可能会改进slint app依赖，使得支持

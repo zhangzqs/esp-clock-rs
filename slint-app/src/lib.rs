@@ -60,10 +60,11 @@ mod network;
 
 mod server;
 use server::HttpServerApp;
+pub use server::Server;
 
 slint::include_modules!();
 
-pub struct MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>
+pub struct MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC, SVR>
 where
     CONN: Connection<Error = ConnErr> + 'static + Send,
     ConnErr: error::Error + 'static,
@@ -74,6 +75,8 @@ where
     TONE: RawTonePlayer + 'static + Send,
     EA: EvilApple + 'static,
     LC: LEDController + 'static + Send,
+    SVR: Server<'static>,
+
 {
     pub http_conn: CONN,
     pub system: SYS,
@@ -82,9 +85,10 @@ where
     pub eval_apple: EA,
     pub screen_brightness_controller: LC,
     pub blue_led: LC,
+    pub http_server: SVR,
 }
 
-pub struct MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>
+pub struct MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC, SVR>
 where
     CONN: Connection<Error = ConnErr> + 'static + Send,
     ConnErr: error::Error + 'static,
@@ -94,6 +98,7 @@ where
     TONE: RawTonePlayer + 'static + Send,
     EA: EvilApple,
     LC: LEDController + 'static + Send,
+    SVR: Server<'static>,
 {
     app_window: AppWindow,
     system: SYS,
@@ -107,11 +112,11 @@ where
     _screen_led_ctl: Arc<Mutex<LC>>,
     home_app: Rc<RefCell<HomeApp>>,
     network_monitor_app: Rc<RefCell<NetworkMonitorApp>>,
-    http_server_app: Rc<RefCell<HttpServerApp>>,
+    http_server_app: Rc<RefCell<HttpServerApp<SVR>>>,
 }
 
-impl<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>
-    MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>
+impl<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC, SVR>
+    MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC, SVR>
 where
     CONN: Connection<Error = ConnErr> + 'static + Send,
     ConnErr: error::Error + 'static,
@@ -122,8 +127,9 @@ where
     TONE: RawTonePlayer + 'static + Send,
     EA: EvilApple,
     LC: LEDController + 'static + Send,
+    SVR: Server<'static>,
 {
-    pub fn new(deps: MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC>) -> Self {
+    pub fn new(deps: MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC, SVR>) -> Self {
         let app_window = AppWindow::new().expect("Failed to create AppWindow");
         debug!("AppWindow created");
         let http_client = Arc::new(Mutex::new(Client::wrap(deps.http_conn)));
@@ -150,7 +156,7 @@ where
         let network_monitor_app =
             Rc::new(RefCell::new(NetworkMonitorApp::new(app_window.as_weak())));
 
-        let http_server_app = Rc::new(RefCell::new(HttpServerApp::new()));
+        let http_server_app = Rc::new(RefCell::new(HttpServerApp::new(deps.http_server)));
         let app = MyApp {
             app_window,
             http_client,

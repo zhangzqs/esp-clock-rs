@@ -3,10 +3,11 @@ use embedded_graphics::{pixelcolor::Rgb565, prelude::*, primitives::Rectangle};
 use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
 use embedded_hal::spi::MODE_3;
 use embedded_software_slint_backend::{EmbeddedSoftwarePlatform, RGB565PixelColorAdapter};
-use embedded_svc::http::Method;
+use embedded_svc::http::{server::Handler, Method};
 use esp_idf_hal::{
     delay::FreeRtos,
     gpio::{AnyIOPin, PinDriver},
+    io::{EspIOError, Write},
     ledc::{config::TimerConfig, LedcDriver, LedcTimerDriver},
     prelude::*,
     rmt::{
@@ -17,7 +18,7 @@ use esp_idf_hal::{
 };
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
-    http::server::EspHttpServer,
+    http::server::{Configuration, EspHttpConnection, EspHttpServer},
     nvs::{EspDefaultNvsPartition, EspNvs},
     sntp::{EspSntp, OperatingMode, SntpConf, SyncMode},
 };
@@ -44,6 +45,21 @@ use crate::{
     led_controller::EspLEDController, player::EspBeepPlayer, system::EspSystem,
     wifi::connect_to_wifi,
 };
+
+struct EspHttpServerWrapper<'a>(EspHttpServer<'a>);
+
+impl<'a> slint_app::Server<'a> for EspHttpServerWrapper<'a> {
+    type Conn<'r> = EspHttpConnection<'r>;
+    type HttpServerError = EspIOError;
+
+    fn handler<H>(&mut self, uri: &str, method: Method, handler: H) -> Result<&mut Self, EspIOError>
+    where
+        H: for<'r> Handler<Self::Conn<'r>> + Send + 'a,
+    {
+        self.0.handler(uri, method, handler)?;
+        Ok(self)
+    }
+}
 
 #[toml_cfg::toml_config]
 pub struct MyConfig {
@@ -192,6 +208,18 @@ fn main() -> anyhow::Result<()> {
         info!("largest free block: {}", system.get_largest_free_block());
     }
 
+    let mut server = EspHttpServer::new(&Configuration {
+        ..Default::default()
+    })
+    .unwrap();
+
+    server
+        .fn_handler("/ping", Method::Get, |req| {
+            let mut resp = req.into_ok_response().unwrap();
+            resp.write_all(b"pong").unwrap();
+            Ok(())
+        })
+        .unwrap();
     let app = slint_app::MyApp::new(slint_app::MyAppDeps {
         http_conn: connection::MyConnection::new(),
         system: system.clone(),
@@ -200,6 +228,7 @@ fn main() -> anyhow::Result<()> {
         eval_apple: evil_apple::EvilAppleBLEImpl,
         screen_brightness_controller: EspLEDController::new(screen_ledc),
         blue_led: EspLEDController::new(blue_led),
+        http_server: EspHttpServerWrapper(server),
     });
     if let Some(ui) = app.get_app_window().upgrade() {
         ui.invoke_set_boot_state(BootState::Booting);

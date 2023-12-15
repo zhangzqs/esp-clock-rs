@@ -1,5 +1,6 @@
 use std::{
     cell::RefCell,
+    fmt::Display,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     rc::Rc,
     sync::{Arc, Mutex},
@@ -11,44 +12,62 @@ use log::info;
 
 use embedded_svc::{
     http::{
-        server::{Connection, FnHandler, Handler, HandlerResult, Request},
+        server::{Connection, FnHandler, Handler, HandlerError, HandlerResult, Request},
         Method,
     },
     io::Write,
 };
 
-use desktop_svc::http::server::*;
+pub trait Server<'a> {
+    type Conn<'r>: Connection;
+    type HttpServerError: std::error::Error;
 
-pub struct HttpServerApp {
-    server: Arc<Mutex<Option<HttpServer<'static>>>>,
+    fn handler<H>(
+        &mut self,
+        uri: &str,
+        method: Method,
+        handler: H,
+    ) -> Result<&mut Self, Self::HttpServerError>
+    where
+        H: for<'r> Handler<Self::Conn<'r>> + Send + 'a;
+
+    fn fn_handler<F>(
+        &mut self,
+        uri: &str,
+        method: Method,
+        f: F,
+    ) -> Result<&mut Self, Self::HttpServerError>
+    where
+        F: for<'r> Fn(Request<&mut Self::Conn<'r>>) -> HandlerResult + Send + 'a,
+    {
+        self.handler(uri, method, FnHandler::new(f))
+    }
 }
 
-impl HttpServerApp {
-    pub fn new() -> Self {
-        let server = Arc::new(Mutex::new(None));
-        let server_ref = server.clone();
-        // thread::spawn(move || {
-        //     thread::sleep(Duration::from_secs(1));
-        //     let mut server = HttpServer::new(Configuration {
-        //         listen_addr: SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), 8080)),
-        //     })
-        //     .unwrap();
-        //     info!("starting server");
-        //     server
-        //         .handler(
-        //             "/ping",
-        //             Method::Get,
-        //             FnHandler::new(|req| {
-        //                 let mut resp = req.into_ok_response().unwrap();
-        //                 resp.write_all(b"pong").unwrap();
-        //                 Ok(())
-        //             }),
-        //         )
-        //         .unwrap();
-        //     *server_ref.lock().unwrap() = Some(server);
-        // });
-        Self {
-            server: server.clone(),
-        }
+pub struct HttpServerApp<S>
+where
+    S: Server<'static>,
+{
+    server: S,
+}
+
+impl<S> HttpServerApp<S>
+where
+    S: Server<'static>,
+{
+    pub fn new(server: S) -> Self {
+        let mut s = Self { server: server };
+        s.bind();
+        s
+    }
+
+    fn bind(&mut self) {
+        self.server
+            .fn_handler("/ping", Method::Get, |req| {
+                let mut resp = req.into_ok_response().unwrap();
+                resp.write_all(b"pong").unwrap();
+                Ok(())
+            })
+            .unwrap();
     }
 }

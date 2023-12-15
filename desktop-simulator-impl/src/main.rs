@@ -11,13 +11,17 @@ use std::{
     time::Duration,
 };
 
-use desktop_svc::http::client::HttpClientConnection;
+use desktop_svc::http::{
+    client::HttpClientConnection,
+    server::{Configuration, HttpServer},
+};
 use embedded_graphics::{pixelcolor::Rgb888, prelude::*, primitives::Rectangle};
 use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
 use embedded_graphics_simulator::{
     sdl2::Keycode, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
 };
 
+use embedded_svc::http::{server::Handler, Method};
 use log::{debug, info};
 
 use slint_app::{BootState, EvilApple, LEDController, MockSystem, MyApp, MyAppDeps};
@@ -73,6 +77,26 @@ impl LEDController for MockLEDController {
     }
 }
 
+struct HttpServerWrapper<'a>(desktop_svc::http::server::HttpServer<'a>);
+
+impl<'a: 'static> slint_app::Server<'a> for HttpServerWrapper<'a> {
+    type Conn<'r> = desktop_svc::http::server::HttpServerConnection;
+    type HttpServerError = desktop_svc::http::server::HttpServerError;
+
+    fn handler<H>(
+        &mut self,
+        uri: &str,
+        method: Method,
+        handler: H,
+    ) -> Result<&mut Self, Self::HttpServerError>
+    where
+        H: for<'r> Handler<Self::Conn<'r>> + Send + 'a,
+    {
+        self.0.handler(uri, method, handler)?;
+        Ok(self)
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     set_var("RUST_LOG", "debug");
     env_logger::init();
@@ -116,6 +140,10 @@ fn main() -> anyhow::Result<()> {
     let mut window = Window::new("Desktop Simulator", &output_settings);
     info!("window has been created");
 
+    let server = HttpServer::new(Configuration {
+        listen_addr: SocketAddr::from(([127, 0, 0, 1], 8080)),
+    })
+    .unwrap();
     let app = MyApp::new(MyAppDeps {
         http_conn: HttpClientConnection::new(),
         system: MockSystem,
@@ -124,6 +152,7 @@ fn main() -> anyhow::Result<()> {
         eval_apple: MockEvilApple,
         screen_brightness_controller: MockLEDController::default(),
         blue_led: MockLEDController::default(),
+        http_server: HttpServerWrapper(server),
     });
     info!("app has been created");
 

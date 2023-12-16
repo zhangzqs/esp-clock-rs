@@ -9,15 +9,49 @@ use std::{
     time::Duration,
 };
 
+use include_dir::{include_dir, Dir};
 use log::info;
 
 use embedded_svc::{
     http::{
-        server::{Connection, FnHandler, Handler, HandlerError, HandlerResult, Request},
+        server::{Connection, FnHandler, Handler, HandlerResult, Request},
         Method,
     },
     io::Write,
 };
+
+static VUE_DIST: Dir = include_dir!("console-dist");
+
+struct VueConsoleHandler;
+
+impl<C> Handler<C> for VueConsoleHandler
+where
+    C: Connection,
+{
+    fn handle(&self, c: &mut C) -> HandlerResult {
+        let u = c.uri();
+        info!("receive http request uri: {}", u);
+        let url = url::Url::parse(u)?;
+
+        let file_path = {
+            let path = url.path();
+            let path = path.strip_prefix("/").unwrap_or(path);
+            if path.is_empty() {
+                "index.html"
+            } else {
+                path
+            }
+        };
+        if let Some(f) = VUE_DIST.get_file(file_path) {
+            c.initiate_response(200, Some("OK"), &[("Content-Type", "")])?;
+            c.write_all(f.contents())?;
+        } else {
+            c.initiate_response(404, Some("Not Found"), &[("Content-Type", "")])?;
+            c.write_all(b"Page Not Found")?;
+        }
+        Ok(())
+    }
+}
 
 pub trait Server<'a> {
     type Conn<'r>: Connection;
@@ -60,14 +94,10 @@ where
 {
     pub fn new() -> Self {
         thread::spawn(|| {
-            thread::sleep(Duration::from_secs(2));
+            thread::sleep(Duration::from_secs(10));
             let mut server = S::new();
             server
-                .fn_handler("/ping", Method::Get, |req| {
-                    let mut resp = req.into_ok_response().unwrap();
-                    resp.write_all(b"pong").unwrap();
-                    Ok(())
-                })
+                .handler("/*", Method::Get, VueConsoleHandler)
                 .unwrap();
             loop {
                 thread::sleep(Duration::from_secs(1));

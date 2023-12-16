@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     fmt::Display,
     io::{BufRead as _, BufReader, Read, Write},
-    net::SocketAddr,
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     sync::{atomic::AtomicBool, Arc, Mutex, RwLock},
     thread,
     time::Duration,
@@ -15,7 +15,6 @@ use embedded_svc::http::{
     Headers, Method, Query,
 };
 use log::{debug, info, warn};
-use rusty_pool::ThreadPool;
 
 struct DefaultHandle404;
 
@@ -27,14 +26,144 @@ impl Handler<HttpServerConnection> for DefaultHandle404 {
     }
 }
 
+/// translate from https://github.com/espressif/esp-idf/blob/master/components/esp_http_server/src/httpd_uri.c
+fn uri_match_wildcard(template: &str, uri: &str) -> bool {
+    let len = uri.len();
+    let tpl_len = template.len();
+    let mut exact_match_chars = tpl_len;
+
+    /* Check for trailing question mark and asterisk */
+    let last = {
+        if tpl_len > 0 {
+            template.chars().nth(tpl_len - 1).unwrap_or('\0')
+        } else {
+            '\0'
+        }
+    };
+    let prev_last = {
+        if tpl_len > 1 {
+            template.chars().nth(tpl_len - 2).unwrap_or('\0')
+        } else {
+            '\0'
+        }
+    };
+    let asterisk = last == '*' || (prev_last == '*' && last == '?');
+    let quest = last == '?' || (prev_last == '?' && last == '*');
+
+    /* Minimum template string length must be:
+     *      0 : if neither of '*' and '?' are present
+     *      1 : if only '*' is present
+     *      2 : if only '?' is present
+     *      3 : if both are present
+     *
+     * The expression (asterisk + quest*2) serves as a
+     * case wise generator of these length values
+     */
+
+    /* abort in cases such as "?" with no preceding character (invalid template) */
+    if exact_match_chars < asterisk as usize + quest as usize * 2 {
+        return false;
+    }
+
+    /* account for special characters and the optional character if "?" is used */
+    exact_match_chars -= asterisk as usize + quest as usize * 2;
+
+    if len < exact_match_chars {
+        return false;
+    }
+
+    if !quest {
+        if !asterisk && len != exact_match_chars {
+            /* no special characters and different length - strncmp would return false */
+            return false;
+        }
+        /* asterisk allows arbitrary trailing characters, we ignore these using
+         * exact_match_chars as the length limit */
+        return &template[..exact_match_chars] == &uri[..exact_match_chars];
+    } else {
+        /* question mark present */
+        if len > exact_match_chars
+            && template.chars().nth(exact_match_chars).unwrap()
+                != uri.chars().nth(exact_match_chars).unwrap()
+        {
+            /* the optional character is present, but different */
+            return false;
+        }
+        if &template[..exact_match_chars] != &uri[..exact_match_chars] {
+            /* the mandatory part differs */
+            return false;
+        }
+        /* Now we know the URI is longer than the required part of template,
+         * the mandatory part matches, and if the optional character is present, it is correct.
+         * Match is OK if we have asterisk, i.e. any trailing characters are OK, or if
+         * there are no characters beyond the optional character. */
+        return asterisk || len <= exact_match_chars + 1;
+    }
+}
+
+#[test]
+fn test_uri_match_wildcard() {
+    let test_cases = [
+        ["/", "/", "true"],
+        ["", "", "true"],
+        ["/", "", "false"],
+        ["/wrong", "/", "false"],
+        ["/", "/wrong", "false"],
+        [
+            "/asdfghjkl/qwertrtyyuiuioo",
+            "/asdfghjkl/qwertrtyyuiuioo",
+            "true",
+        ],
+        ["/path", "/path", "true"],
+        ["/path", "/path/", "false"],
+        ["/path/", "/path", "false"],
+        ["?", "", "false"], // this is not valid, but should not crash
+        ["?", "sfsdf", "false"],
+        ["/path/?", "/pa", "false"],
+        ["/path/?", "/path", "true"],
+        ["/path/?", "/path/", "true"],
+        ["/path/?", "/path/alalal", "false"],
+        ["/path/*", "/path", "false"],
+        ["/path/*", "/", "false"],
+        ["/path/*", "/path/", "true"],
+        ["/path/*", "/path/blabla", "true"],
+        ["*", "", "true"],
+        ["*", "/", "true"],
+        ["*", "/aaa", "true"],
+        ["/path/?*", "/pat", "false"],
+        ["/path/?*", "/pathb", "false"],
+        ["/path/?*", "/pathxx", "false"],
+        ["/path/?*", "/pathblabla", "false"],
+        ["/path/?*", "/path", "true"],
+        ["/path/?*", "/path/", "true"],
+        ["/path/?*", "/path/blabla", "true"],
+        ["/path/*?", "/pat", "false"],
+        ["/path/*?", "/pathb", "false"],
+        ["/path/*?", "/pathxx", "false"],
+        ["/path/*?", "/path", "true"],
+        ["/path/*?", "/path/", "true"],
+        ["/path/*?", "/path/blabla", "true"],
+        ["/path/*/xxx", "/path/", "false"],
+        ["/path/*/xxx", "/path/*/xxx", "true"],
+    ];
+
+    for test_case in test_cases.iter() {
+        let res = uri_match_wildcard(test_case[0], test_case[1]);
+        let res = if res { "true" } else { "false" };
+        assert_eq!(res, test_case[2], "test case: {:?}", test_case);
+    }
+}
+
 pub struct Configuration {
-    pub listen_addr: SocketAddr,
+    http_port: u16,
+    uri_match_wildcard: bool,
 }
 
 impl Default for Configuration {
     fn default() -> Self {
         Self {
-            listen_addr: "0.0.0.0:80".parse().unwrap(),
+            http_port: 80,
+            uri_match_wildcard: false,
         }
     }
 }
@@ -42,7 +171,10 @@ impl Default for Configuration {
 pub struct HttpServer<'a> {
     handlers_map: Arc<
         RwLock<
-            HashMap<(String, Method), Mutex<Box<dyn Handler<HttpServerConnection> + Send + 'a>>>,
+            HashMap<
+                Method,
+                HashMap<String, Mutex<Box<dyn Handler<HttpServerConnection> + Send + 'a>>>,
+            >,
         >,
     >,
     handler_404: Arc<Mutex<Box<dyn Handler<HttpServerConnection> + Send + 'a>>>,
@@ -51,14 +183,16 @@ pub struct HttpServer<'a> {
 }
 
 impl<'a: 'static> HttpServer<'a> {
-    pub fn new(cfg: Configuration) -> Result<Self, HttpServerError> {
-        let listener = std::net::TcpListener::bind(cfg.listen_addr).unwrap();
+    pub fn new(conf: &'a Configuration) -> Result<Self, HttpServerError> {
+        let listener = std::net::TcpListener::bind(SocketAddr::V4(SocketAddrV4::new(
+            Ipv4Addr::new(0, 0, 0, 0),
+            conf.http_port,
+        )))
+        .unwrap();
         listener
             .set_nonblocking(true)
             .expect("Cannot set non-blocking");
-        let handlers_map: Arc<
-            RwLock<HashMap<(String, Method), Mutex<Box<dyn Handler<HttpServerConnection> + Send>>>>,
-        > = Arc::new(RwLock::new(HashMap::<_, _>::new()));
+        let handlers_map = Arc::new(RwLock::new(HashMap::new()));
         let exit_signal = Arc::new(AtomicBool::new(false));
         let exit_signal_clone = exit_signal.clone();
 
@@ -95,7 +229,27 @@ impl<'a: 'static> HttpServer<'a> {
                         }
                         let mut conn = conn.unwrap();
                         let handlers_map = handlers_map_clone.read().unwrap();
-                        let handler = handlers_map.get(&(conn.path.to_string(), conn.method()));
+                        let path_headers = handlers_map.get(&conn.method());
+                        if path_headers.is_none() {
+                            conn.handle_error("method not allowed");
+                            continue;
+                        }
+                        let path_headers = path_headers.unwrap();
+
+                        let mut handler = None;
+                        for (path, h) in path_headers {
+                            if conf.uri_match_wildcard {
+                                if !uri_match_wildcard(path, &conn.path) {
+                                    continue;
+                                }
+                            } else {
+                                if path != &conn.path {
+                                    continue;
+                                }
+                            }
+                            handler = Some(h);
+                            break;
+                        }
 
                         let res = if let Some(h) = handler {
                             h.lock().unwrap().handle(&mut conn)
@@ -128,10 +282,10 @@ impl<'a: 'static> HttpServer<'a> {
     where
         H: Handler<HttpServerConnection> + Send + 'a,
     {
-        self.handlers_map
-            .write()
-            .unwrap()
-            .insert((uri.to_string(), method), Mutex::new(Box::new(handler)));
+        let mut handlers_map = self.handlers_map.write().unwrap();
+        let path_headers = handlers_map.entry(method).or_insert_with(HashMap::new);
+        path_headers.insert(uri.to_string(), Mutex::new(Box::new(handler)));
+        drop(handlers_map);
         info!("registered handler: {:?} {}", method, uri);
         Ok(self)
     }
@@ -414,16 +568,18 @@ impl Headers for HttpServerConnection {
 
 #[cfg(test)]
 mod test_server {
-    use std::{net::SocketAddr, thread, time::Duration};
+    use std::{thread, time::Duration};
 
+    use embedded_io::Write;
     use embedded_svc::http::{server::FnHandler, Method};
 
     use super::{Configuration, DefaultHandle404, HttpServer};
 
     #[test]
     fn test() -> anyhow::Result<()> {
-        let mut h = HttpServer::new(Configuration {
-            listen_addr: SocketAddr::new(std::net::IpAddr::V4([0, 0, 0, 0].into()), 8080),
+        let mut h = HttpServer::new(&Configuration {
+            http_port: 8080,
+            uri_match_wildcard: true,
         })
         .unwrap();
         h.handler(
@@ -453,6 +609,16 @@ mod test_server {
             "/test1",
             Method::Get,
             FnHandler::new(|_req| Err("error".into())),
+        )
+        .unwrap()
+        .handler(
+            "/t1/*",
+            Method::Get,
+            FnHandler::new(|req| {
+                let uri = req.uri().to_string();
+                req.into_ok_response()?.write_all(uri.as_bytes())?;
+                Ok(())
+            }),
         )
         .unwrap()
         .handle_404(DefaultHandle404)

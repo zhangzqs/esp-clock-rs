@@ -167,11 +167,11 @@ where
                                 let s = (freq - min_freq) as f32 / (max_freq - min_freq) as f32;
                                 println!("screen: {}", s);
                                 led.set_brightness_percent(s);
-                                app.upgrade_in_event_loop(move |ui| {
-                                    ui.set_music_page_note(format!("{:?}", p).into());
-                                    ui.set_music_page_percent(s);
-                                })
-                                .unwrap();
+                                // app.upgrade_in_event_loop(move |ui| {
+                                //     ui.set_music_page_note(format!("{:?}", p).into());
+                                //     ui.set_music_page_percent(s);
+                                // })
+                                // .unwrap();
                                 player.tone(freq);
                             }
                         }

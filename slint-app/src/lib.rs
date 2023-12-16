@@ -251,9 +251,9 @@ where
                 music_app.borrow_mut().exit();
             });
             let music_app = self.music_app.clone();
-            ui.on_music_page_switch(move |i| {
+            ui.on_music_page_play(move |i| {
                 info!("on_music_page_switch: {:?}", i);
-                music_app.borrow_mut().switch(i);
+                music_app.borrow_mut().play(i)
             });
         }
     }

@@ -10,6 +10,8 @@ pub struct RodioPlayer {
     sink: rodio::Sink,
 }
 
+unsafe impl Send for RodioPlayer {}
+
 impl RodioPlayer {
     pub fn new() -> Self {
         let (stream, stream_handle) = rodio::OutputStream::try_default().unwrap();

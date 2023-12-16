@@ -1,8 +1,6 @@
-use embedded_tone::{RawTonePlayer};
+use embedded_tone::RawTonePlayer;
 use esp_idf_hal::rmt::TxRmtDriver;
 use esp_idf_hal::rmt::*;
-
-
 
 pub struct EspBeepPlayer<'a> {
     tx: TxRmtDriver<'a>,
@@ -16,7 +14,8 @@ impl<'a> EspBeepPlayer<'a> {
 
 impl RawTonePlayer for EspBeepPlayer<'_> {
     fn tone(&mut self, freq: u32) {
-        self.off();
+        // 先关闭之前的音
+        self.tx.stop().unwrap();
 
         // Calculate the frequency for a piezo buzzer.
         let ticks_hz = self.tx.counter_clock().unwrap();

@@ -155,8 +155,8 @@ fn test_uri_match_wildcard() {
 }
 
 pub struct Configuration {
-    http_port: u16,
-    uri_match_wildcard: bool,
+    pub http_port: u16,
+    pub uri_match_wildcard: bool,
 }
 
 impl Default for Configuration {

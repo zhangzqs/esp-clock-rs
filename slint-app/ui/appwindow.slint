@@ -4,7 +4,7 @@ import { HomeWeatherData, HomeTimeData } from "pages/home/index.slint";
 import "fonts/microsoft-yahei.ttf";
 import { FPSTestType } from "pages/fpstest/index.slint";
 import { Page } from "pages/common/page.slint";
-import { MusicItem } from "pages/music/index.slint"; 
+import { MusicItemInfo } from "pages/music/index.slint"; 
 
 export component AppWindow inherits Window {
     default-font-family: "Microsoft YaHei";
@@ -69,7 +69,7 @@ export component AppWindow inherits Window {
 
         music-page-note: music-page-note;
         music-page-percent: music-page-percent;
-        music-page-switch(i) => { music-page-switch(i); }
+        music-page-play(i) => { return music-page-play(i); }
         music-page-enter => { music-page-enter(); }
         music-page-exit => { music-page-exit(); }
 
@@ -109,7 +109,7 @@ export component AppWindow inherits Window {
     // music页相关
     in property <string> music-page-note;
     in property <float> music-page-percent;
-    callback music-page-switch(MusicItem);
+    callback music-page-play(MusicItemInfo) -> bool;
     callback music-page-enter();
     callback music-page-exit();
 

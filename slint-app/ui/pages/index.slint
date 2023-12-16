@@ -9,7 +9,7 @@ import { Page } from "common/page.slint";
 import { FPSTestPage, FPSTestType } from "fpstest/index.slint";
 import { ProjectorPage } from "projector/index.slint";
 import { EvilApplePage } from "evilapple/index.slint";
-import { MusicPage, MusicItem } from "music/index.slint";
+import { MusicPage, MusicItemInfo } from "music/index.slint";
 import { NetworkMoniterPage } from "network/index.slint";
 
 export component MultiPage inherits Rectangle {
@@ -121,14 +121,14 @@ export component MultiPage inherits Rectangle {
 
     in property <string> music-page-note;
     in property <float> music-page-percent;
-    callback music-page-switch(MusicItem);
+    callback music-page-play(MusicItemInfo) -> bool;
     callback music-page-enter();
     callback music-page-exit();
     music-page := MusicPage {
         visible: current-page == Page.Music;
         note: music-page-note;
         percent: music-page-percent;
-        switch(i) => { music-page-switch(i); }
+        play(i) => { return music-page-play(i); }
         enter => { music-page-enter(); }
         exit => {
             music-page-exit();

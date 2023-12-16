@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     env::set_var,
+    marker::PhantomData,
     net::SocketAddr,
     rc::Rc,
     sync::{
@@ -8,7 +9,7 @@ use std::{
         Arc, Mutex,
     },
     thread,
-    time::Duration, marker::PhantomData,
+    time::Duration,
 };
 
 use desktop_svc::http::{
@@ -97,8 +98,9 @@ impl<'a: 'static> slint_app::Server<'a> for HttpServerWrapper<'a> {
     type HttpServerError = desktop_svc::http::server::HttpServerError;
 
     fn new() -> Self {
-        let server = HttpServer::new(Configuration {
-            listen_addr: SocketAddr::from(([127, 0, 0, 1], 8080)),
+        let server = HttpServer::new(&Configuration {
+            http_port: 8080,
+            uri_match_wildcard: true,
         })
         .unwrap();
         HttpServerWrapper(server)
@@ -164,8 +166,7 @@ fn main() -> anyhow::Result<()> {
         http_conn: HttpClientConnection::new(),
         system: MockSystem,
         display_group: display_group.clone(),
-        // player: RodioPlayer::new(),
-        player: MockPlayer,
+        player: RodioPlayer::new(),
         eval_apple: MockEvilApple,
         screen_brightness_controller: MockLEDController::default(),
         blue_led: MockLEDController::default(),

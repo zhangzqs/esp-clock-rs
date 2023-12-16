@@ -19,6 +19,7 @@ use embedded_svc::{
     },
     io::Write,
 };
+use serde::Deserialize;
 
 static VUE_DIST: Dir = include_dir!("console-dist");
 
@@ -88,6 +89,13 @@ where
     _phantom: PhantomData<S>,
 }
 
+#[derive(Deserialize)]
+struct ButtonControl {
+    event: String,
+    clicks: u32,
+    duration: u32,
+}
+
 impl<S> HttpServerApp<S>
 where
     S: Server<'static>,
@@ -98,6 +106,12 @@ where
             let mut server = S::new();
             server
                 .handler("/*", Method::Get, VueConsoleHandler)
+                .unwrap()
+                .fn_handler("/control/button", Method::Post, |req| {
+                    // let btn = serde_json::from_reader::<_, ButtonControl>(req).unwrap();
+                    // println!("got body: {}", );
+                    Ok(())
+                })
                 .unwrap();
             loop {
                 thread::sleep(Duration::from_secs(1));

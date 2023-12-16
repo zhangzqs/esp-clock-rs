@@ -5,34 +5,22 @@ use std::{
         Arc, Mutex,
     },
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
-use crate::{AppWindow, LEDController, MusicItem};
+use crate::{AppWindow, LEDController, MusicItemInfo};
 use embedded_tone::{AbsulateNotePitch, RawTonePlayer};
+use include_dir::{include_dir, Dir};
 use log::{error, info};
 use midly::{MetaMessage, Timing, TrackEventKind};
 use slint::Weak;
 use std::sync::mpsc;
 
-fn get_music(i: MusicItem) -> &'static [u8] {
-    match i {
-        MusicItem::Fontaine => include_bytes!("../music/Fontaine__HOYO-MiX.mid"),
-        MusicItem::Klee => include_bytes!("../music/Klee.mid"),
-        MusicItem::LaVaguelette => include_bytes!("../music/Story_Teaser_La_vaguelette__Genshin_Impact.mid"),
-        MusicItem::Nahida => include_bytes!("../music/Nahida_trailer.mid"),
-        MusicItem::IveNeverForgotten => include_bytes!("../music/我不曾忘记.mid"),
-        MusicItem::SinnersFinale => include_bytes!("../music/Sinners_Finale_Genshin_Impact.mid"),
-        MusicItem::KondaVillage => include_bytes!("../music/Konda_Village_BGM_Morning_Genshin_Impact.mid"),
-        MusicItem::BlossomsOfSummer => include_bytes!("../music/Blossoms_of_Summer_Night__Dimeng_Yuan_from_Genshin_Impact.mid"),
-        MusicItem::InnocentAge => include_bytes!("../music/Genshin Impact - Innocent Age.mid"),
-        MusicItem::MondstadtMedley=>include_bytes!("../music/Genshin_Impact_OST_-_Mondstadt_Medley_Piano.mid"),
-    }
-}
+static MUSIC_DIST: Dir = include_dir!("music-dist");
 
 enum MusicAppEvent {
     Exit,
-    Switch(MusicItem),
+    Switch(&'static [u8]),
 }
 
 pub struct MusicApp<TONE, LC>
@@ -68,7 +56,7 @@ where
     }
 
     fn play_midi(
-        item: MusicItem,
+        midi_content: &[u8],
         app: Weak<AppWindow>,
         tone_player: Arc<Mutex<TONE>>,
         led: Arc<Mutex<LC>>,
@@ -77,7 +65,7 @@ where
         let mut player = tone_player.lock().unwrap();
         let mut led = led.lock().unwrap();
 
-        let (header, mut tracks) = midly::parse(get_music(item)).unwrap();
+        let (header, mut tracks) = midly::parse(midi_content).unwrap();
 
         // 一个四分音符中包含的tick数
         let tpqn = if let Timing::Metrical(t) = header.timing {
@@ -89,12 +77,16 @@ where
             return;
         };
 
+        // 获取0号轨道
         let track = tracks.next().unwrap().unwrap();
         let mut max_freq = 0;
         let mut min_freq = 10000;
 
         let mut tempo = 1_000_000;
         let mut current_half_steps = 0;
+
+        let mut current_freq = 0;
+        let mut current_freq_play_time = Instant::now();
 
         for event in track {
             if exit_signal.load(Ordering::SeqCst) {
@@ -148,13 +140,20 @@ where
                 thread::sleep(dur);
 
                 match e {
-                    midly::live::LiveEvent::Midi { channel: _, message } => match message {
+                    midly::live::LiveEvent::Midi {
+                        channel: _,
+                        message,
+                    } => match message {
                         midly::MidiMessage::NoteOff { key: _, vel: _ } => {
                             println!("off");
+                            current_freq = 0;
+                            current_freq_play_time = Instant::now();
                             player.off();
                         }
                         midly::MidiMessage::NoteOn { key, vel } => {
                             if vel == 0 {
+                                current_freq = 0;
+                                current_freq_play_time = Instant::now();
                                 player.off();
                             } else {
                                 println!("key: {}, vel: {}", key, vel);
@@ -172,7 +171,17 @@ where
                                 //     ui.set_music_page_percent(s);
                                 // })
                                 // .unwrap();
-                                player.tone(freq);
+
+                                // 始终倾向于播放更高音调的音，有更高音调的播放更高音调的
+                                // 或者如果当前播放的音调已经超过200ms，那么也可以播放新的音调
+
+                                if freq > current_freq
+                                    || current_freq_play_time.elapsed() > Duration::from_millis(200)
+                                {
+                                    current_freq = freq;
+                                    current_freq_play_time = Instant::now();
+                                    player.tone(freq);
+                                }
                             }
                         }
                         _ => (),
@@ -213,7 +222,7 @@ where
                         }
                         return;
                     }
-                    MusicAppEvent::Switch(item) => {
+                    MusicAppEvent::Switch(data) => {
                         if let Some(j) = current_play_thread {
                             // 存在播放线程，发送退出信号，等待退出
                             exit_signal.store(true, Ordering::SeqCst);
@@ -221,7 +230,7 @@ where
                         }
                         exit_signal.store(false, Ordering::SeqCst);
                         current_play_thread = Some(thread::spawn(move || {
-                            Self::play_midi(item, app, tone_player, led, exit_signal);
+                            Self::play_midi(data, app, tone_player, led, exit_signal);
                         }));
                     }
                 }
@@ -238,8 +247,15 @@ where
         info!("music exit");
     }
 
-    pub fn switch(&mut self, item: MusicItem) {
-        self.event_sender.send(MusicAppEvent::Switch(item)).unwrap();
+    pub fn play(&mut self, item: MusicItemInfo) -> bool {
+        if let Some(f) = MUSIC_DIST.get_file(item.path.as_str()) {
+            self.event_sender
+                .send(MusicAppEvent::Switch(f.contents()))
+                .unwrap();
+            return true;
+        } else {
+            return false;
+        }
     }
 
     fn play_123() {

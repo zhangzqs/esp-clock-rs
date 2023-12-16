@@ -1,49 +1,34 @@
-export enum MusicItem {
-    SinnersFinale,
-    Fontaine,
-    Klee,
-    LaVaguelette,
-    Nahida,
-    IveNeverForgotten,
-    KondaVillage,
-    BlossomsOfSummer,
-    InnocentAge,
-    MondstadtMedley,
+export struct MusicItemInfo {
+    name: string,
+    path: string,
 }
 
 export component MusicPage inherits Rectangle {
-    function music-item-to-chinese(item: MusicItem) -> string {
-        if (item == MusicItem.SinnersFinale) { return "罪人的终幕"; }
-        if (item == MusicItem.Fontaine) { return "枫丹主题曲"; }
-        if (item == MusicItem.Klee) { return "可莉主题曲"; }
-        if (item == MusicItem.LaVaguelette) { return "轻链"; }
-        if (item == MusicItem.Nahida) { return "纳西妲PV曲"; }
-        if (item == MusicItem.IveNeverForgotten) { return "我不曾忘记"; }
-        if (item == MusicItem.KondaVillage) { return "绀田村"; }
-        if (item == MusicItem.BlossomsOfSummer) { return "宵宫PV"; }
-        if (item == MusicItem.InnocentAge) { return "无虑无猜的岁月"; }
-        if (item == MusicItem.MondstadtMedley) { return "MondstadtMedley"; }
-        return "unknown";
-    }
 
     in property <string> note;
     in property <float> percent;
 
-    property <[MusicItem]> music-list: [
-        MusicItem.KondaVillage,
-        MusicItem.BlossomsOfSummer,
-        MusicItem.InnocentAge,
-        MusicItem.MondstadtMedley,
-        MusicItem.SinnersFinale,
-        MusicItem.Fontaine,
-        MusicItem.Klee,
-        MusicItem.LaVaguelette,
-        MusicItem.Nahida,
-        MusicItem.IveNeverForgotten,
+    property <[MusicItemInfo]> music-list: [
+        { name: "瑶瑶PV曲", path: "Yaoyao_Character_Demo.mid" },
+        { name: "雷电将军", path: "Raiden_Shogun_Judgment_of_Euthymia__Yu-Peng_Chen.mid" },
+        { name: "雪山", path: "Dragonspine_Song_No._1_-_Yu-Peng_Chen.mid" },
+        { name: "大梦的曲调", path: "Aranaras_Theme__HOYO-MiX_.mid" },
+        { name: "罪人的终幕", path: "Sinners_Finale_Genshin_Impact.mid" },
+        { name: "甘雨PV曲", path: "Ganyu_Radiant_Dreams_Genshin_Impact_-_Yu-peng_Chen.mid" },
+        { name: "枫丹主题曲", path: "Fontaine__HOYO-MiX.mid"},
+        { name: "可莉主题曲", path: "Klee.mid"},
+        { name: "轻链", path: "Story_Teaser_La_vaguelette__Genshin_Impact.mid"},
+        { name: "纳西妲PV曲", path: "Nahida_trailer.mid"},
+        { name: "我不曾忘记", path: "我不曾忘记.mid"},
+        { name: "绀田村", path: "Konda_Village_BGM_Morning_Genshin_Impact.mid"},
+        { name: "宵宫PV", path: "Blossoms_of_Summer_Night__Dimeng_Yuan_from_Genshin_Impact.mid"},
+        { name: "无虑无猜的岁月", path: "Genshin Impact - Innocent Age.mid"},
+        { name: "MondstadtMedley", path: "Genshin_Impact_OST_-_Mondstadt_Medley_Piano.mid"},
     ];
     property <int> current-music-id: -1;
 
-    callback switch(MusicItem);
+    // 播放指定音乐，返回是否加载成功
+    callback play(MusicItemInfo) -> bool;
     callback enter();
     callback exit();
 
@@ -57,7 +42,7 @@ export component MusicPage inherits Rectangle {
             color: white;
         }
         Text {
-            text: current-music-id == -1 ? "未播放" : music-item-to-chinese(music-list[current-music-id]);
+            text: current-music-id == -1 ? "未播放" : music-list[current-music-id].name;
             font-size: 20px;
             color: white;
         }
@@ -85,7 +70,7 @@ export component MusicPage inherits Rectangle {
     // 单机按键切换音乐
     public function on-one-button-click() {
         current-music-id = Math.mod(current-music-id + 1, music-list.length);
-        switch(music-list[current-music-id]);
+        play(music-list[current-music-id]);
     }
 
     // 长按3秒退出

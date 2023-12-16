@@ -8,7 +8,7 @@ use std::{
         Arc, Mutex,
     },
     thread,
-    time::Duration,
+    time::Duration, marker::PhantomData,
 };
 
 use desktop_svc::http::{
@@ -96,6 +96,13 @@ impl<'a: 'static> slint_app::Server<'a> for HttpServerWrapper<'a> {
     type Conn<'r> = desktop_svc::http::server::HttpServerConnection;
     type HttpServerError = desktop_svc::http::server::HttpServerError;
 
+    fn new() -> Self {
+        let server = HttpServer::new(Configuration {
+            listen_addr: SocketAddr::from(([127, 0, 0, 1], 8080)),
+        })
+        .unwrap();
+        HttpServerWrapper(server)
+    }
     fn handler<H>(
         &mut self,
         uri: &str,
@@ -153,10 +160,6 @@ fn main() -> anyhow::Result<()> {
     let mut window = Window::new("Desktop Simulator", &output_settings);
     info!("window has been created");
 
-    let server = HttpServer::new(Configuration {
-        listen_addr: SocketAddr::from(([127, 0, 0, 1], 8080)),
-    })
-    .unwrap();
     let app = MyApp::new(MyAppDeps {
         http_conn: HttpClientConnection::new(),
         system: MockSystem,
@@ -166,7 +169,7 @@ fn main() -> anyhow::Result<()> {
         eval_apple: MockEvilApple,
         screen_brightness_controller: MockLEDController::default(),
         blue_led: MockLEDController::default(),
-        http_server: HttpServerWrapper(server),
+        http_server: PhantomData::<HttpServerWrapper>,
     });
     info!("app has been created");
 

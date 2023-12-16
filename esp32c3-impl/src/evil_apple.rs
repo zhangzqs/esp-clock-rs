@@ -26,6 +26,7 @@ impl EvilAppleBLEImpl {
 
 impl EvilApple for EvilAppleBLEImpl {
     fn attack_once(&self, data: &[u8]) {
+        log::info!("attack_once: {:?}", data);
         let ble_device = esp32_nimble::BLEDevice::take();
         ble_device.set_own_addr_type(OwnAddrType::Random);
         

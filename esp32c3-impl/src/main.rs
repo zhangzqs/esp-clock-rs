@@ -64,6 +64,8 @@ impl<'a> slint_app::Server<'a> for EspHttpServerWrapper<'a> {
     fn new() -> Self {
         Self(
             EspHttpServer::new(&Configuration {
+                http_port: 8080,
+                uri_match_wildcard: true,
                 ..Default::default()
             })
             .unwrap(),
@@ -149,7 +151,7 @@ fn main() -> anyhow::Result<()> {
             .unwrap(),
     ));
 
-    let display_group = Arc::new(Mutex::new(DisplayGroup::new(physical_display.clone(), 2)));
+    let display_group = Arc::new(Mutex::new(DisplayGroup::new(physical_display.clone(), 8)));
 
     let nvs = EspDefaultNvsPartition::take()?;
     let nvs_a = EspNvs::new(nvs.clone(), "test_ns", true)?;

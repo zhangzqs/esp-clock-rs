@@ -40,19 +40,25 @@ where
         };
         let file_path = if path.is_empty() { "index.html" } else { path };
         if let Some(f) = VUE_DIST.get_file(file_path) {
-            if file_path.ends_with(".html")
-                || file_path.ends_with(".js")
-                || file_path.ends_with(".css")
-            {
-                // 预打包使用gzip压缩了这三种类型的文件，故需要携带Content-Encoding: gzip
+            let content_type = match file_path.split('.').last() {
+                Some("html") => "text/html",
+                Some("js") => "application/javascript",
+                Some("css") => "text/css",
+                Some("png") => "image/png",
+                Some("ico") => "image/x-icon",
+                Some("svg") => "image/svg+xml",
+                _ => "",
+            };
+
+            if f.contents().starts_with(&[0x1f, 0x8b]) {
                 c.initiate_response(
                     200,
                     Some("OK"),
-                    &[("Content-Type", ""), ("Content-Encoding", "gzip")],
+                    &[("Content-Type", content_type), ("Content-Encoding", "gzip")],
                 )?;
             } else {
-                c.initiate_response(200, Some("OK"), &[("Content-Type", "")])?;
-            }
+                c.initiate_response(200, Some("OK"), &[("Content-Type", content_type)])?;
+            };
             c.write_all(f.contents())?;
         } else {
             c.initiate_response(404, Some("Not Found"), &[("Content-Type", "")])?;

@@ -3223,7 +3223,6 @@ dependencies = [
  "slint",
  "slint-build",
  "time",
- "url",
 ]
 
 [[package]]

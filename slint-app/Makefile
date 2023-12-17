@@ -1,13 +1,23 @@
 .PHONY: build-console-dist
 build-console-dist:
 	@echo "Building console..."
+	rm -rf console-dist
 # 跳转到../vue-console目录下，使用npm run build命令打包，打包后的文件在../vue-console/dist目录下，将其中的文件拷贝到../console-dist目录下，然后回到当前目录
 	cd ../vue-console \
 		&& npm run build \
 		&& cd - \
-		&& cp -r ../vue-console/dist/* ./console-dist
+		&& cp -r ../vue-console/dist ./console-dist
 # 删除*.map文件
 	rm -rf ./console-dist/js/*.map
+# 对所有的html, js, css文件进行gzip压缩
+	@for file in $$(find ./console-dist -type f -name "*.html" -o -name "*.js" -o -name "*.css"); do \
+		echo "Compressing $$file"; \
+		gzip -9 -c "$$file" > "$$file.gz"; \
+		rm -f "$$file"; \
+		mv "$$file.gz" "$$file"; \
+		echo "GZip compress success: $$file"; \
+	done
+	
 	@echo "Build console success!"
 
 .PHONY: build-console-dist

@@ -52,12 +52,12 @@ pub fn connect_to_wifi(
     }))?;
 
     info!("Connecting wifi...");
-    for i in 0..3 {
+    for i in 0..5 {
         if wifi.connect().is_ok() {
             info!("Wifi Connected!");
             break;
         } else {
-            info!("Attempt {}/3...", i + 1);
+            info!("Attempt {}/5...", i + 1);
         }
     }
 

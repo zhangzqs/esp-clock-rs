@@ -155,7 +155,7 @@ where
         let network_monitor_app =
             Rc::new(RefCell::new(NetworkMonitorApp::new(app_window.as_weak())));
 
-        let http_server_app = Rc::new(RefCell::new(HttpServerApp::new()));
+        let http_server_app = Rc::new(RefCell::new(HttpServerApp::new(app_window.as_weak())));
         let app = MyApp {
             app_window,
             http_client,

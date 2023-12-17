@@ -225,7 +225,7 @@ impl<'a: 'static> HttpServer<'a> {
                         let conn = HttpServerConnection::new(s);
                         if let Err(e) = conn {
                             warn!("encountered IO error: {}", e);
-                            return;
+                            continue;
                         }
                         let mut conn = conn.unwrap();
                         let handlers_map = handlers_map_clone.read().unwrap();
@@ -505,7 +505,12 @@ impl Connection for HttpServerConnection {
             raw.push_str(&format!("{}: {}\r\n", k, v));
         }
         raw.push_str("\r\n");
-        self.stream.write_all(raw.as_bytes()).unwrap();
+        if let Err(e) = self.stream.write_all(raw.as_bytes()) {
+            return Err(HttpServerError::IO {
+                io_error: e,
+                msg: "write response header error".to_string(),
+            });
+        }
         self.is_response_initiated = true;
         Ok(())
     }
@@ -527,7 +532,7 @@ impl embedded_io::Read for HttpServerConnection {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         self.stream.read(buf).map_err(|e| HttpServerError::IO {
             io_error: e,
-            msg: "read error".to_string(),
+            msg: "read request body error".to_string(),
         })
     }
 }
@@ -536,14 +541,14 @@ impl embedded_io::Write for HttpServerConnection {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
         self.stream.write(buf).map_err(|e| HttpServerError::IO {
             io_error: e,
-            msg: "write error".to_string(),
+            msg: "write response body error".to_string(),
         })
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
         self.stream.flush().map_err(|e| HttpServerError::IO {
             io_error: e,
-            msg: "flush error".to_string(),
+            msg: "flush response body error".to_string(),
         })
     }
 }

@@ -86,7 +86,8 @@ pub struct MyConfig {
 fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
-    // esp_idf_svc::log::set_target_level("wifi", log::LevelFilter::Info)?;
+    esp_idf_svc::log::set_target_level("esp32c3_impl", log::LevelFilter::Debug)?;
+    esp_idf_svc::log::set_target_level("slint_app", log::LevelFilter::Debug)?;
     let peripherals = Peripherals::take().unwrap();
     // 所有引脚定义
     let btn_pin = PinDriver::input(peripherals.pins.gpio9)?;

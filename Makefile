@@ -11,3 +11,12 @@ clippy:
 
 cloc:
 	cloc . --vcs git
+
+generate:
+	cd slint-app && make all && cd -
+
+run-on-desktop: generate
+	cd desktop-simulator-impl && cargo run && cd -
+
+run-on-esp32c3: generate
+	cd esp32c3-impl && cargo run && cd -

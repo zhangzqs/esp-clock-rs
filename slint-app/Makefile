@@ -1,3 +1,7 @@
+.PHONY: all
+all: build-console-dist build-music-dist
+
+
 .PHONY: build-console-dist
 build-console-dist:
 	@echo "Building console..."

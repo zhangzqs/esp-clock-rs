@@ -1,20 +1,12 @@
 
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
-import HelloWorld from '../components/HelloWorld.vue';
+import Login from '../views/Login.vue';
  
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
-    name: 'Home',
-    component: HelloWorld,
-    children: [
-      // 添加子路由
-      // {
-      //   path: '/example',
-      //   name: 'Example',
-      //   component: ExampleComponent,
-      // },
-    ],
+    name: 'Login',
+    component: Login,
   },
 ];
  

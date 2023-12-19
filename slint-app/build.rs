@@ -8,6 +8,8 @@ fn build_slint() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    build_slint()?;
+    // build_slint()?;
+    let slint_cfg = slint_build::CompilerConfiguration::new();
+    slint_build::compile_with_config("ui/appwindow.slint", slint_cfg)?;
     Ok(())
 }

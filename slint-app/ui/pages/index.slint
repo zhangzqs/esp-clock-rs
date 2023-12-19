@@ -18,7 +18,7 @@ export component MultiPage inherits Rectangle {
     // BootPage
     boot-page := BootPage {
         visible: current-page == Page.Boot;
-        boot-finish => { enter-page(Page.Music); }
+        boot-finish => { enter-page(Page.Home); }
     }
 
     public function boot-page-set-state(state: BootState) {

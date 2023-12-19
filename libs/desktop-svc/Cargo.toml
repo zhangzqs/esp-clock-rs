@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["http-client", "http-server"]
-http-client = ["reqwest"]
+default = ["http-client-reqwest", "http-server"]
+http-client-simple = []
+http-client-reqwest = ["reqwest"]
 http-server = ["rusty_pool"]
 
 [dependencies]
@@ -13,5 +14,6 @@ anyhow = "1.0.75"
 embedded-io = "0.6.1"
 embedded-svc = "0.26.1"
 log = "0.4.20"
+
 reqwest = { version = "0.11.22", features = ["blocking"], optional = true }
 rusty_pool = { version = "0.7.0", optional = true }

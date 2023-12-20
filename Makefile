@@ -20,3 +20,6 @@ run-on-desktop: generate
 
 run-on-esp32c3: generate
 	cd esp32c3-impl && cargo run && cd -
+
+run-on-android: generate
+	echo "Not implemented yet, please enter android-impl directory and run 'x run --device <xxx> -r' manually"

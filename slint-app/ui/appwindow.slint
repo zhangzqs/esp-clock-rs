@@ -42,41 +42,57 @@ export component AppWindow inherits Window {
         }
     }
 
-    VerticalLayout {
-        alignment: center;
-        m := MultiPage{
-            z: 0;
-            home-page-time: home-page-time;
-            home-page-weather: home-page-weather;
+    in property <bool> show-external-display;
+    in property <image> external-display-image;
+
+    touch-area := TouchArea {
+        pointer-event(it) => { touch-area-pointer-event(it); }
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                Image {
+                    visible: show-external-display;
+                    source: external-display-image;
+                }
+                m := MultiPage{
+                    z: 0;
+                    home-page-time: home-page-time;
+                    home-page-weather: home-page-weather;
+                    
+                    photo-page-enter => { photo-page-enter(); }
+                    photo-page-request-next => { photo-page-request-next(); }
+                    photo-page-request-auto-play => { photo-page-request-auto-play(); }
+                    photo-page-request-stop-auto-play => { photo-page-request-stop-auto-play(); }
+                    photo-page-exit => { photo-page-exit(); }
             
-            photo-page-enter => { photo-page-enter(); }
-            photo-page-request-next => { photo-page-request-next(); }
-            photo-page-request-auto-play => { photo-page-request-auto-play(); }
-            photo-page-request-stop-auto-play => { photo-page-request-stop-auto-play(); }
-            photo-page-exit => { photo-page-exit(); }
-    
-            clock-page-enter => { clock-page-enter(); }
-            clock-page-exit => { clock-page-exit(); }
-    
-            fpstest-page-enter => { fpstest-page-enter(); }
-            fpstest-page-exit => { fpstest-page-exit(); }
-            fpstest-page-update-type(t) => { fpstest-page-update-type(t); }
-    
-            projector-page-local-ip: projector-page-ip;
-            projector-page-local-port: projector-page-port;
-            projector-page-enter => { projector-page-enter(); }
-            projector-page-exit => { projector-page-exit(); }
-    
-            music-page-note: music-page-note;
-            music-page-percent: music-page-percent;
-            music-page-play(i) => { return music-page-play(i); }
-            music-page-enter => { music-page-enter(); }
-            music-page-exit => { music-page-exit(); }
-    
-            network-monitor-page-plot: network-monitor-page-plot;
+                    clock-page-enter => { clock-page-enter(); }
+                    clock-page-exit => { clock-page-exit(); }
+            
+                    fpstest-page-enter => { fpstest-page-enter(); }
+                    fpstest-page-exit => { fpstest-page-exit(); }
+                    fpstest-page-update-type(t) => { fpstest-page-update-type(t); }
+            
+                    projector-page-local-ip: projector-page-ip;
+                    projector-page-local-port: projector-page-port;
+                    projector-page-enter => { projector-page-enter(); }
+                    projector-page-exit => { projector-page-exit(); }
+            
+                    music-page-note: music-page-note;
+                    music-page-percent: music-page-percent;
+                    music-page-play(i) => { return music-page-play(i); }
+                    music-page-enter => { music-page-enter(); }
+                    music-page-exit => { music-page-exit(); }
+            
+                    network-monitor-page-plot: network-monitor-page-plot;
+                }
+            }
         }
     }
     
+    // 原始触摸事件
+    function touch-area-is-pressed() -> bool { return touch-area.pressed; }
+    callback touch-area-pointer-event(PointerEvent);
+
     // 设置启动状态
     public function set-boot-state(state: BootState) {
         m.boot-page-set-state(state);

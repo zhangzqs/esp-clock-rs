@@ -22,11 +22,16 @@ desktop-svc = { path = "../libs/desktop-svc", default-features = false, features
     "http-server",
 ] }
 slint-app = { path = "../slint-app" }
-i-slint-backend-android-activity = { version = "=1.3.0", features = [
+i-slint-backend-android-activity = { version = "1.3.0", features = [
     "native-activity",
 ] }
 embedded-tone = { path = "../libs/embedded-tone" }
 embedded-graphics-group = { path = "../libs/embedded-graphics-group" }
+embedded-graphics-slint-image-buf = { path = "../libs/embedded-graphics-slint-image-buf" }
+rodio = "0.17.3"
 
 [lib]
 crate_type = ["cdylib"]
+
+[[package.metadata.android.uses_permission]]
+name = "android.permission.INTERNET"

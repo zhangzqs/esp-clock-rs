@@ -164,7 +164,7 @@ where
 
     pub fn switch_to_logical_display(&mut self, index: isize) -> Arc<Mutex<LogicalDisplay<D>>> {
         if index < 0 || index >= self.logical_displays.len() as isize {
-            panic!("index out of range");
+            panic!("index out of range {}", index);
         }
         if self.current_active_display != -1 {
             let old_display_ref = &self.logical_displays[self.current_active_display as usize];

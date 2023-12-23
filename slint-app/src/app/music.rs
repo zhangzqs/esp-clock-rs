@@ -8,7 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{AppWindow, LEDController, MusicItemInfo};
+use crate::{AppWindow, MusicItemInfo, interface::LEDController};
 use embedded_tone::{AbsulateNotePitch, RawTonePlayer};
 use include_dir::{include_dir, Dir};
 use log::{error, info};
@@ -57,7 +57,7 @@ where
 
     fn play_midi(
         midi_content: &[u8],
-        app: Weak<AppWindow>,
+        _app: Weak<AppWindow>,
         tone_player: Arc<Mutex<TONE>>,
         led: Arc<Mutex<LC>>,
         exit_signal: Arc<AtomicBool>,
@@ -252,9 +252,9 @@ where
             self.event_sender
                 .send(MusicAppEvent::Switch(f.contents()))
                 .unwrap();
-            return true;
+            true
         } else {
-            return false;
+            false
         }
     }
 

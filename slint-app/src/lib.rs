@@ -3,71 +3,28 @@ use embedded_graphics::{
     pixelcolor::{PixelColor, Rgb888},
 };
 use embedded_graphics_group::DisplayGroup;
-use embedded_svc::{
-    http::{
-        client::{Client, Connection},
-        server::FnHandler,
-        Method,
-    },
-    io::{Read, Write},
-};
+
 use embedded_tone::RawTonePlayer;
 use log::{debug, info};
-use network::NetworkMonitorApp;
 use slint::Weak;
 use std::{
     cell::RefCell,
-    error,
     fmt::Debug,
     marker::PhantomData,
     rc::Rc,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{Arc, Mutex},
 };
-use std::{thread, time::Duration};
-use time::{OffsetDateTime, UtcOffset};
 
-mod projector;
-use crate::projector::ProjectorApp;
-
-mod system;
-pub use system::System;
-
-use crate::photo::PhotoApp;
-mod photo;
-
-mod clock;
-use crate::clock::ClockApp;
-
-mod fpstest;
-use crate::fpstest::FPSTestApp;
-mod hsv;
-
-mod evil_apple;
-pub use crate::evil_apple::{EvilApple, EvilAppleApp};
-
-pub use system::MockSystem;
-
-mod led_controller;
-pub use led_controller::LEDController;
-
-mod music;
-use crate::music::MusicApp;
-
-mod home;
-use crate::home::HomeApp;
-
-mod network;
-
-mod server;
-use server::HttpServerApp;
-pub use server::Server;
+mod app;
+use app::*;
+mod interface;
+use interface::*;
+mod util;
 
 slint::include_modules!();
 
-pub struct MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC, SVR>
+pub struct MyAppDeps<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC>
 where
-    CONN: Connection<Error = ConnErr> + 'static + Send,
-    ConnErr: error::Error + 'static,
     SYS: System + 'static,
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
@@ -75,34 +32,33 @@ where
     TONE: RawTonePlayer + 'static + Send,
     EA: EvilApple + 'static,
     LC: LEDController + 'static + Send,
-    SVR: Server<'static>,
+    SB: ServerBuilder<'static>,
+    CB: ClientBuilder + 'static,
 {
-    pub http_conn: CONN,
     pub system: SYS,
     pub display_group: Arc<Mutex<DisplayGroup<EGD>>>,
     pub player: TONE,
     pub eval_apple: EA,
     pub screen_brightness_controller: LC,
     pub blue_led: LC,
-    pub http_server: PhantomData<SVR>,
+    pub http_server_builder: PhantomData<SB>,
+    pub http_client_builder: PhantomData<CB>,
 }
 
-pub struct MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC, SVR>
+pub struct MyApp<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC>
 where
-    CONN: Connection<Error = ConnErr> + 'static + Send,
-    ConnErr: error::Error + 'static,
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
     EGE: Debug,
     TONE: RawTonePlayer + 'static + Send,
     EA: EvilApple,
     LC: LEDController + 'static + Send,
-    SVR: Server<'static>,
+    SB: ServerBuilder<'static>,
+    CB: ClientBuilder + 'static,
 {
     app_window: AppWindow,
     system: SYS,
-    http_client: Arc<Mutex<Client<CONN>>>, // 这个需要多线程传递共享
-    photo_app: Rc<RefCell<PhotoApp<CONN, ConnErr, EGC, EGD>>>,
+    photo_app: Rc<RefCell<PhotoApp<CB, EGC, EGD>>>,
     clock_app: Rc<RefCell<ClockApp<EGC, EGD, EGE>>>,
     fpstest_app: Rc<RefCell<FPSTestApp<EGC, EGD, EGE>>>,
     projector_app: Rc<RefCell<ProjectorApp<EGC, EGD, EGE>>>,
@@ -111,14 +67,11 @@ where
     _screen_led_ctl: Arc<Mutex<LC>>,
     home_app: Rc<RefCell<HomeApp>>,
     network_monitor_app: Rc<RefCell<NetworkMonitorApp>>,
-    http_server_app: Rc<RefCell<HttpServerApp<SVR>>>,
+    http_server_app: Rc<RefCell<HttpServerApp<SB>>>,
 }
 
-impl<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC, SVR>
-    MyApp<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC, SVR>
+impl<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC> MyApp<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC>
 where
-    CONN: Connection<Error = ConnErr> + 'static + Send,
-    ConnErr: error::Error + 'static,
     SYS: System + 'static,
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
@@ -126,16 +79,13 @@ where
     TONE: RawTonePlayer + 'static + Send,
     EA: EvilApple,
     LC: LEDController + 'static + Send,
-    SVR: Server<'static>,
+    SB: ServerBuilder<'static>,
+    CB: ClientBuilder,
 {
-    pub fn new(deps: MyAppDeps<CONN, ConnErr, SYS, EGC, EGD, EGE, TONE, EA, LC, SVR>) -> Self {
+    pub fn new(deps: MyAppDeps<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC>) -> Self {
         let app_window = AppWindow::new().expect("Failed to create AppWindow");
         debug!("AppWindow created");
-        let http_client = Arc::new(Mutex::new(Client::wrap(deps.http_conn)));
-        let photo_app = Rc::new(RefCell::new(PhotoApp::new(
-            http_client.clone(),
-            deps.display_group.clone(),
-        )));
+        let photo_app = Rc::new(RefCell::new(PhotoApp::new(deps.display_group.clone())));
         let clock_app = Rc::new(RefCell::new(ClockApp::new(deps.display_group.clone())));
         let fpstest_app = Rc::new(RefCell::new(FPSTestApp::new(deps.display_group.clone())));
         let projector_app = Rc::new(RefCell::new(ProjectorApp::new(
@@ -158,7 +108,6 @@ where
         let http_server_app = Rc::new(RefCell::new(HttpServerApp::new(app_window.as_weak())));
         let app = MyApp {
             app_window,
-            http_client,
             system: deps.system,
             photo_app,
             clock_app,
@@ -258,26 +207,26 @@ where
         }
     }
 
-    fn _update_ip(&self) {
-        println!("update_ip");
-        let c = self.http_client.clone();
-        let _u = self.app_window.as_weak();
-        thread::spawn(move || {
-            let mut client = c.lock().unwrap();
-            let req = client
-                .request(
-                    Method::Get,
-                    "http://ifconfig.net/",
-                    &[("accept", "text/plain")],
-                )
-                .unwrap();
-            let mut resp = req.submit().unwrap();
-            let mut buf = [0u8; 30];
-            let buf_read = resp.read(&mut buf).unwrap();
-            let ip = std::str::from_utf8(&buf[..buf_read]).unwrap().trim();
-            println!("got ip: {}", ip);
-        });
-    }
+    // fn _update_ip(&self) {
+    //     println!("update_ip");
+    //     let c = self.http_client.clone();
+    //     let _u = self.app_window.as_weak();
+    //     thread::spawn(move || {
+    //         let mut client = c.lock().unwrap();
+    //         let req = client
+    //             .request(
+    //                 Method::Get,
+    //                 "http://ifconfig.net/",
+    //                 &[("accept", "text/plain")],
+    //             )
+    //             .unwrap();
+    //         let mut resp = req.submit().unwrap();
+    //         let mut buf = [0u8; 30];
+    //         let buf_read = resp.read(&mut buf).unwrap();
+    //         let ip = std::str::from_utf8(&buf[..buf_read]).unwrap().trim();
+    //         println!("got ip: {}", ip);
+    //     });
+    // }
 
     pub fn run(&self) -> Result<(), slint::PlatformError> {
         slint::run_event_loop()

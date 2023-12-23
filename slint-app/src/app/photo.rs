@@ -1,5 +1,5 @@
 use std::{
-    error,
+    marker::PhantomData,
     sync::{
         mpsc::{self},
         Arc, Mutex,
@@ -16,7 +16,7 @@ use embedded_graphics::{
 };
 use embedded_svc::{
     http::{
-        client::{Client, Connection},
+        client::{Client},
         Method,
     },
     io::Read,
@@ -25,6 +25,8 @@ use log::{debug, error, info};
 
 use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
 
+use crate::ClientBuilder;
+
 enum PhotoAppEvent {
     Next,
     AutoPlay,
@@ -32,15 +34,14 @@ enum PhotoAppEvent {
     Exit,
 }
 
-pub struct PhotoApp<CONN, ConnErr, EGC, EGD>
+pub struct PhotoApp<CB, EGC, EGD>
 where
-    CONN: Connection<Error = ConnErr> + 'static + Send,
-    ConnErr: error::Error + 'static,
+    CB: ClientBuilder + 'static,
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC> + 'static,
 {
     // 外部传递进来的字段
-    client: Arc<Mutex<Client<CONN>>>,
+    _client_builder: PhantomData<CB>,
     display_group: Arc<Mutex<DisplayGroup<EGD>>>,
 
     // 内部使用字段
@@ -52,17 +53,13 @@ where
     event_receiver: Arc<Mutex<mpsc::Receiver<PhotoAppEvent>>>,
 }
 
-impl<CONN, ConnErr, EGC, EGD> PhotoApp<CONN, ConnErr, EGC, EGD>
+impl<CB, EGC, EGD> PhotoApp<CB, EGC, EGD>
 where
-    CONN: Connection<Error = ConnErr> + 'static + Send,
-    ConnErr: error::Error + 'static,
+    CB: ClientBuilder + 'static,
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC> + 'static + Send,
 {
-    pub fn new(
-        client: Arc<Mutex<Client<CONN>>>,
-        display_group: Arc<Mutex<DisplayGroup<EGD>>>,
-    ) -> Self {
+    pub fn new(display_group: Arc<Mutex<DisplayGroup<EGD>>>) -> Self {
         let old_display_id = display_group
             .lock()
             .unwrap()
@@ -75,7 +72,7 @@ where
         let new_display_id = display.lock().unwrap().get_id();
         let (event_sender, event_receiver) = mpsc::sync_channel(2);
         Self {
-            client,
+            _client_builder: PhantomData,
             old_display_id,
             display_group: display_group.clone(),
             display,
@@ -95,11 +92,10 @@ where
             .switch_to_logical_display(self.new_display_id as isize);
 
         let display_ref = self.display.clone();
-        let client_ref = self.client.clone();
         let recv_ref = self.event_receiver.clone();
         self.join_handle = Some(thread::spawn(move || {
             let mut display = display_ref.lock().unwrap();
-            let mut client = client_ref.lock().unwrap();
+            let mut client = CB::new().build_client().unwrap();
             let recv = recv_ref.lock().unwrap();
             let mut auto_play_mode = false;
             loop {
@@ -166,7 +162,10 @@ where
             .switch_to_logical_display(self.old_display_id);
     }
 
-    fn load_image_to_screen(client: &mut Client<CONN>, display: &mut LogicalDisplay<EGD>) -> bool {
+    fn load_image_to_screen(
+        client: &mut Client<CB::Conn>,
+        display: &mut LogicalDisplay<EGD>,
+    ) -> bool {
         let req = client.request(Method::Get, "http://192.168.242.118:3000/api/photo", &[]);
         if let Err(e) = req {
             error!("create request failed: {}", e);

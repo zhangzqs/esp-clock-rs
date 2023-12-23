@@ -1,12 +1,9 @@
-use std::time::Duration;
+
 
 use crate::AppWindow;
-use embedded_graphics::{
-    draw_target::DrawTarget,
-    pixelcolor::{Rgb888, RgbColor},
-};
-use log::info;
-use slint::{Image, Rgb8Pixel, SharedPixelBuffer, Weak};
+
+
+use slint::{Rgb8Pixel, SharedPixelBuffer, Weak};
 
 pub struct NetworkMonitorApp {
     app: Weak<AppWindow>,
@@ -16,8 +13,8 @@ pub struct NetworkMonitorApp {
 impl NetworkMonitorApp {
     pub fn new(app: Weak<AppWindow>) -> Self {
         let image = SharedPixelBuffer::new(120, 120);
-        let image_ref = image.clone();
-        let app_ref = app.clone();
+        let _image_ref = image.clone();
+        let _app_ref = app.clone();
         // slint::Timer::single_shot(Duration::from_secs(3), move || {
         //     info!("timer start");
         //     let mut e = embedded_graphics_slint_image_buf::SlintPixelBufferDrawTarget {

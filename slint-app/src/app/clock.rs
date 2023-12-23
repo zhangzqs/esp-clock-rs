@@ -220,7 +220,7 @@ use log::{debug, info};
 use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
 use time::{OffsetDateTime, UtcOffset};
 
-use crate::hsv::hsv_to_rgb;
+use crate::util::hsv_to_rgb;
 
 enum ClockAppEvent {
     Exit,

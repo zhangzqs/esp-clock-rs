@@ -1,21 +1,18 @@
 use std::{
-    cell::RefCell,
-    fmt::Display,
     marker::PhantomData,
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
-    rc::Rc,
-    sync::{Arc, Mutex},
     thread,
     time::Duration,
 };
 
-use crate::AppWindow;
-use embedded_io::{BufRead, Read};
+use crate::{
+    interface::{Server, ServerBuilder},
+    AppWindow,
+};
 use include_dir::{include_dir, Dir};
 use log::{debug, info, warn};
 
 use embedded_svc::http::{
-    server::{Connection, FnHandler, Handler, HandlerResult, Request},
+    server::{Connection, Handler, HandlerResult},
     Method,
 };
 use serde::Deserialize;
@@ -33,7 +30,7 @@ where
         let u = c.uri();
         info!("receive http request uri: {}", u);
         // 提取出url的path部分
-        let path = if let Some(idx) = u.find("?") {
+        let path = if let Some(idx) = u.find('?') {
             &u[1..idx]
         } else {
             &u[1..]
@@ -68,40 +65,12 @@ where
     }
 }
 
-pub trait Server<'a> {
-    type Conn<'r>: Connection;
-    type HttpServerError: std::error::Error;
-
-    fn new() -> Self;
-
-    fn handler<H>(
-        &mut self,
-        uri: &str,
-        method: Method,
-        handler: H,
-    ) -> Result<&mut Self, Self::HttpServerError>
-    where
-        H: for<'r> Handler<Self::Conn<'r>> + Send + 'a;
-
-    fn fn_handler<F>(
-        &mut self,
-        uri: &str,
-        method: Method,
-        f: F,
-    ) -> Result<&mut Self, Self::HttpServerError>
-    where
-        F: for<'r> Fn(Request<&mut Self::Conn<'r>>) -> HandlerResult + Send + 'a,
-    {
-        self.handler(uri, method, FnHandler::new(f))
-    }
-}
-
-pub struct HttpServerApp<S>
+pub struct HttpServerApp<SB>
 where
-    S: Server<'static>,
+    SB: ServerBuilder<'static>,
 {
     app: Weak<AppWindow>,
-    _phantom: PhantomData<S>,
+    _phantom: PhantomData<SB>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -126,15 +95,15 @@ struct ButtonControl {
 //     }
 // }
 
-impl<S> HttpServerApp<S>
+impl<SB> HttpServerApp<SB>
 where
-    S: Server<'static>,
+    SB: ServerBuilder<'static>,
 {
     pub fn new(app: Weak<AppWindow>) -> Self {
         let app_ref = app.clone();
         thread::spawn(move || {
             thread::sleep(Duration::from_secs(10));
-            let mut server = S::new();
+            let mut server = SB::new().build().unwrap();
             server
                 .handler("/*", Method::Get, VueConsoleHandler)
                 .unwrap()

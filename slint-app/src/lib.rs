@@ -16,10 +16,14 @@ use std::{
 };
 
 mod app;
-use app::*;
 mod interface;
-use interface::*;
 mod util;
+
+use app::*;
+
+// 公开一些接口
+pub use app::EvilApple;
+pub use interface::*;
 
 slint::include_modules!();
 

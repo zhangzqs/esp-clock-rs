@@ -9,6 +9,7 @@ use std::result::Result;
 use std::time::Duration;
 
 pub struct MyConnection {
+    config: Configuration,
     conn: EspHttpConnection,
     need_build_new_connection: bool,
 }
@@ -16,19 +17,12 @@ pub struct MyConnection {
 unsafe impl Send for MyConnection {}
 
 impl MyConnection {
-    pub fn new() -> Self {
-        Self {
-            conn: Self::build_new_connection(),
+    pub fn new(config: Configuration) -> Result<Self, EspIOError> {
+        Ok(Self {
+            config,
+            conn: EspHttpConnection::new(&config)?,
             need_build_new_connection: false,
-        }
-    }
-
-    fn build_new_connection() -> EspHttpConnection {
-        EspHttpConnection::new(&Configuration {
-            timeout: Some(Duration::from_secs(1)),
-            ..Default::default()
         })
-        .unwrap()
     }
 }
 
@@ -84,7 +78,7 @@ impl Connection for MyConnection {
         headers: &'a [(&'a str, &'a str)],
     ) -> Result<(), Self::Error> {
         if self.need_build_new_connection {
-            self.conn = Self::build_new_connection();
+            self.conn = EspHttpConnection::new(&self.config)?;
             self.need_build_new_connection = false;
         }
         self.conn
@@ -121,5 +115,33 @@ impl Connection for MyConnection {
 
     fn raw_connection(&mut self) -> Result<&mut Self::RawConnection, Self::Error> {
         Err(EspError::from_infallible::<ESP_FAIL>().into())
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct EspHttpClientBuilder {
+    timeout: Duration,
+}
+
+impl slint_app::ClientBuilder for EspHttpClientBuilder {
+    type Conn = MyConnection;
+    type HttpClientError = EspIOError;
+
+    fn new() -> Self {
+        Self {
+            timeout: Duration::from_secs(1),
+        }
+    }
+
+    fn timeout(&mut self, timeout: Duration) -> &mut Self {
+        self.timeout = timeout;
+        self
+    }
+
+    fn build_connection(self) -> Result<Self::Conn, Self::HttpClientError> {
+        MyConnection::new(Configuration {
+            timeout: Some(self.timeout),
+            ..Default::default()
+        })
     }
 }

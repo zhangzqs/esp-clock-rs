@@ -3,11 +3,10 @@ use embedded_graphics::{pixelcolor::Rgb565, prelude::*, primitives::Rectangle};
 use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
 use embedded_hal::spi::MODE_3;
 use embedded_software_slint_backend::{EmbeddedSoftwarePlatform, RGB565PixelColorAdapter};
-use embedded_svc::http::{server::Handler, Method};
+
 use esp_idf_hal::{
     delay::FreeRtos,
     gpio::{AnyIOPin, PinDriver},
-    io::{EspIOError, Write},
     ledc::{config::TimerConfig, LedcDriver, LedcTimerDriver},
     prelude::*,
     rmt::{
@@ -18,7 +17,6 @@ use esp_idf_hal::{
 };
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
-    http::server::{Configuration, EspHttpConnection, EspHttpServer},
     nvs::{EspDefaultNvsPartition, EspNvs},
     sntp::{EspSntp, OperatingMode, SntpConf, SyncMode},
 };
@@ -35,43 +33,12 @@ use std::{
     time::Duration,
 };
 
-mod connection;
-mod evil_apple;
-mod led_controller;
-mod player;
-mod system;
 mod wifi;
 
-use crate::{
-    led_controller::EspLEDController, player::EspBeepPlayer, system::EspSystem,
-    wifi::connect_to_wifi,
-};
+use crate::wifi::connect_to_wifi;
 
-struct EspHttpServerWrapper<'a>(EspHttpServer<'a>);
-
-impl<'a> slint_app::Server<'a> for EspHttpServerWrapper<'a> {
-    type Conn<'r> = EspHttpConnection<'r>;
-    type HttpServerError = EspIOError;
-
-    fn handler<H>(&mut self, uri: &str, method: Method, handler: H) -> Result<&mut Self, EspIOError>
-    where
-        H: for<'r> Handler<Self::Conn<'r>> + Send + 'a,
-    {
-        self.0.handler(uri, method, handler)?;
-        Ok(self)
-    }
-
-    fn new() -> Self {
-        Self(
-            EspHttpServer::new(&Configuration {
-                http_port: 8080,
-                uri_match_wildcard: true,
-                ..Default::default()
-            })
-            .unwrap(),
-        )
-    }
-}
+mod interface_impl;
+use interface_impl::*;
 
 #[toml_cfg::toml_config]
 pub struct MyConfig {
@@ -211,17 +178,17 @@ fn main() -> anyhow::Result<()> {
     let sysloop = EspSystemEventLoop::take()?;
     let wifi = Arc::new(Mutex::new(None));
     let sntp = Arc::new(Mutex::new(None));
-    let system = EspSystem { wifi: wifi.clone() };
+    let system = EspSystem {};
 
     let app = slint_app::MyApp::new(slint_app::MyAppDeps {
-        http_conn: connection::MyConnection::new(),
-        system: system.clone(),
+        system,
         display_group,
         player: EspBeepPlayer::new(beep_tx),
-        eval_apple: evil_apple::EvilAppleBLEImpl,
+        eval_apple: EvilAppleBLEImpl,
         screen_brightness_controller: EspLEDController::new(screen_ledc),
         blue_led: EspLEDController::new(blue_led),
-        http_server: PhantomData::<EspHttpServerWrapper>,
+        http_server_builder: PhantomData::<EspHttpServerBuilder>,
+        http_client_builder: PhantomData::<EspHttpClientBuilder>,
     });
     if let Some(ui) = app.get_app_window().upgrade() {
         ui.invoke_set_boot_state(BootState::Booting);
@@ -233,7 +200,7 @@ fn main() -> anyhow::Result<()> {
     let w1 = wifi.clone();
     let s1 = sntp.clone();
     let u = app.get_app_window();
-    let system_ref = system.clone();
+    let system_ref = system;
     thread::Builder::new().stack_size(4096).spawn(move || {
         let system = system_ref;
         u.upgrade_in_event_loop(|ui| {

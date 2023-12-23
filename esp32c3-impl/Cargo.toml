@@ -49,7 +49,7 @@ slint = { version = "1.3.0", default-features = false, features = [
     "compat-1-2",
     "unsafe-single-threaded",
 ] }
-slint-app = { path = "../slint-app" }
+slint-app = { path = "../slint-app", features = ["embedded"]}
 button-driver = { git = "https://github.com/maxwase/button-driver", features = [
     "esp",
     "std",

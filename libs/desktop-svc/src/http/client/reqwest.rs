@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::io::Read;
 use std::str::FromStr;
+use std::time::Duration;
 
 use embedded_io::{ErrorType, Write as _};
 use embedded_svc::http::client::Connection;
@@ -33,6 +34,14 @@ pub struct HttpClientConnection {
 
 pub struct Configuration {
     pub timeout: std::time::Duration,
+}
+
+impl Default for Configuration {
+    fn default() -> Self {
+        Configuration {
+            timeout: Duration::from_secs(3),
+        }
+    }
 }
 
 impl HttpClientConnection {
@@ -217,7 +226,7 @@ mod tests {
 
     #[test]
     fn test_http_client_adapter() {
-        let conn = HttpClientConnection::new().unwrap();
+        let conn = HttpClientConnection::new(&Configuration::default()).unwrap();
         // Prepare headers and URL
         let headers = [("accept", "text/plain")];
         let url: &str = "http://ifconfig.net/";
@@ -238,7 +247,7 @@ mod tests {
 
     #[test]
     fn test_http_client_adapter_repeat() {
-        let conn = HttpClientConnection::new().unwrap();
+        let conn = HttpClientConnection::new(&Configuration::default()).unwrap();
         // Prepare headers and URL
         let headers = [("accept", "text/plain")];
         let url: &str = "http://ifconfig.net/";

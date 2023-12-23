@@ -4,6 +4,7 @@ use embedded_graphics::{
 };
 use embedded_graphics_group::DisplayGroup;
 
+use embedded_svc::storage::RawStorage;
 use embedded_tone::RawTonePlayer;
 use log::{debug, info};
 use slint::Weak;
@@ -17,6 +18,7 @@ use std::{
 
 mod app;
 mod interface;
+mod storage;
 mod util;
 
 use app::*;
@@ -27,7 +29,7 @@ pub use interface::*;
 
 slint::include_modules!();
 
-pub struct MyAppDeps<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC>
+pub struct MyAppDeps<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC, RS>
 where
     SYS: System + 'static,
     EGC: PixelColor + 'static + From<Rgb888>,
@@ -38,6 +40,7 @@ where
     LC: LEDController + 'static + Send,
     SB: ServerBuilder<'static>,
     CB: ClientBuilder + 'static,
+    RS: RawStorage,
 {
     pub system: SYS,
     pub display_group: Arc<Mutex<DisplayGroup<EGD>>>,
@@ -47,9 +50,10 @@ where
     pub blue_led: LC,
     pub http_server_builder: PhantomData<SB>,
     pub http_client_builder: PhantomData<CB>,
+    pub raw_storage: RS,
 }
 
-pub struct MyApp<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC>
+pub struct MyApp<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC, RS>
 where
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
@@ -59,6 +63,7 @@ where
     LC: LEDController + 'static + Send,
     SB: ServerBuilder<'static>,
     CB: ClientBuilder + 'static,
+    RS: RawStorage,
 {
     app_window: AppWindow,
     system: SYS,
@@ -72,9 +77,11 @@ where
     home_app: Rc<RefCell<HomeApp>>,
     network_monitor_app: Rc<RefCell<NetworkMonitorApp>>,
     http_server_app: Rc<RefCell<HttpServerApp<SB>>>,
+    raw_storage: RS,
 }
 
-impl<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC> MyApp<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC>
+impl<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC, RS>
+    MyApp<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC, RS>
 where
     SYS: System + 'static,
     EGC: PixelColor + 'static + From<Rgb888>,
@@ -85,8 +92,9 @@ where
     LC: LEDController + 'static + Send,
     SB: ServerBuilder<'static>,
     CB: ClientBuilder,
+    RS: RawStorage,
 {
-    pub fn new(deps: MyAppDeps<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC>) -> Self {
+    pub fn new(deps: MyAppDeps<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC, RS>) -> Self {
         let app_window = AppWindow::new().expect("Failed to create AppWindow");
         debug!("AppWindow created");
         let photo_app = Rc::new(RefCell::new(PhotoApp::new(deps.display_group.clone())));
@@ -123,6 +131,7 @@ where
             home_app,
             network_monitor_app,
             http_server_app,
+            raw_storage: deps.raw_storage,
         };
         info!("MyApp created");
         app.bind_event_app();

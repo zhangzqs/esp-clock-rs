@@ -23,15 +23,4 @@ impl System for EspSystem {
     fn get_largest_free_block(&self) -> usize {
         unsafe { esp_idf_sys::heap_caps_get_largest_free_block(esp_idf_sys::MALLOC_CAP_8BIT) }
     }
-
-    // fn get_sta_netif(&self) -> Option<embedded_svc::ipv4::IpInfo> {
-    //     let wifi = self.wifi.lock().unwrap();
-    //     if wifi.is_none() {
-    //         return None;
-    //     }
-    //     let wifi = wifi.as_ref().unwrap();
-    //     let netif = wifi.sta_netif();
-    //     let ip_info = netif.get_ip_info().unwrap();
-    //     Some(ip_info)
-    // }
 }

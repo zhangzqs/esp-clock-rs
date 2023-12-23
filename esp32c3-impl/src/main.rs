@@ -122,10 +122,7 @@ fn main() -> anyhow::Result<()> {
     let display_group = Arc::new(Mutex::new(DisplayGroup::new(physical_display.clone(), 8)));
 
     let nvs = EspDefaultNvsPartition::take()?;
-    let nvs_a = EspNvs::new(nvs.clone(), "test_ns", true)?;
-    let cnt = nvs_a.get_i32("test_key").unwrap().unwrap_or(0);
-    info!("cnt: {}", cnt);
-    nvs_a.set_i32("test_key", cnt + 1).unwrap();
+    let user_data_storage_nvs = EspNvs::new(nvs.clone(), "test_ns", true)?;
 
     info!("nvs init done");
 
@@ -189,6 +186,7 @@ fn main() -> anyhow::Result<()> {
         blue_led: EspLEDController::new(blue_led),
         http_server_builder: PhantomData::<EspHttpServerBuilder>,
         http_client_builder: PhantomData::<EspHttpClientBuilder>,
+        raw_storage: user_data_storage_nvs,
     });
     if let Some(ui) = app.get_app_window().upgrade() {
         ui.invoke_set_boot_state(BootState::Booting);

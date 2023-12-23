@@ -6,3 +6,6 @@ pub use led_controller::LEDController;
 
 mod system;
 pub use system::System;
+
+mod network_state;
+pub use network_state::NetworkState;

@@ -1,8 +1,8 @@
-use std::{f64::consts::PI, fs::File, io::Write, time::Duration};
+
 
 use embedded_tone::RawTonePlayer;
 use log::debug;
-use rodio::{source::SineWave, OutputStream, Source};
+use rodio::{source::SineWave};
 
 pub struct RodioPlayer {
     stream: rodio::OutputStream,
@@ -51,7 +51,7 @@ mod tests {
         env_logger::init();
         let mut player = RodioPlayer::new();
         let src = "0 830\n790 0\n0 659\n3309 0\n1 440\n102 0\n104 391\n68 0\n1 440\n68 0\n1 391\n68 0\n1 329\n102 0\n104 391\n103 0\n104 440\n102 0\n104 391\n68 0\n1 440\n68 0\n1 391\n68 0\n1 329\n102 0\n104 391\n102 0\n104 440\n102 0\n104 391\n68 0\n1 440\n68 0\n1 391\n68 0\n1 329\n103 0\n104 391\n102 0\n104 440\n309 0\n311 391\n102 0\n104 440\n103 0\n104 391\n68 0\n1 440\n68 0\n1 391\n68 0\n1 329\n102 0\n104 391\n102 0\n105 440\n102 0\n105 391\n68 0\n1 440\n68 0\n1 391\n68 0\n1 329\n102 0\n104 391\n102 0\n104 440\n103 0\n104 391\n68 0\n1 440\n68 0\n1 391\n68 0\n1 329\n102 0\n104 391\n102 0\n104 440\n309 0\n311 391\n102 0\n104 880\n102 0\n105 880\n2688 0\n208 1046\n102 0\n104 1174\n1654 0\n208 1318\n111 0\n104 1318\n112 0\n104 1318\n112 0\n104 1318\n215 0\n208 1318";
-        src.split("\n")
+        src.split('\n')
             .map(|x| {
                 let mut x = x.split_whitespace();
                 let d = x.next().unwrap().parse::<u64>().unwrap();

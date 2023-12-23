@@ -154,6 +154,7 @@ fn test_uri_match_wildcard() {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct Configuration {
     pub http_port: u16,
     pub uri_match_wildcard: bool,
@@ -182,8 +183,8 @@ pub struct HttpServer<'a> {
     join_handle: Option<thread::JoinHandle<()>>,
 }
 
-impl<'a: 'static> HttpServer<'a> {
-    pub fn new(conf: &'a Configuration) -> Result<Self, HttpServerError> {
+impl HttpServer<'static> {
+    pub fn new(conf: &Configuration) -> Result<Self, HttpServerError> {
         let listener = std::net::TcpListener::bind(SocketAddr::V4(SocketAddrV4::new(
             Ipv4Addr::new(0, 0, 0, 0),
             conf.http_port,
@@ -206,6 +207,7 @@ impl<'a: 'static> HttpServer<'a> {
         let handlers_map_clone = handlers_map.clone();
         let handler_404_clone = res.handler_404.clone();
 
+        let uri_match_wildcard_enable = conf.uri_match_wildcard;
         res.join_handle = Some(thread::spawn(move || {
             let handler_404_clone = handler_404_clone.clone();
             let handlers_map_clone = handlers_map_clone.clone();
@@ -238,7 +240,7 @@ impl<'a: 'static> HttpServer<'a> {
 
                         let mut handler = None;
                         for (path, h) in path_headers {
-                            if conf.uri_match_wildcard {
+                            if uri_match_wildcard_enable {
                                 if !uri_match_wildcard(path, &conn.path) {
                                     continue;
                                 }
@@ -272,7 +274,9 @@ impl<'a: 'static> HttpServer<'a> {
         }));
         Ok(res)
     }
+}
 
+impl<'a> HttpServer<'a> {
     pub fn handler<H>(
         &mut self,
         uri: &str,

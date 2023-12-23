@@ -2,17 +2,17 @@ use embedded_tone::RawTonePlayer;
 use esp_idf_hal::rmt::TxRmtDriver;
 use esp_idf_hal::rmt::*;
 
-pub struct EspBeepPlayer<'a> {
+pub struct EspTonePlayer<'a> {
     tx: TxRmtDriver<'a>,
 }
 
-impl<'a> EspBeepPlayer<'a> {
+impl<'a> EspTonePlayer<'a> {
     pub fn new(tx: TxRmtDriver<'a>) -> Self {
         Self { tx }
     }
 }
 
-impl RawTonePlayer for EspBeepPlayer<'_> {
+impl RawTonePlayer for EspTonePlayer<'_> {
     fn tone(&mut self, freq: u32) {
         // 先关闭之前的音
         self.tx.stop().unwrap();

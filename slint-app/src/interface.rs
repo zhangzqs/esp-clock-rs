@@ -1,5 +1,5 @@
 mod http;
-pub use http::{ClientBuilder, ServerBuilder, Server};
+pub use http::{ClientBuilder, Server, ServerBuilder};
 
 mod led_controller;
 pub use led_controller::LEDController;

@@ -227,14 +227,6 @@ pub trait EvilApple {
     fn attack_once(&self, data: &[u8]);
 }
 
-pub struct MockEvilApple;
-
-impl EvilApple for MockEvilApple {
-    fn attack_once(&self, _data: &[u8]) {
-        info!("mock attack once");
-    }
-}
-
 pub struct EvilAppleApp<EA>
 where
     EA: EvilApple,

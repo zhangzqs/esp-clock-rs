@@ -31,20 +31,20 @@ pub struct HttpClientConnection {
     req_buffer: Vec<u8>,
 }
 
-impl Default for HttpClientConnection {
-    fn default() -> Self {
-        Self::new()
-    }
+pub struct Configuration {
+    pub timeout: std::time::Duration,
 }
 
 impl HttpClientConnection {
-    pub fn new() -> Self {
-        Self {
-            client: reqwest::blocking::Client::new(),
+    pub fn new(configuration: &Configuration) -> Result<Self, HttpClientConnectionError> {
+        Ok(Self {
+            client: reqwest::blocking::Client::builder()
+                .timeout(configuration.timeout)
+                .build()?,
             request: None,
             response: None,
             req_buffer: Vec::new(),
-        }
+        })
     }
 
     fn assert_request(&self) {
@@ -211,13 +211,13 @@ impl Connection for HttpClientConnection {
 
 #[cfg(test)]
 mod tests {
-    use embedded_svc::{utils::io, http::client::Client};
+    use embedded_svc::{http::client::Client, utils::io};
 
     use super::*;
 
     #[test]
     fn test_http_client_adapter() {
-        let conn = HttpClientConnection::new();
+        let conn = HttpClientConnection::new().unwrap();
         // Prepare headers and URL
         let headers = [("accept", "text/plain")];
         let url: &str = "http://ifconfig.net/";
@@ -238,7 +238,7 @@ mod tests {
 
     #[test]
     fn test_http_client_adapter_repeat() {
-        let conn = HttpClientConnection::new();
+        let conn = HttpClientConnection::new().unwrap();
         // Prepare headers and URL
         let headers = [("accept", "text/plain")];
         let url: &str = "http://ifconfig.net/";

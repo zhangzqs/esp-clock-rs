@@ -7,8 +7,8 @@ pub use evil_apple::EvilAppleBLEImpl;
 mod led_controller;
 pub use led_controller::EspLEDController;
 
-mod player;
-pub use player::EspBeepPlayer;
+mod tone;
+pub use tone::EspTonePlayer;
 
 mod system;
 pub use system::EspSystem;

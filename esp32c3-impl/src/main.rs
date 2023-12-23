@@ -183,7 +183,7 @@ fn main() -> anyhow::Result<()> {
     let app = slint_app::MyApp::new(slint_app::MyAppDeps {
         system,
         display_group,
-        player: EspBeepPlayer::new(beep_tx),
+        player: EspTonePlayer::new(beep_tx),
         eval_apple: EvilAppleBLEImpl,
         screen_brightness_controller: EspLEDController::new(screen_ledc),
         blue_led: EspLEDController::new(blue_led),

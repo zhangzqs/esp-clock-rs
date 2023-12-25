@@ -103,7 +103,7 @@ where
         let app_ref = app.clone();
         thread::spawn(move || {
             thread::sleep(Duration::from_secs(10));
-            let mut server = SB::new().build().unwrap();
+            let mut server = SB::new().uri_match_wildcard(true).build().unwrap();
             server
                 .handler("/*", Method::Get, VueConsoleHandler)
                 .unwrap()

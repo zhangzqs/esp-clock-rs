@@ -141,6 +141,7 @@ impl slint_app::ClientBuilder for EspHttpClientBuilder {
     fn build_connection(self) -> Result<Self::Conn, Self::HttpClientError> {
         MyConnection::new(Configuration {
             timeout: Some(self.timeout),
+            crt_bundle_attach: Some(esp_idf_sys::esp_crt_bundle_attach),
             ..Default::default()
         })
     }

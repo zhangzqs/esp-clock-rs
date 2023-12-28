@@ -11,22 +11,20 @@ use std::{
     time::Duration,
 };
 
-
 use embedded_graphics::{pixelcolor::Rgb888, prelude::*, primitives::Rectangle};
 use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
 use embedded_graphics_simulator::{
-    sdl2::Keycode, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
+    sdl2::{Keycode, MouseButton},
+    OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
 };
-
-
 
 use log::{debug, info};
 
 use slint_app::{BootState, MyApp, MyAppDeps};
 
 use button_driver::{Button, ButtonConfig, PinWrapper};
-use embedded_software_slint_backend::{EmbeddedSoftwarePlatform, RGB888PixelColorAdapter};
 use desktop_svc::storage::KVStorage;
+use embedded_software_slint_backend::{EmbeddedSoftwarePlatform, RGB888PixelColorAdapter};
 
 #[derive(Clone)]
 struct MyButtonPin(Rc<AtomicBool>);
@@ -131,6 +129,16 @@ fn main() -> anyhow::Result<()> {
                         Keycode::Space => button_state_ref.store(true, Ordering::Relaxed),
                         _ => {}
                     },
+                    SimulatorEvent::MouseButtonUp { mouse_btn, .. } => match mouse_btn {
+                        MouseButton::Left => button_state_ref.store(false, Ordering::Relaxed),
+                        _ => {}
+                    },
+
+                    SimulatorEvent::MouseButtonDown { mouse_btn, .. } => match mouse_btn {
+                        MouseButton::Left => button_state_ref.store(true, Ordering::Relaxed),
+                        _ => {}
+                    },
+
                     SimulatorEvent::Quit => slint::quit_event_loop().unwrap(),
                     _ => {}
                 }

@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::io::Read;
 use std::str::FromStr;
 use std::time::Duration;
@@ -9,6 +8,7 @@ use embedded_svc::http::Method;
 use embedded_svc::http::Status;
 use reqwest;
 use reqwest::header::{HeaderMap, HeaderName};
+use thiserror::Error;
 
 fn method_type_convert(method: Method) -> reqwest::Method {
     match method {
@@ -93,44 +93,40 @@ impl Status for HttpClientConnection {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum HttpClientConnectionError {
-    ReqwestError(reqwest::Error),
-    Other(Box<dyn std::error::Error>),
-}
-
-impl From<Box<dyn std::error::Error>> for HttpClientConnectionError {
-    fn from(error: Box<dyn std::error::Error>) -> Self {
-        Self::Other(error)
-    }
+    #[error("timeout error: {msg:?}")]
+    TimeoutError { msg: Option<String> },
+    #[error("reqwest error: {error} {msg:?}")]
+    OtherReqwestError {
+        error: reqwest::Error,
+        msg: Option<String>,
+    },
+    #[error("other error: {msg}")]
+    Other { msg: String },
 }
 
 impl From<reqwest::Error> for HttpClientConnectionError {
     fn from(error: reqwest::Error) -> Self {
-        Self::ReqwestError(error)
+        if error.is_timeout() {
+            return Self::TimeoutError {
+                msg: error.to_string().into(),
+            }
+        }
+        Self::OtherReqwestError { error, msg: None }
     }
 }
 
 impl embedded_io::Error for HttpClientConnectionError {
     fn kind(&self) -> embedded_io::ErrorKind {
-        embedded_io::ErrorKind::Other
-    }
-}
-
-impl std::fmt::Display for HttpClientConnectionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            HttpClientConnectionError::ReqwestError(e) => e.fmt(f),
-            HttpClientConnectionError::Other(e) => e.fmt(f),
-        }
-    }
-}
-
-impl Error for HttpClientConnectionError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            Self::ReqwestError(e) => Some(e),
-            Self::Other(e) => Some(e.as_ref()),
+            HttpClientConnectionError::TimeoutError { .. } => {
+                embedded_io::ErrorKind::TimedOut
+            }
+            HttpClientConnectionError::OtherReqwestError { .. } => {
+                embedded_io::ErrorKind::Other
+            }
+            HttpClientConnectionError::Other { .. } => embedded_io::ErrorKind::Other,
         }
     }
 }

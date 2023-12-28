@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     fmt::Display,
-    io::{BufRead as _, BufReader, Read, Write},
+    io::{BufRead as _, BufReader, BufWriter, Read, Write},
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     sync::{atomic::AtomicBool, Arc, Mutex, RwLock},
     thread,
@@ -15,6 +15,7 @@ use embedded_svc::http::{
     Headers, Method, Query,
 };
 use log::{debug, info, warn};
+use thiserror::Error;
 
 struct DefaultHandle404;
 
@@ -311,16 +312,26 @@ impl Drop for HttpServer<'_> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum HttpServerError {
+    #[error("IO error: {io_error}, {msg}")]
     IO {
         io_error: std::io::Error,
         msg: String,
     },
+    #[error("other error")]
     Other {
-        other_error: Box<dyn std::error::Error>,
         msg: String,
-    },
+    }
+}
+
+impl From<std::io::Error> for HttpServerError {
+    fn from(io_error: std::io::Error) -> Self {
+        Self::IO {
+            msg: io_error.to_string(),
+            io_error,
+        }
+    }
 }
 
 impl embedded_io::Error for HttpServerError {
@@ -332,37 +343,9 @@ impl embedded_io::Error for HttpServerError {
     }
 }
 
-impl std::error::Error for HttpServerError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            HttpServerError::IO { io_error, .. } => Some(io_error),
-            HttpServerError::Other { other_error, .. } => Some(other_error.as_ref()),
-        }
-    }
-
-    fn description(&self) -> &str {
-        match self {
-            HttpServerError::IO { msg, .. } => msg,
-            HttpServerError::Other { msg, .. } => msg,
-        }
-    }
-}
-
-impl Display for HttpServerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            HttpServerError::IO { io_error, msg } => {
-                write!(f, "IO error: {}, {}", io_error, msg)
-            }
-            HttpServerError::Other { other_error, msg } => {
-                write!(f, "Other error: {}, {}", other_error, msg)
-            }
-        }
-    }
-}
-
 pub struct HttpServerConnection {
-    stream: std::net::TcpStream,
+    reader: BufReader<std::net::TcpStream>,
+    writer: BufWriter<std::net::TcpStream>,
     is_response_initiated: bool,
     is_complete: bool,
     method: Method,
@@ -373,44 +356,60 @@ pub struct HttpServerConnection {
 
 impl HttpServerConnection {
     pub fn new(stream: std::net::TcpStream) -> Result<Self, HttpServerError> {
-        let mut lines = BufReader::new(&stream).lines();
-        let mut first_line = if let Some(l) = lines.next() {
-            let l = l.unwrap();
-            l.split_whitespace()
-                .map(|x| x.to_string())
-                .collect::<Vec<_>>()
-        } else {
-            return Err(HttpServerError::IO {
-                io_error: std::io::ErrorKind::InvalidData.into(),
-                msg: "invalid request".to_string(),
-            });
-        };
-        let method = first_line.remove(0);
-        let uri = first_line.remove(0);
-        let path = uri.split('?').next().unwrap().to_string();
-        let version = first_line.remove(0);
-        assert_eq!(version, "HTTP/1.1");
-        let mut headers = HashMap::new();
-        for line in lines {
-            let line = line.unwrap();
-            if line.is_empty() {
-                break;
-            }
-            let idx = line.find(':');
-            if idx.is_none() {
+        let mut reader = BufReader::new(stream.try_clone()?);
+        let writer = BufWriter::new(stream.try_clone()?);
+        let (method, uri, path) = {
+            let mut buf = String::new();
+            if let Err(e) = reader.read_line(&mut buf) {
                 return Err(HttpServerError::IO {
                     io_error: std::io::ErrorKind::InvalidData.into(),
-                    msg: "invalid request".to_string(),
+                    msg: format!("invalid request: {}", e),
                 });
             }
-            let kv = line.split_at(idx.unwrap());
-            let k = kv.0.to_lowercase();
-            let v = kv.1.to_string();
-            headers.insert(k, v);
-        }
+            let mut first_line = buf
+                .split_whitespace()
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>();
+
+            let method = first_line.remove(0);
+            let uri = first_line.remove(0);
+            let path = uri.split('?').next().unwrap().to_string();
+            let version = first_line.remove(0);
+            assert_eq!(version, "HTTP/1.1");
+            (method, uri, path)
+        };
+        let headers = {
+            let mut headers = HashMap::new();
+            loop {
+                let mut line = String::new();
+                if let Err(e) = reader.read_line(&mut line) {
+                    return Err(HttpServerError::IO {
+                        io_error: std::io::ErrorKind::InvalidData.into(),
+                        msg: format!("invalid request: {}", e),
+                    });
+                }
+                let line = line.trim();
+                if line.is_empty() {
+                    break;
+                }
+                let idx = line.find(':');
+                if idx.is_none() {
+                    return Err(HttpServerError::IO {
+                        io_error: std::io::ErrorKind::InvalidData.into(),
+                        msg: format!("invalid request: {}", line),
+                    });
+                }
+                let kv = line.split_at(idx.unwrap());
+                let k = kv.0.to_lowercase();
+                let v = kv.1.to_string();
+                headers.insert(k, v);
+            }
+            headers
+        };
 
         Ok(Self {
-            stream,
+            reader,
+            writer,
             is_response_initiated: false,
             is_complete: false,
             method: {
@@ -509,7 +508,7 @@ impl Connection for HttpServerConnection {
             raw.push_str(&format!("{}: {}\r\n", k, v));
         }
         raw.push_str("\r\n");
-        if let Err(e) = self.stream.write_all(raw.as_bytes()) {
+        if let Err(e) = self.writer.write_all(raw.as_bytes()) {
             return Err(HttpServerError::IO {
                 io_error: e,
                 msg: "write response header error".to_string(),
@@ -534,7 +533,7 @@ impl embedded_io::ErrorType for HttpServerConnection {
 
 impl embedded_io::Read for HttpServerConnection {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
-        self.stream.read(buf).map_err(|e| HttpServerError::IO {
+        self.reader.read(buf).map_err(|e| HttpServerError::IO {
             io_error: e,
             msg: "read request body error".to_string(),
         })
@@ -543,14 +542,14 @@ impl embedded_io::Read for HttpServerConnection {
 
 impl embedded_io::Write for HttpServerConnection {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
-        self.stream.write(buf).map_err(|e| HttpServerError::IO {
+        self.writer.write(buf).map_err(|e| HttpServerError::IO {
             io_error: e,
             msg: "write response body error".to_string(),
         })
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
-        self.stream.flush().map_err(|e| HttpServerError::IO {
+        self.writer.flush().map_err(|e| HttpServerError::IO {
             io_error: e,
             msg: "flush response body error".to_string(),
         })
@@ -581,16 +580,41 @@ mod test_server {
 
     use embedded_io::Write;
     use embedded_svc::http::{server::FnHandler, Method};
+    use log::debug;
 
     use super::{Configuration, DefaultHandle404, HttpServer};
+
+    #[test]
+    fn test_post() -> anyhow::Result<()> {
+        std::env::set_var("RUST_LOG", "debug");
+        env_logger::init();
+        let mut h = HttpServer::new(&Configuration {
+            http_port: 8081,
+            uri_match_wildcard: true,
+        })?;
+        h.handler(
+            "/ping",
+            Method::Post,
+            FnHandler::new(|mut req| {
+                let mut buf = [0u8; 4];
+                req.read(&mut buf)?;
+                debug!("read: {:?}", buf);
+                let mut resp = req.into_ok_response()?;
+                resp.write_all(b"pong")?;
+                Ok(())
+            }),
+        )?
+        .handle_404(DefaultHandle404)?;
+        thread::sleep(Duration::from_secs(1000));
+        anyhow::Ok(())
+    }
 
     #[test]
     fn test() -> anyhow::Result<()> {
         let mut h = HttpServer::new(&Configuration {
             http_port: 8080,
             uri_match_wildcard: true,
-        })
-        .unwrap();
+        })?;
         h.handler(
             "/test",
             Method::Get,
@@ -612,14 +636,12 @@ mod test_server {
                 req.into_ok_response()?.write(body.as_bytes())?;
                 Ok(())
             }),
-        )
-        .unwrap()
+        )?
         .handler(
             "/test1",
             Method::Get,
             FnHandler::new(|_req| Err("error".into())),
-        )
-        .unwrap()
+        )?
         .handler(
             "/t1/*",
             Method::Get,
@@ -628,10 +650,8 @@ mod test_server {
                 req.into_ok_response()?.write_all(uri.as_bytes())?;
                 Ok(())
             }),
-        )
-        .unwrap()
-        .handle_404(DefaultHandle404)
-        .unwrap();
+        )?
+        .handle_404(DefaultHandle404)?;
         thread::sleep(Duration::from_secs(1000));
         anyhow::Ok(())
     }

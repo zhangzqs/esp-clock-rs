@@ -1,6 +1,5 @@
-use std::error::Error;
-
 use embedded_svc::storage::{RawStorage, StorageBase};
+use thiserror::Error;
 
 pub struct KVStorage {
     db: sled::Db,
@@ -17,10 +16,10 @@ impl KVStorage {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum KVStorageError {
+    #[error("sled error: {0}")]
     SledError(sled::Error),
-    Other(Box<dyn Error>),
 }
 
 impl From<sled::Error> for KVStorageError {

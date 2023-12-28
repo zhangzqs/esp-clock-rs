@@ -26,6 +26,7 @@ use slint_app::{BootState, MyApp, MyAppDeps};
 
 use button_driver::{Button, ButtonConfig, PinWrapper};
 use embedded_software_slint_backend::{EmbeddedSoftwarePlatform, RGB888PixelColorAdapter};
+use desktop_svc::storage::KVStorage;
 
 #[derive(Clone)]
 struct MyButtonPin(Rc<AtomicBool>);
@@ -42,6 +43,8 @@ fn main() -> anyhow::Result<()> {
     set_var("RUST_LOG", "debug");
     env_logger::init();
     info!("Starting desktop simulator");
+
+    let kv = KVStorage::new("storage.db")?;
 
     let physical_display = Arc::new(Mutex::new(SimulatorDisplay::<Rgb888>::new(Size::new(
         240, 240,
@@ -90,6 +93,7 @@ fn main() -> anyhow::Result<()> {
         blue_led: MockLEDController::new(),
         http_client_builder: PhantomData::<HttpClientBuilder>,
         http_server_builder: PhantomData::<HttpServerBuilder>,
+        raw_storage: kv,
     });
     info!("app has been created");
 

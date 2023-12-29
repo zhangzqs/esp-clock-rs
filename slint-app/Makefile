@@ -27,6 +27,7 @@ build-console-dist:
 .PHONY: build-console-dist
 build-music-dist:
 	@echo "Building music..."
+	@rm -rf ./music-dist
 	@mkdir -p ./music-dist
 # 将./music下的每个mid文件，使用python3 tools/merge_midi.py分别合并成一个个单音轨mid文件，输出目录为./music-dist
 # tools/merge_midi.py <input.mid> <output.mid>

@@ -15,10 +15,15 @@ impl<'a, Raw: RawStorage> System<'a, Raw> {
     }
 }
 
-pub struct SystemMut<'a, Raw: RawStorage>(&'a mut Raw);
+pub struct SystemMut<'a, Raw: RawStorage>(pub &'a mut Raw);
 
 impl<'a, Raw: RawStorage> SystemMut<'a, Raw> {
     pub fn set_boot_count(&mut self, value: u32) {
         StorageHelperMut(self.0).set_u32(BOOT_COUNT, value).unwrap();
+    }
+
+    pub fn inc_boot_count(&mut self) {
+        let count = System(self.0).get_boot_count();
+        self.set_boot_count(count + 1);
     }
 }

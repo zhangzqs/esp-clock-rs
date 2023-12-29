@@ -4,11 +4,11 @@ export struct MusicItemInfo {
 }
 
 export component MusicPage inherits Rectangle {
-
     in property <string> note;
     in property <float> percent;
 
     property <[MusicItemInfo]> music-list: [
+        { name: "奥摩斯港", path: "Port_Ormos.mid" },
         { name: "瑶瑶PV曲", path: "Yaoyao_Character_Demo.mid" },
         { name: "雷电将军", path: "Raiden_Shogun_Judgment_of_Euthymia__Yu-Peng_Chen.mid" },
         { name: "雪山", path: "Dragonspine_Song_No._1_-_Yu-Peng_Chen.mid" },
@@ -31,6 +31,9 @@ export component MusicPage inherits Rectangle {
     callback play(MusicItemInfo) -> bool;
     callback enter();
     callback exit();
+
+    width: 240px;
+    height: 240px;
 
     background: black;
 

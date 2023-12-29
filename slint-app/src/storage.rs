@@ -1,6 +1,6 @@
 use embedded_svc::storage::RawStorage;
 
-use self::system::System;
+use self::system::{System, SystemMut};
 
 mod system;
 
@@ -35,10 +35,18 @@ impl<'a, Raw: RawStorage> StorageHelper<'a, Raw> {
     }
 }
 
-struct Storage<'a, Raw: RawStorage>(&'a Raw);
+pub struct Storage<'a, Raw: RawStorage>(pub &'a Raw);
 
 impl<'a, Raw: RawStorage> Storage<'a, Raw> {
     pub fn system(&self) -> System<'a, Raw> {
         System(&self.0)
+    }
+}
+
+pub struct StorageMut<'a, Raw: RawStorage>(pub &'a mut Raw);
+
+impl<'a, Raw: RawStorage> StorageMut<'a, Raw> {
+    pub fn system_mut(&'a mut self) -> SystemMut<'a, Raw> {
+        SystemMut(self.0)
     }
 }

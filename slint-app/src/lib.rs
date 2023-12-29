@@ -27,6 +27,8 @@ use app::*;
 pub use app::EvilApple;
 pub use interface::*;
 
+use crate::storage::{Storage, StorageMut};
+
 slint::include_modules!();
 
 pub struct MyAppDeps<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC, RS>
@@ -95,6 +97,10 @@ where
     RS: RawStorage,
 {
     pub fn new(deps: MyAppDeps<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC, RS>) -> Self {
+        let mut raw_storage = deps.raw_storage;
+        StorageMut(&mut raw_storage).system_mut().inc_boot_count();
+        let cnt = Storage(&raw_storage).system().get_boot_count();
+        info!("boot count: {}", cnt);
         let app_window = AppWindow::new().expect("Failed to create AppWindow");
         debug!("AppWindow created");
         let photo_app = Rc::new(RefCell::new(PhotoApp::new(deps.display_group.clone())));
@@ -131,7 +137,7 @@ where
             home_app,
             network_monitor_app,
             http_server_app,
-            raw_storage: deps.raw_storage,
+            raw_storage,
         };
         info!("MyApp created");
         app.bind_event_app();

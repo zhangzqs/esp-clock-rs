@@ -39,21 +39,31 @@ export component MusicPage inherits Rectangle {
 
     VerticalLayout {
         alignment: space-between;
-        Text {
-            text: "正在演奏";
-            font-size: 30px;
-            color: white;
+        HorizontalLayout {
+            alignment: center;
+            Text {
+                text: "正在演奏";
+                font-size: 30px;
+                color: white;
+            }
         }
-        Text {
-            text: current-music-id == -1 ? "未播放" : music-list[current-music-id].name;
-            font-size: 20px;
-            color: white;
+
+        HorizontalLayout {
+            alignment: center;
+            Image {
+                width: 100px;
+                height: 100px;
+                source: @image-url("icons/music-cd.svg");
+            }
         }
-        // Text {
-        //     text: note;
-        //     font-size: 40px;
-        //     color: white;
-        // }
+        HorizontalLayout {
+            alignment: center;
+            Text {
+                text: current-music-id == -1 ? "按下按钮开始播放音乐" : music-list[current-music-id].name;
+                font-size: 20px;
+                color: white;
+            }
+        }
         Rectangle {
             width: percent * 240px;
             height: 5px;

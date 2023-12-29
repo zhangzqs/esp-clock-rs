@@ -8,7 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{AppWindow, MusicItemInfo, interface::LEDController};
+use crate::{interface::LEDController, AppWindow, MusicItemInfo};
 use embedded_tone::{AbsulateNotePitch, RawTonePlayer};
 use include_dir::{include_dir, Dir};
 use log::{error, info};
@@ -20,7 +20,10 @@ static MUSIC_DIST: Dir = include_dir!("music-dist");
 
 enum MusicAppEvent {
     Exit,
-    Switch(&'static [u8]),
+    Switch {
+        info: MusicItemInfo,
+        data: &'static [u8],
+    },
 }
 
 pub struct MusicApp<TONE, LC>
@@ -222,15 +225,19 @@ where
                         }
                         return;
                     }
-                    MusicAppEvent::Switch(data) => {
+                    MusicAppEvent::Switch { info, data } => {
                         if let Some(j) = current_play_thread {
                             // 存在播放线程，发送退出信号，等待退出
                             exit_signal.store(true, Ordering::SeqCst);
                             j.join().unwrap();
                         }
                         exit_signal.store(false, Ordering::SeqCst);
+                        let app = app.clone();
                         current_play_thread = Some(thread::spawn(move || {
                             Self::play_midi(data, app, tone_player, led, exit_signal);
+                            app.upgrade_in_event_loop(move |ui| {
+                                ui.invoke_music_page_on_play_done(info);
+                            });
                         }));
                     }
                 }
@@ -250,7 +257,10 @@ where
     pub fn play(&mut self, item: MusicItemInfo) -> bool {
         if let Some(f) = MUSIC_DIST.get_file(item.path.as_str()) {
             self.event_sender
-                .send(MusicAppEvent::Switch(f.contents()))
+                .send(MusicAppEvent::Switch {
+                    info: item,
+                    data: f.contents(),
+                })
                 .unwrap();
             true
         } else {

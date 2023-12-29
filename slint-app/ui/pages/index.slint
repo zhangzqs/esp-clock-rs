@@ -135,6 +135,7 @@ export component MultiPage inherits Rectangle {
             current-page = Page.Home;
         }
     }
+    public function music-page-on-play-done(info: MusicItemInfo) -> bool { return music-page.on-play-done(info); }
 
     in property <image> network-monitor-page-plot;
     network-monitor-page := NetworkMoniterPage {

@@ -96,9 +96,7 @@ export component AppWindow inherits Window {
     callback touch-area-pointer-event(PointerEvent);
 
     // 设置启动状态
-    public function set-boot-state(state: BootState) {
-        m.boot-page-set-state(state);
-    }
+    public function set-boot-state(state: BootState) { m.boot-page-set-state(state); }
 
     // home页的时间和天气
     in property <HomeTimeData> home-page-time;
@@ -132,6 +130,7 @@ export component AppWindow inherits Window {
     callback music-page-play(MusicItemInfo) -> bool;
     callback music-page-enter();
     callback music-page-exit();
+    public function music-page-on-play-done(info: MusicItemInfo) -> bool { return m.music-page-on-play-done(info); }
 
     // network
     in property <image> network-monitor-page-plot;

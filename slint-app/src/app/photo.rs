@@ -15,10 +15,7 @@ use embedded_graphics::{
     primitives::Rectangle,
 };
 use embedded_svc::{
-    http::{
-        client::{Client},
-        Method,
-    },
+    http::{client::Client, Method},
     io::Read,
 };
 use log::{debug, error, info};
@@ -95,7 +92,10 @@ where
         let recv_ref = self.event_receiver.clone();
         self.join_handle = Some(thread::spawn(move || {
             let mut display = display_ref.lock().unwrap();
-            let mut client = CB::new().build_client().unwrap();
+            let mut client = CB::new()
+                .timeout(Duration::from_secs(3))
+                .build_client()
+                .unwrap();
             let recv = recv_ref.lock().unwrap();
             let mut auto_play_mode = false;
             loop {

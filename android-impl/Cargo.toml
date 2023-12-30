@@ -18,7 +18,7 @@ embedded-graphics-simulator = "0.5.0"
 embedded-svc = "0.26.2"
 button-driver = { version = "0.1.2", features = ["std"] }
 desktop-svc = { path = "../libs/desktop-svc", default-features = false, features = [
-    "http-client-simple",
+    "http-client-reqwest",
     "http-server",
 ] }
 slint-app = { path = "../slint-app" }
@@ -32,6 +32,3 @@ rodio = "0.17.3"
 
 [lib]
 crate_type = ["cdylib"]
-
-[[package.metadata.android.uses_permission]]
-name = "android.permission.INTERNET"

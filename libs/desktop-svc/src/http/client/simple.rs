@@ -1,8 +1,11 @@
+pub struct Configuration {
+    pub timeout: std::time::Duration,
+}
 pub struct HttpClientConnection {}
 
 impl HttpClientConnection {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(conf: &Configuration) -> Result<Self, HttpClientConnectionError> {
+        Ok(Self {})
     }
 }
 

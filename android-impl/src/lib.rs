@@ -1,4 +1,5 @@
 use android_activity::{AndroidApp, InputStatus, MainEvent, PollEvent};
+use android_logger::Filter;
 use button_driver::{Button, ButtonConfig, PinWrapper};
 use embedded_graphics::{
     geometry::{Point, Size},
@@ -10,8 +11,9 @@ use embedded_svc::http::{server::Handler, Method};
 use embedded_tone::RawTonePlayer;
 use log::{debug, info};
 use slint::{Image, SharedPixelBuffer};
-use slint_app::{BootState, EvilApple, LEDController, MockSystem, MyApp, MyAppDeps};
+use slint_app::{BootState, EvilApple, LEDController, MyApp, MyAppDeps};
 use std::{
+    marker::PhantomData,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
@@ -19,125 +21,13 @@ use std::{
     thread,
 };
 
-use desktop_svc::http::{
-    client::HttpClientConnection,
-    server::{Configuration, HttpServer},
-};
+use desktop_svc::storage::KVStorage;
 use i_slint_backend_android_activity::AndroidPlatform;
 use std::rc::Rc;
 use std::time::Duration;
 
-pub struct RodioPlayer {
-    stream: rodio::OutputStream,
-    stream_handle: rodio::OutputStreamHandle,
-    sink: rodio::Sink,
-}
-
-unsafe impl Send for RodioPlayer {}
-
-impl RodioPlayer {
-    pub fn new() -> Self {
-        let (stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
-
-        let sink = rodio::Sink::try_new(&stream_handle).unwrap();
-
-        Self {
-            sink,
-            stream,
-            stream_handle,
-        }
-    }
-}
-
-impl RawTonePlayer for RodioPlayer {
-    fn tone(&mut self, freq: u32) {
-        debug!("tone {}", freq);
-        self.sink.stop();
-        let now = std::time::Instant::now();
-        self.sink.append(rodio::source::SineWave::new(freq as f32));
-        debug!("append takes {:?}", now.elapsed());
-    }
-
-    fn off(&mut self) {
-        self.sink.stop();
-    }
-}
-
-struct MockEvilApple;
-
-impl EvilApple for MockEvilApple {
-    fn attack_once(&self, _data: &[u8]) {
-        info!("attack once");
-    }
-}
-
-struct MockLEDController {
-    brightness: u32,
-}
-
-impl Default for MockLEDController {
-    fn default() -> Self {
-        Self { brightness: 1000 }
-    }
-}
-
-impl LEDController for MockLEDController {
-    fn get_max_brightness(&self) -> u32 {
-        info!("get max brightness");
-        1000
-    }
-
-    fn set_brightness(&mut self, brightness: u32) {
-        info!("set brightness {}", brightness);
-        self.brightness = brightness;
-    }
-
-    fn get_brightness(&self) -> u32 {
-        info!("get brightness");
-        self.brightness
-    }
-}
-
-struct MockPlayer;
-
-impl RawTonePlayer for MockPlayer {
-    fn tone(&mut self, freq: u32) {
-        info!("tone {}", freq);
-    }
-
-    fn off(&mut self) {
-        info!("off");
-    }
-}
-
-struct HttpServerWrapper<'a>(desktop_svc::http::server::HttpServer<'a>);
-
-impl<'a: 'static> slint_app::Server<'a> for HttpServerWrapper<'a> {
-    type Conn<'r> = desktop_svc::http::server::HttpServerConnection;
-    type HttpServerError = desktop_svc::http::server::HttpServerError;
-
-    fn new() -> Self {
-        let server = HttpServer::new(&Configuration {
-            http_port: 8080,
-            uri_match_wildcard: true,
-        })
-        .unwrap();
-        HttpServerWrapper(server)
-    }
-    fn handler<H>(
-        &mut self,
-        uri: &str,
-        method: Method,
-        handler: H,
-    ) -> Result<&mut Self, Self::HttpServerError>
-    where
-        H: for<'r> Handler<Self::Conn<'r>> + Send + 'a,
-    {
-        self.0.handler(uri, method, handler)?;
-        Ok(self)
-    }
-}
-
+mod interface_impl;
+use interface_impl::*;
 #[derive(Clone)]
 struct MyButtonPin(Rc<AtomicBool>);
 
@@ -149,7 +39,11 @@ impl PinWrapper for MyButtonPin {
 
 #[no_mangle]
 fn android_main(app: AndroidApp) {
-    android_logger::init_once(android_logger::Config::default().with_min_level(log::Level::Info));
+    let mut db_path = app.internal_data_path().unwrap();
+    db_path.push("storage.db");
+    android_logger::init_once(android_logger::Config::default().with_min_level(log::Level::Debug));
+
+    let kv = KVStorage::new(db_path).unwrap();
 
     slint::platform::set_platform(Box::new(AndroidPlatform::new(app))).unwrap();
     info!("Android Main");
@@ -172,14 +66,15 @@ fn android_main(app: AndroidApp) {
         .switch_to_logical_display(mock_main_logical_display_id);
 
     let app = Rc::new(MyApp::new(MyAppDeps {
-        http_conn: HttpClientConnection::new(),
         system: MockSystem,
         display_group: display_group.clone(),
         player: RodioPlayer::new(),
         eval_apple: MockEvilApple,
-        screen_brightness_controller: MockLEDController::default(),
-        blue_led: MockLEDController::default(),
-        http_server: std::marker::PhantomData::<HttpServerWrapper>,
+        screen_brightness_controller: MockLEDController::new(),
+        blue_led: MockLEDController::new(),
+        http_client_builder: PhantomData::<HttpClientBuilder>,
+        http_server_builder: PhantomData::<HttpServerBuilder>,
+        raw_storage: kv,
     }));
 
     let u = app.get_app_window();

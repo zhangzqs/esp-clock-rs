@@ -226,18 +226,23 @@ where
                         return;
                     }
                     MusicAppEvent::Switch { info, data } => {
-                        if let Some(j) = current_play_thread {
+                        exit_signal.store(true, Ordering::SeqCst);
+                        if let Some(current_play_thread) = current_play_thread {
                             // 存在播放线程，发送退出信号，等待退出
-                            exit_signal.store(true, Ordering::SeqCst);
-                            j.join().unwrap();
+                            current_play_thread.join().unwrap();
                         }
                         exit_signal.store(false, Ordering::SeqCst);
                         let app = app.clone();
+                        // 开启新的播放线程，播放新的音乐
                         current_play_thread = Some(thread::spawn(move || {
-                            Self::play_midi(data, app, tone_player, led, exit_signal);
-                            app.upgrade_in_event_loop(move |ui| {
-                                ui.invoke_music_page_on_play_done(info);
-                            });
+                            Self::play_midi(data, app.clone(), tone_player, led, exit_signal.clone());
+                            if !exit_signal.load(Ordering::SeqCst) {
+                                // 不存在退出信号，自然播放完毕
+                                app.upgrade_in_event_loop(move |ui| {
+                                    // 将会自动播放下一曲
+                                    ui.invoke_music_page_on_play_done(info);
+                                });
+                            }
                         }));
                     }
                 }
@@ -251,6 +256,8 @@ where
         if let Some(join_handle) = self.join_handle.take() {
             join_handle.join().unwrap();
         }
+        // 退出前关闭音调
+        self.tone_player.lock().unwrap().off();
         info!("music exit");
     }
 

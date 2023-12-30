@@ -7,4 +7,4 @@ pub use simple::{*};
 mod reqwest;
 
 #[cfg(feature = "http-client-reqwest")]
-pub use reqwest::{*};
+pub use self::reqwest::{*};

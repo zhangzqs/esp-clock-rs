@@ -35,8 +35,10 @@ export component MusicPage inherits Rectangle {
     // 当音乐播放完毕时
     // 返回条件为是否自动播放下一首
     public function on-play-done(info: MusicItemInfo) -> bool {
+        current-music-id = Math.mod(current-music-id + 1, music-list.length);
+
         debug("音乐播放完毕");
-        if (play(music-list[Math.mod(current-music-id + 1, music-list.length)])) {
+        if (play(music-list[current-music-id])) {
             debug("自动开始播放下一首");
         } else {
             debug("加载失败");

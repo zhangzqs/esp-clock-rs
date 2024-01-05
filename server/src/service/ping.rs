@@ -1,19 +1,15 @@
-use poem_openapi::{OpenApi, param::Query, payload::Json};
-use serde_json::json;
+use poem_openapi::{
+    payload::{PlainText},
+    OpenApi,
+};
 
-pub struct Ping;
+
+pub struct PingService;
 
 #[OpenApi]
-impl Ping {
+impl PingService {
     #[oai(path = "/ping", method = "get")]
-    async fn index(
-        &self,
-        name: Query<Option<String>>,
-        age: Query<Option<u8>>,
-    ) -> Json<serde_json::Value> { 
-        Json(json!({
-            "name": name.0,
-            "age": age.0,
-        }))
+    async fn index(&self) -> PlainText<String> {
+        PlainText("pong".to_string())
     }
 }

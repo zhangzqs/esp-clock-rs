@@ -2,11 +2,13 @@ use poem::{listener::TcpListener, Result, Route, Server};
 use poem_openapi::OpenApiService;
 use serde::Deserialize;
 
+mod error;
 mod service;
 
 #[derive(Debug, Deserialize)]
 struct ServiceConfig {
     openwrt: service::OpenWrtServiceConfig,
+    weather: service::WeatherServiceConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -17,13 +19,15 @@ struct Config {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
     let config = std::fs::read_to_string("config.yaml")?;
     let config = serde_yaml::from_str::<Config>(&config)?;
     let service = OpenApiService::new(
         (
-            service::Ping,
+            service::PingService,
+            service::PhotoService,
             service::OpenWrt::new(config.service.openwrt),
-            service::Photo,
+            service::WeatherService::new(config.service.weather),
         ),
         "HelloWorld",
         "1.0",

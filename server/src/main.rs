@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "HelloWorld",
         "1.0",
     )
-    .server("http://localhost:3000/api");
+    .server("/api");
     let swagger_ui = service.swagger_ui();
     Server::new(TcpListener::bind(config.bind_addr))
         .run(Route::new().nest("/api", service).nest("/ui", swagger_ui))

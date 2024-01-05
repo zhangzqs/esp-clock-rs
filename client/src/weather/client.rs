@@ -4,7 +4,6 @@ use embedded_svc::{
     http::client::{Client, Connection},
     io::Read,
 };
-use serde::Deserialize;
 
 use super::{WeatherCityLookupResponse, WeatherNowResponse};
 
@@ -29,6 +28,15 @@ where
     Http(C::Error),
     #[error("json error: {0}")]
     Json(#[from] serde_json::Error),
+    #[error("io error: {0}")]
+    ReadExactError(#[from] embedded_io::ReadExactError<E>),
+    #[error("unknown content length, header: {0:?}")]
+    UnknownContentLength(Option<String>),
+    #[error("buffer too small, content length: {content_length}, buffer length: {buffer_length}")]
+    BufferTooSmall {
+        content_length: usize,
+        buffer_length: usize,
+    },
 }
 
 impl<C, E> WeatherClient<'_, C>
@@ -42,14 +50,21 @@ where
     {
         let req = self.client.get(url).map_err(WeatherError::Http)?;
         let mut resp = req.submit().map_err(WeatherError::Http)?;
-        let coontent_length = resp.header("Content-Length").unwrap();
-        let content_length = coontent_length.parse::<usize>().unwrap();
+        let coontent_length = resp
+            .header("Content-Length")
+            .ok_or(WeatherError::UnknownContentLength(None))?;
+        let content_length = coontent_length
+            .parse::<usize>()
+            .map_err(|_| WeatherError::UnknownContentLength(Some(coontent_length.to_string())))?;
         if content_length > S {
-            panic!("content length: {} > buffer length: {}", content_length, S);
+            return Err(WeatherError::BufferTooSmall {
+                content_length,
+                buffer_length: S,
+            });
         }
         let mut buf = [0u8; S];
         let mut buf = &mut buf[..content_length];
-        resp.read_exact(&mut buf).unwrap();
+        resp.read_exact(&mut buf)?;
         Ok(serde_json::from_slice(&buf)?)
     }
 

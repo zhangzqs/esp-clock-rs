@@ -18,7 +18,7 @@ log = "0.4.20"
 button-driver = { version = "0.1.2", features = ["std"] }
 desktop-svc = { path = "../libs/desktop-svc" }
 embedded-software-slint-backend = { path = "../libs/embedded-software-slint-backend" }
-slint-app = { path = "../slint-app", features = ["embedded"]}
+slint-app = { path = "../slint-app" }
 embedded-graphics-group = { path = "../libs/embedded-graphics-group" }
 embedded-tone = { path = "../libs/embedded-tone" }
 rodio = "0.17.3"

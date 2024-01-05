@@ -8,6 +8,7 @@ use qweather_service::{CityLookUpInput, GeoApi, LocationInput, Weather};
 use serde::{Deserialize, Serialize};
 
 use crate::error::ApiError;
+use client::weather::*;
 
 #[derive(Debug, Deserialize)]
 pub struct WeatherServiceConfig {
@@ -36,25 +37,6 @@ impl WeatherService {
         .unwrap();
         Self { client }
     }
-}
-
-#[derive(Serialize)]
-struct WeatherCityLookupItem {
-    pub name: String,
-    pub id: String,
-}
-
-#[derive(Serialize)]
-struct WeatherCityLookupResponse {
-    pub items: Vec<WeatherCityLookupItem>,
-}
-
-#[derive(Serialize)]
-struct WeatherNowResponse {
-    pub temp: i32,
-    pub humidity: f32,
-    pub icon: String,
-    pub text: String,
 }
 
 #[OpenApi]
@@ -87,12 +69,12 @@ impl WeatherService {
 
     /// 查询实时天气
     #[oai(path = "/weather/now", method = "get")]
-    async fn now(&self, id: Query<String>) -> Result<Json<serde_json::Value>> {
+    async fn now(&self, city_id: Query<String>) -> Result<Json<serde_json::Value>> {
         let weather = Weather::new(&self.client);
 
         let ret = weather
             .now(&qweather_service::WeatherInput {
-                location: LocationInput::ID(id.0),
+                location: LocationInput::ID(city_id.0),
                 ..Default::default()
             })
             .await

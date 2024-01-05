@@ -52,7 +52,7 @@ slint = { version = "1.3.0", default-features = false, features = [
     "compat-1-2",
     "unsafe-single-threaded",
 ] }
-slint-app = { path = "../slint-app", features = ["embedded"] }
+slint-app = { path = "../slint-app" }
 button-driver = { version = "0.1.3", features = ["esp", "std"] }
 embedded-software-slint-backend = { path = "../libs/embedded-software-slint-backend" }
 embedded-graphics-group = { path = "../libs/embedded-graphics-group" }

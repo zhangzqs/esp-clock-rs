@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             service::OpenWrt::new(config.service.openwrt),
             service::WeatherService::new(config.service.weather),
         ),
-        "HelloWorld",
+        "Esp Clock Server Api",
         "1.0",
     )
     .server("/api");

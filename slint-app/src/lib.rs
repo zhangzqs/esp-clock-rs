@@ -76,7 +76,7 @@ where
     evil_apple_app: Rc<RefCell<EvilAppleApp<EA>>>,
     music_app: Rc<RefCell<MusicApp<TONE, LC>>>,
     _screen_led_ctl: Arc<Mutex<LC>>,
-    home_app: Rc<RefCell<HomeApp>>,
+    home_app: Rc<RefCell<HomeApp<CB>>>,
     network_monitor_app: Rc<RefCell<NetworkMonitorApp>>,
     http_server_app: Rc<RefCell<HttpServerApp<SB>>>,
     raw_storage: RS,

@@ -17,6 +17,7 @@
 - 使用了rodio作为蜂鸣器演奏框架的演奏器实现
 - 直接基于tcp自己实现了http client
 - 使用sled作为KV存储
+- 使用env_logger进行日志输出
   
 ### 移动端
     - [x] Android
@@ -27,6 +28,7 @@
 - 使用了rodio作为蜂鸣器演奏框架的演奏器实现
 - 直接基于tcp自己实现了http server
 - 使用sled作为KV存储
+- 使用android logger进行日志输出
 
 ### MCU
     - [x] **ESP32C3**
@@ -38,6 +40,7 @@
 - 使用LEDC控制屏幕亮度
 - 使用esp32-nimbe使用蓝牙功能，实现iOS BLE攻击
 - 使用ESP NVS分区作为KV存储
+- 使用esp logger进行日志输出
 
 # 运行方式
 

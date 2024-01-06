@@ -8,6 +8,7 @@
 ## 支持平台
 目前已支持运行在如下平台（加粗的为重点优先适配支持的目标平台）：
 ### 桌面端
++
     - [x] **Linux**
     - [x] **Windows**
     - [x] MacOS
@@ -20,6 +21,7 @@
 - 使用env_logger进行日志输出
   
 ### 移动端
++
     - [x] Android
     - [ ] iOS
 
@@ -31,6 +33,7 @@
 - 使用android logger进行日志输出
 
 ### MCU
++
     - [x] **ESP32C3**
 
 - 使用ST7789驱动，通过embedded-graphics作为接口，基于slint软件渲染器逐行渲染到屏幕上，实现GUI的启动
@@ -41,6 +44,12 @@
 - 使用esp32-nimbe使用蓝牙功能，实现iOS BLE攻击
 - 使用ESP NVS分区作为KV存储
 - 使用esp logger进行日志输出
+
+## 服务端
+- 使用poem框架，基于poem-openapi开发
+- 图片服务
+- 天气服务
+- OpenWRT监控
 
 # 运行方式
 

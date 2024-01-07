@@ -1,8 +1,4 @@
-use poem_openapi::{
-    payload::{PlainText},
-    OpenApi,
-};
-
+use poem_openapi::{payload::PlainText, OpenApi};
 
 pub struct PingService;
 

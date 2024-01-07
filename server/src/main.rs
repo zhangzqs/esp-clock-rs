@@ -1,5 +1,6 @@
 use poem::{listener::TcpListener, Result, Route, Server};
 use poem_openapi::OpenApiService;
+
 use serde::Deserialize;
 
 mod error;
@@ -14,6 +15,7 @@ struct ServiceConfig {
 #[derive(Debug, Deserialize)]
 struct Config {
     bind_addr: String,
+    redis_addr: String,
     service: ServiceConfig,
 }
 
@@ -22,12 +24,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     let config = std::fs::read_to_string("config.yaml")?;
     let config = serde_yaml::from_str::<Config>(&config)?;
+    let redis_cli = redis::Client::open(config.redis_addr)?;
     let service = OpenApiService::new(
         (
             service::PingService,
             service::PhotoService,
             service::OpenWrt::new(config.service.openwrt),
-            service::WeatherService::new(config.service.weather),
+            service::WeatherService::new(config.service.weather, redis_cli.clone()),
         ),
         "Esp Clock Server Api",
         "1.0",

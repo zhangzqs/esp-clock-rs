@@ -1,9 +1,6 @@
-
 use poem_openapi::{payload::Json, OpenApi};
 use serde::Deserialize;
 use serde_json::json;
-
-
 
 mod client;
 

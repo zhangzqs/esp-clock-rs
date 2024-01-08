@@ -1,10 +1,14 @@
-use std::time::Duration;
+use std::{
+    error::Error,
+    fmt::{Debug, Display},
+    time::Duration,
+};
 
-use embedded_svc::http::client::Client;
+use embedded_svc::http::client::{Client, Connection};
 
 pub trait ClientBuilder: Copy + Clone + Sized {
-    type Conn: embedded_svc::http::client::Connection<Error = Self::HttpClientError>;
-    type HttpClientError: std::error::Error + std::fmt::Display;
+    type Conn: Connection<Error = Self::HttpClientError> + Debug;
+    type HttpClientError: Error + Display;
 
     fn new() -> Self;
     fn timeout(&mut self, timeout: Duration) -> &mut Self;

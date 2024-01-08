@@ -5,6 +5,7 @@ use esp_idf_hal::io::{ErrorType, EspIOError};
 use esp_idf_svc::http::client::{Configuration, EspHttpConnection};
 use esp_idf_sys::{EspError, ESP_ERR_HTTP_EAGAIN, ESP_FAIL};
 use log::error;
+use std::fmt::Debug;
 use std::result::Result;
 use std::time::Duration;
 
@@ -12,6 +13,16 @@ pub struct MyConnection {
     config: Configuration,
     conn: EspHttpConnection,
     need_build_new_connection: bool,
+}
+
+impl Debug for MyConnection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MyConnection")
+            .field("config", &self.config)
+            .field("conn", &"EspHttpConnection")
+            .field("need_build_new_connection", &self.need_build_new_connection)
+            .finish()
+    }
 }
 
 unsafe impl Send for MyConnection {}

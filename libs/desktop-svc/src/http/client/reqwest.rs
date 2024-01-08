@@ -25,6 +25,7 @@ fn method_type_convert(method: Method) -> reqwest::Method {
     }
 }
 
+#[derive(Debug)]
 pub struct HttpClientConnection {
     client: reqwest::blocking::Client,
     request: Option<reqwest::blocking::RequestBuilder>,
@@ -111,7 +112,7 @@ impl From<reqwest::Error> for HttpClientConnectionError {
         if error.is_timeout() {
             return Self::TimeoutError {
                 msg: error.to_string().into(),
-            }
+            };
         }
         Self::OtherReqwestError { error, msg: None }
     }
@@ -120,12 +121,8 @@ impl From<reqwest::Error> for HttpClientConnectionError {
 impl embedded_io::Error for HttpClientConnectionError {
     fn kind(&self) -> embedded_io::ErrorKind {
         match self {
-            HttpClientConnectionError::TimeoutError { .. } => {
-                embedded_io::ErrorKind::TimedOut
-            }
-            HttpClientConnectionError::OtherReqwestError { .. } => {
-                embedded_io::ErrorKind::Other
-            }
+            HttpClientConnectionError::TimeoutError { .. } => embedded_io::ErrorKind::TimedOut,
+            HttpClientConnectionError::OtherReqwestError { .. } => embedded_io::ErrorKind::Other,
             HttpClientConnectionError::Other { .. } => embedded_io::ErrorKind::Other,
         }
     }

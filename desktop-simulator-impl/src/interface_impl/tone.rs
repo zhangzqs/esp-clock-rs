@@ -1,8 +1,6 @@
-
-
 use embedded_tone::RawTonePlayer;
 use log::debug;
-use rodio::{source::SineWave};
+use rodio::source::SineWave;
 
 pub struct RodioPlayer {
     stream: rodio::OutputStream,

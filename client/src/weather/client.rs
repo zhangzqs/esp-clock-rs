@@ -22,7 +22,7 @@ impl<'a, C> WeatherClient<'a, C> {
 
 impl<C, E> WeatherClient<'_, C>
 where
-    C: Connection<Error = E>,
+    C: Connection<Error = E> + Debug,
     E: Debug + Display,
 {
     fn get<T, const S: usize>(&mut self, url: &str) -> Result<T, ClientError<C, E>>

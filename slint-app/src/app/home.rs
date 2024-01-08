@@ -27,7 +27,7 @@ where
     }
 
     fn start_weather_timer(w: Weak<AppWindow>) {
-        thread::spawn(move || {
+        thread::spawn(move || -> anyhow::Result<()> {
             let mut client = CB::new().build_client().unwrap();
             let mut weather = WeatherClient::new("http://192.168.242.118:3000", &mut client);
             let city_resp = weather.city_lookup::<1024>("Shanghai").unwrap();
@@ -42,6 +42,7 @@ where
                 });
             })
             .unwrap();
+            Ok(())
         });
     }
 

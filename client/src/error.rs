@@ -1,11 +1,11 @@
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
 use embedded_svc::http::client::Connection;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ClientError<C, E>
 where
-    C: Connection<Error = E>,
+    C: Connection<Error = E> + Debug,
     E: Display,
 {
     #[error("http error: {0}")]

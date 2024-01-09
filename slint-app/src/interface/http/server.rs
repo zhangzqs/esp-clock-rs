@@ -14,7 +14,7 @@ pub trait ServerBuilder<'a>: Copy + Clone + Sized + 'a {
 }
 
 pub trait Server<'a> {
-    type Conn<'r>: Connection;
+    type Conn<'r>: Connection<Error = Self::HttpServerError>;
     type HttpServerError: std::error::Error + Send + Sync;
 
     fn handler<H>(

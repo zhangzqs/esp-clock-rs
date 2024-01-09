@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{fmt::Display, marker::PhantomData};
 
 use embedded_svc::http::{server::Handler, Method};
 use esp_idf_hal::io::EspIOError;
@@ -10,7 +10,12 @@ impl<'a> slint_app::Server<'a> for EspHttpServerWrapper<'a> {
     type Conn<'r> = EspHttpConnection<'r>;
     type HttpServerError = EspIOError;
 
-    fn handler<H>(&mut self, uri: &str, method: Method, handler: H) -> Result<&mut Self, EspIOError>
+    fn handler<H>(
+        &mut self,
+        uri: &str,
+        method: Method,
+        handler: H,
+    ) -> Result<&mut Self, Self::HttpServerError>
     where
         H: for<'r> Handler<Self::Conn<'r>> + Send + 'a,
     {

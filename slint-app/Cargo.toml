@@ -23,6 +23,7 @@ embedded-io = { version = "0.6.1", features = ["std"] }
 embedded-graphics-slint-image-buf = { path = "../libs/embedded-graphics-slint-image-buf" }
 client = { path = "../client" }
 anyhow = "1.0.79"
+embedded-io-adapters = { version = "0.6.1", features = ["std"] }
 
 [build-dependencies]
 slint-build = { version = "1.3.0" }

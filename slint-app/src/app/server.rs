@@ -18,6 +18,8 @@ use slint::Weak;
 mod static_file;
 use static_file::StaticFileHandler;
 mod button;
+mod common;
+use common::{read_json_from_req_body, write_json_to_resp_body};
 
 static VUE_DIST: Dir = include_dir!("console-dist");
 
@@ -36,7 +38,7 @@ where
     pub fn new(app: Weak<AppWindow>) -> Self {
         let app_ref = app.clone();
         thread::spawn(move || -> anyhow::Result<()> {
-            thread::sleep(Duration::from_secs(10));
+            thread::sleep(Duration::from_secs(1));
             let mut server = SB::new().uri_match_wildcard(true).build().unwrap();
             server
                 .handler("/*", Method::Get, StaticFileHandler(&VUE_DIST))?

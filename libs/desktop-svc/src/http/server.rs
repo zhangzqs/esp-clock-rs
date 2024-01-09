@@ -10,12 +10,14 @@ use std::{
 
 use embedded_io::Write as _;
 use embedded_svc::http::{
-    headers::content_type,
+    headers::{content_len, content_type},
     server::{Connection, Handler, HandlerResult},
     Headers, Method, Query,
 };
 use log::{debug, info, warn};
 use thiserror::Error;
+
+use super::client::HttpClientConnectionError;
 
 struct DefaultHandle404;
 
@@ -312,17 +314,17 @@ impl Drop for HttpServer<'_> {
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum HttpServerError {
+    #[error("invalid content-length")]
+    InvalidContentLength,
     #[error("IO error: {io_error}, {msg}")]
     IO {
         io_error: std::io::Error,
         msg: String,
     },
-    #[error("other error")]
-    Other {
-        msg: String,
-    }
+    #[error("other error: {msg}")]
+    Other { msg: String },
 }
 
 impl From<std::io::Error> for HttpServerError {
@@ -330,6 +332,15 @@ impl From<std::io::Error> for HttpServerError {
         Self::IO {
             msg: io_error.to_string(),
             io_error,
+        }
+    }
+}
+
+impl Into<std::io::Error> for HttpServerError {
+    fn into(self) -> std::io::Error {
+        match self {
+            HttpServerError::IO { io_error, .. } => io_error,
+            _ => std::io::Error::other(self.to_string()),
         }
     }
 }
@@ -352,6 +363,8 @@ pub struct HttpServerConnection {
     uri: String,
     path: String,
     headers: HashMap<String, String>,
+    content_length: Option<u64>,
+    has_read_length: u64,
 }
 
 impl HttpServerConnection {
@@ -378,8 +391,9 @@ impl HttpServerConnection {
             assert_eq!(version, "HTTP/1.1");
             (method, uri, path)
         };
-        let headers = {
+        let (headers, content_length) = {
             let mut headers = HashMap::new();
+            let mut content_length = None;
             loop {
                 let mut line = String::new();
                 if let Err(e) = reader.read_line(&mut line) {
@@ -392,19 +406,32 @@ impl HttpServerConnection {
                 if line.is_empty() {
                     break;
                 }
-                let idx = line.find(':');
-                if idx.is_none() {
+                let kv = if let Some(idx) = line.find(':') {
+                    let (k, v) = line.split_at(idx);
+                    (k.trim(), v[1..].trim())
+                } else {
                     return Err(HttpServerError::IO {
                         io_error: std::io::ErrorKind::InvalidData.into(),
                         msg: format!("invalid request: {}", line),
                     });
-                }
-                let kv = line.split_at(idx.unwrap());
+                };
                 let k = kv.0.to_lowercase();
                 let v = kv.1.to_string();
+                if k == "content-length" {
+                    match v.parse::<u64>() {
+                        Ok(v) => {
+                            debug!("read content-length: {}", v);
+                            content_length = Some(v);
+                        }
+                        Err(e) => {
+                            warn!("parse content-length error: content-length: {v}, error: {e}");
+                            return Err(HttpServerError::InvalidContentLength);
+                        }
+                    }
+                }
                 headers.insert(k, v);
             }
-            headers
+            (headers, content_length)
         };
 
         Ok(Self {
@@ -429,6 +456,8 @@ impl HttpServerConnection {
             uri,
             headers,
             path,
+            content_length,
+            has_read_length: 0,
         })
     }
 
@@ -533,10 +562,30 @@ impl embedded_io::ErrorType for HttpServerConnection {
 
 impl embedded_io::Read for HttpServerConnection {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
-        self.reader.read(buf).map_err(|e| HttpServerError::IO {
-            io_error: e,
-            msg: "read request body error".to_string(),
-        })
+        if let Some(content_length) = self.content_length {
+            info!("has_read_length: {}", self.has_read_length);
+            if self.has_read_length >= content_length {
+                return Ok(0);
+            }
+
+            // 本次读取的字节数
+            let bytes_read = self.reader.read(buf).map_err(|e| HttpServerError::IO {
+                io_error: e,
+                msg: "read request body error".to_string(),
+            })?;
+
+            self.has_read_length += bytes_read as u64;
+            if self.has_read_length > content_length {
+                return Err(HttpServerError::InvalidContentLength);
+            }
+            Ok(bytes_read)
+        } else {
+            warn!("no content-length");
+            self.reader.read(buf).map_err(|e| HttpServerError::IO {
+                io_error: e,
+                msg: "read request body error".to_string(),
+            })
+        }
     }
 }
 

@@ -1,8 +1,11 @@
-use embedded_svc::http::{server::{Connection, Handler, Request, HandlerResult, FnHandler}, Method};
+use embedded_svc::http::{
+    server::{Connection, FnHandler, Handler, HandlerResult, Request},
+    Method,
+};
 
 pub trait ServerBuilder<'a>: Copy + Clone + Sized + 'a {
-    type Server: Server<'a>;
-    type HttpServerError: std::error::Error + std::fmt::Display;
+    type Server: Server<'a, HttpServerError = Self::HttpServerError>;
+    type HttpServerError: std::error::Error + std::fmt::Display + Send + Sync;
 
     fn new() -> Self;
     fn http_port(&mut self, port: u16) -> &mut Self;
@@ -12,7 +15,7 @@ pub trait ServerBuilder<'a>: Copy + Clone + Sized + 'a {
 
 pub trait Server<'a> {
     type Conn<'r>: Connection;
-    type HttpServerError: std::error::Error;
+    type HttpServerError: std::error::Error + Send + Sync;
 
     fn handler<H>(
         &mut self,

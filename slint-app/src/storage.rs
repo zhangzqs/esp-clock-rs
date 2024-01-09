@@ -39,7 +39,7 @@ pub struct Storage<'a, Raw: RawStorage>(pub &'a Raw);
 
 impl<'a, Raw: RawStorage> Storage<'a, Raw> {
     pub fn system(&self) -> System<'a, Raw> {
-        System(&self.0)
+        System(self.0)
     }
 }
 

@@ -11,7 +11,7 @@ mod screen;
 fn main() -> Result<(), Box<dyn Error>> {
     let mut args = std::env::args();
     if args.len() <= 1 {
-        println!("usage: {} <ip:port>", args.nth(0).unwrap());
+        println!("usage: {} <ip:port>", args.next().unwrap());
         return Ok(());
     }
     let addr = args.nth(1).unwrap();
@@ -35,16 +35,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         let buf = cap.capture();
         let img = image::ImageBuffer::from_fn(w, h, |x, y| {
             let idx = 4 * (y * w + x) as usize;
-            image::Rgba([buf[idx + 2], buf[idx + 1], buf[idx + 0], buf[idx + 3]])
+            image::Rgba([buf[idx + 2], buf[idx + 1], buf[idx], buf[idx + 3]])
         });
         let img = resize(&img, 240, 240, FilterType::Nearest);
         let buf = img
             .enumerate_pixels()
-            .map(|(_, _, p)| {
+            .flat_map(|(_, _, p)| {
                 let p = p.0;
                 [p[0], p[1], p[2]]
             })
-            .flatten()
             .collect::<Vec<_>>();
         *fps.lock().unwrap() += 1;
         // 连接到tcp投屏服务器

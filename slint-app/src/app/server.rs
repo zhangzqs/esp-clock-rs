@@ -6,20 +6,17 @@ use crate::{
 };
 use embedded_io::Write;
 use include_dir::{include_dir, Dir};
-use log::{debug, info, warn};
+
 
 use embedded_svc::http::{
-    server::{Connection, Handler, HandlerResult},
     Method,
 };
-use serde::Deserialize;
+
 use slint::Weak;
 
 mod static_file;
 use static_file::StaticFileHandler;
 mod button;
-mod common;
-use common::{read_json_from_req_body, write_json_to_resp_body};
 
 static VUE_DIST: Dir = include_dir!("console-dist");
 
@@ -51,7 +48,13 @@ where
                 .fn_handler("/ping", Method::Get, |req| {
                     req.into_ok_response()?.write_all(b"pong")?;
                     Ok(())
-                })?;
+                })?
+                .fn_handler("/wifi/scan", Method::Get, |_| todo!())?
+                .fn_handler("/wifi/connect", Method::Post, |_| todo!())?
+                .fn_handler("/weather/city_lookup", Method::Get, |_| todo!())?
+                .fn_handler("/weather/now", Method::Get, |_| todo!())?
+                .fn_handler("/storage", Method::Get, |_| todo!())?
+                .fn_handler("/storage", Method::Put, |_| todo!())?;
             loop {
                 thread::sleep(Duration::from_secs(1));
             }

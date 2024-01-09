@@ -1,4 +1,4 @@
-use std::{fmt::Display, marker::PhantomData};
+use std::{marker::PhantomData};
 
 use embedded_svc::http::{server::Handler, Method};
 use esp_idf_hal::io::EspIOError;

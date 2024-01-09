@@ -10,14 +10,14 @@ use std::{
 
 use embedded_io::Write as _;
 use embedded_svc::http::{
-    headers::{content_len, content_type},
+    headers::{content_type},
     server::{Connection, Handler, HandlerResult},
     Headers, Method, Query,
 };
 use log::{debug, info, warn};
-use thiserror::Error;
 
-use super::client::HttpClientConnectionError;
+
+
 
 struct DefaultHandle404;
 
@@ -82,7 +82,7 @@ fn uri_match_wildcard(template: &str, uri: &str) -> bool {
         }
         /* asterisk allows arbitrary trailing characters, we ignore these using
          * exact_match_chars as the length limit */
-        return &template[..exact_match_chars] == &uri[..exact_match_chars];
+        &template[..exact_match_chars] == &uri[..exact_match_chars]
     } else {
         /* question mark present */
         if len > exact_match_chars
@@ -100,7 +100,7 @@ fn uri_match_wildcard(template: &str, uri: &str) -> bool {
          * the mandatory part matches, and if the optional character is present, it is correct.
          * Match is OK if we have asterisk, i.e. any trailing characters are OK, or if
          * there are no characters beyond the optional character. */
-        return asterisk || len <= exact_match_chars + 1;
+        asterisk || len <= exact_match_chars + 1
     }
 }
 
@@ -247,10 +247,8 @@ impl HttpServer<'static> {
                                 if !uri_match_wildcard(path, &conn.path) {
                                     continue;
                                 }
-                            } else {
-                                if path != &conn.path {
-                                    continue;
-                                }
+                            } else if path != &conn.path {
+                                continue;
                             }
                             handler = Some(h);
                             break;
@@ -290,7 +288,7 @@ impl<'a> HttpServer<'a> {
         H: Handler<HttpServerConnection> + Send + 'a,
     {
         let mut handlers_map = self.handlers_map.write().unwrap();
-        let path_headers = handlers_map.entry(method).or_insert_with(HashMap::new);
+        let path_headers = handlers_map.entry(method).or_default();
         path_headers.insert(uri.to_string(), Mutex::new(Box::new(handler)));
         drop(handlers_map);
         info!("registered handler: {:?} {}", method, uri);
@@ -336,11 +334,11 @@ impl From<std::io::Error> for HttpServerError {
     }
 }
 
-impl Into<std::io::Error> for HttpServerError {
-    fn into(self) -> std::io::Error {
-        match self {
+impl From<HttpServerError> for std::io::Error {
+    fn from(val: HttpServerError) -> Self {
+        match val {
             HttpServerError::IO { io_error, .. } => io_error,
-            _ => std::io::Error::other(self.to_string()),
+            _ => std::io::Error::other(val.to_string()),
         }
     }
 }

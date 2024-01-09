@@ -99,7 +99,7 @@ where
         // 过滤并填充
         phy_display.fill_contiguous(
             &Rectangle::new(origin + area.top_left, area.size),
-            colors.into_iter(),
+            colors,
         )
     }
 

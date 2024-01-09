@@ -1,8 +1,8 @@
-use std::{cell::RefCell, marker::PhantomData, rc::Rc, thread, time::Duration};
+use std::{marker::PhantomData, thread, time::Duration};
 
 use client::weather::WeatherClient;
-use embedded_svc::http::client::Client;
-use log::{debug, info};
+
+use log::{info};
 use slint::Weak;
 use time::{OffsetDateTime, UtcOffset};
 

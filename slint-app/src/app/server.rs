@@ -4,6 +4,7 @@ use crate::{
     interface::{Server, ServerBuilder},
     AppWindow,
 };
+use embedded_io::Write;
 use include_dir::{include_dir, Dir};
 use log::{debug, info, warn};
 
@@ -41,6 +42,13 @@ where
                 .handler("/*", Method::Get, StaticFileHandler(&VUE_DIST))?
                 .fn_handler("/control/button", Method::Post, move |req| {
                     button::button_handler(req, app_ref.clone())
+                })?
+                .fn_handler("/tone/music/start", Method::Post, |_| todo!())?
+                .fn_handler("/tone/music/stop", Method::Post, |_| todo!())?
+                .fn_handler("/tone/realtime", Method::Post, |_| todo!())?
+                .fn_handler("/ping", Method::Get, |req| {
+                    req.into_ok_response()?.write_all(b"pong")?;
+                    Ok(())
                 })?;
             loop {
                 thread::sleep(Duration::from_secs(1));

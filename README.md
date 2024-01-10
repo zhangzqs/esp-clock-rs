@@ -5,6 +5,7 @@
 ## 特性
 
 - 跨平台
+- 使用Slint作为GUI框架
 - 接入和风天气
 - 使用 Vue+Typescript 开发 App 后台管理 ui
 

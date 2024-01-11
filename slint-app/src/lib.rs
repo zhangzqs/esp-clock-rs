@@ -31,7 +31,7 @@ use crate::storage::{Storage, StorageMut};
 
 slint::include_modules!();
 
-pub struct MyAppDeps<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC, RS>
+pub struct MyAppDeps<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, SCBC, LC, RS>
 where
     SYS: System + 'static,
     EGC: PixelColor + 'static + From<Rgb888>,
@@ -40,6 +40,7 @@ where
     TONE: RawTonePlayer + 'static + Send,
     EA: EvilApple + 'static,
     LC: LEDController + 'static + Send,
+    SCBC: LEDController + 'static + Send,
     SB: ServerBuilder<'static>,
     CB: ClientBuilder + 'static,
     RS: RawStorage,
@@ -48,14 +49,14 @@ where
     pub display_group: Arc<Mutex<DisplayGroup<EGD>>>,
     pub player: TONE,
     pub eval_apple: EA,
-    pub screen_brightness_controller: LC,
+    pub screen_brightness_controller: SCBC,
     pub blue_led: LC,
     pub http_server_builder: PhantomData<SB>,
     pub http_client_builder: PhantomData<CB>,
     pub raw_storage: RS,
 }
 
-pub struct MyApp<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC, RS>
+pub struct MyApp<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, SCBC, LC, RS>
 where
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
@@ -63,6 +64,7 @@ where
     TONE: RawTonePlayer + 'static + Send,
     EA: EvilApple,
     LC: LEDController + 'static + Send,
+    SCBC: LEDController + 'static + Send,
     SB: ServerBuilder<'static>,
     CB: ClientBuilder + 'static,
     RS: RawStorage,
@@ -75,15 +77,15 @@ where
     projector_app: Rc<RefCell<ProjectorApp<EGC, EGD, EGE>>>,
     evil_apple_app: Rc<RefCell<EvilAppleApp<EA>>>,
     music_app: Rc<RefCell<MusicApp<TONE, LC>>>,
-    _screen_led_ctl: Arc<Mutex<LC>>,
+    _screen_led_ctl: Arc<Mutex<SCBC>>,
     home_app: Rc<RefCell<HomeApp<CB>>>,
     network_monitor_app: Rc<RefCell<NetworkMonitorApp>>,
-    http_server_app: Rc<RefCell<HttpServerApp<SB>>>,
+    http_server_app: Rc<RefCell<HttpServerApp<SB, SCBC>>>,
     raw_storage: RS,
 }
 
-impl<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC, RS>
-    MyApp<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC, RS>
+impl<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, SCBC, LC, RS>
+    MyApp<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, SCBC, LC, RS>
 where
     SYS: System + 'static,
     EGC: PixelColor + 'static + From<Rgb888>,
@@ -92,11 +94,12 @@ where
     TONE: RawTonePlayer + 'static + Send,
     EA: EvilApple,
     LC: LEDController + 'static + Send,
+    SCBC: LEDController + 'static + Send,
     SB: ServerBuilder<'static>,
     CB: ClientBuilder,
     RS: RawStorage,
 {
-    pub fn new(deps: MyAppDeps<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, LC, RS>) -> Self {
+    pub fn new(deps: MyAppDeps<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, SCBC, LC, RS>) -> Self {
         let mut raw_storage = deps.raw_storage;
         StorageMut(&mut raw_storage).system_mut().inc_boot_count();
         let cnt = Storage(&raw_storage).system().get_boot_count();
@@ -113,6 +116,7 @@ where
         let player = Arc::new(Mutex::new(deps.player));
         let evil_apple_app = Rc::new(RefCell::new(EvilAppleApp::new(deps.eval_apple)));
         let screen_led_ctl = Arc::new(Mutex::new(deps.screen_brightness_controller));
+
         let blue_led = Arc::new(Mutex::new(deps.blue_led));
         let music_app = Rc::new(RefCell::new(MusicApp::new(
             app_window.as_weak(),
@@ -123,7 +127,10 @@ where
         let network_monitor_app =
             Rc::new(RefCell::new(NetworkMonitorApp::new(app_window.as_weak())));
 
-        let http_server_app = Rc::new(RefCell::new(HttpServerApp::new(app_window.as_weak())));
+        let http_server_app = Rc::new(RefCell::new(HttpServerApp::new(
+            app_window.as_weak(),
+            screen_led_ctl.clone(),
+        )));
         let app = MyApp {
             app_window,
             system: deps.system,
@@ -133,11 +140,11 @@ where
             projector_app,
             evil_apple_app,
             music_app,
-            _screen_led_ctl: screen_led_ctl,
             home_app,
             network_monitor_app,
             http_server_app,
             raw_storage,
+            _screen_led_ctl: screen_led_ctl,
         };
         info!("MyApp created");
         app.bind_event_app();

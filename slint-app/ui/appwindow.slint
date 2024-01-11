@@ -11,6 +11,14 @@ export component AppWindow inherits Window {
     width: 240px;
     height: 240px;
 
+    in-out property <float> mock-brightness: 1;
+    Rectangle {
+        z: 2;
+        width: parent.width;
+        height: parent.width;
+        background: black.with-alpha(1-mock-brightness);
+    }
+
     in property <int> fps;
     in property <int> memory;
     in property <int> largest-free-block;

@@ -12,3 +12,6 @@ pub use led_controller::MockLEDController;
 
 mod system;
 pub use system::MockSystem;
+
+mod screen_brightness;
+pub use screen_brightness::ScreenBrightnessController;

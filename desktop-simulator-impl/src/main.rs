@@ -20,7 +20,8 @@ use embedded_graphics_simulator::{
 
 use log::{debug, info};
 
-use slint_app::{BootState, MyApp, MyAppDeps};
+use slint::Weak;
+use slint_app::{AppWindow, BootState, MyApp, MyAppDeps};
 
 use button_driver::{Button, ButtonConfig, PinWrapper};
 use desktop_svc::storage::KVStorage;
@@ -78,21 +79,26 @@ fn main() -> anyhow::Result<()> {
     }
     info!("platform has been set");
 
-    let output_settings = OutputSettingsBuilder::new().build();
+    let output_settings: embedded_graphics_simulator::OutputSettings =
+        OutputSettingsBuilder::new().build();
     let mut window = Window::new("Desktop Simulator", &output_settings);
     info!("window has been created");
+
+    let app_weak = Arc::new(Mutex::new(Weak::default()));
 
     let app = MyApp::new(MyAppDeps {
         system: MockSystem,
         display_group: display_group.clone(),
         player: RodioPlayer::new(),
         eval_apple: MockEvilApple,
-        screen_brightness_controller: MockLEDController::new(),
+        screen_brightness_controller: ScreenBrightnessController::new(app_weak.clone()),
         blue_led: MockLEDController::new(),
         http_client_builder: PhantomData::<HttpClientBuilder>,
         http_server_builder: PhantomData::<HttpServerBuilder>,
         raw_storage: kv,
     });
+    *app_weak.lock().unwrap() = app.get_app_window();
+
     info!("app has been created");
 
     // 分发按键事件

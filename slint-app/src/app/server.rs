@@ -43,12 +43,11 @@ where
         let app_ref = app.clone();
         let sbc = screen_brightness_controller.clone();
         thread::spawn(move || -> anyhow::Result<()> {
-            thread::sleep(Duration::from_secs(1));
+            thread::sleep(Duration::from_secs(20));
             let mut server = SB::new().uri_match_wildcard(true).build().unwrap();
             let sbc1 = sbc.clone();
             let sbc2 = sbc.clone();
             server
-                .handler("/*", Method::Get, StaticFileHandler(&VUE_DIST))?
                 .fn_handler("/control/button", Method::Post, move |req| {
                     button::button_handler(req, app_ref.clone())
                 })?
@@ -76,7 +75,9 @@ where
                     sbc2.lock().unwrap().set_brightness_percent(data);
                     let _ = req.into_ok_response()?;
                     Ok(())
-                })?;
+                })?
+                .handler("/*", Method::Get, StaticFileHandler(&VUE_DIST))?;
+
             loop {
                 thread::sleep(Duration::from_secs(1));
             }

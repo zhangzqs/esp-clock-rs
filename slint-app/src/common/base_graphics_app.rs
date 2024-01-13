@@ -3,7 +3,7 @@ use std::{
     marker::PhantomData,
     sync::{
         atomic::{AtomicBool, Ordering},
-        mpsc, Arc, Mutex,
+        mpsc::{self, Sender}, Arc, Mutex,
     },
     thread,
     time::{Duration, Instant},
@@ -150,5 +150,9 @@ where
 
     pub fn send_event(&mut self, e: Event) {
         self.event_sender.send(e).unwrap();
+    }
+
+    pub fn get_sender(&mut self) -> Sender<Event> {
+        self.event_sender.clone()
     }
 }

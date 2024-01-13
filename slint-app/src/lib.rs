@@ -17,11 +17,11 @@ use std::{
 };
 
 mod app;
+mod common;
 mod interface;
+mod resources;
 mod storage;
 mod util;
-mod common;
-mod resources;
 
 use app::*;
 
@@ -84,7 +84,7 @@ where
     network_monitor_app: Rc<RefCell<NetworkMonitorApp>>,
     http_server_app: Rc<RefCell<HttpServerApp<SB, SCBC>>>,
     raw_storage: RS,
-    firework_app: Rc<RefCell<FireworkApp<EGC, EGD, EGE>>>,
+    firework_app: Rc<RefCell<FireworkApp<EGC, EGD, EGE, TONE>>>,
 }
 
 impl<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, SCBC, LC, RS>
@@ -134,7 +134,10 @@ where
             app_window.as_weak(),
             screen_led_ctl.clone(),
         )));
-        let firework_app = Rc::new(RefCell::new(FireworkApp::new(deps.display_group.clone())));
+        let firework_app = Rc::new(RefCell::new(FireworkApp::new(
+            deps.display_group.clone(),
+            player.clone(),
+        )));
         let app = MyApp {
             app_window,
             system: deps.system,

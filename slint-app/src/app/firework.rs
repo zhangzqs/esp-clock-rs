@@ -1,9 +1,8 @@
 use std::{
     fmt::Debug,
     rc::Rc,
-    sync::{
-        Arc, Mutex,
-    },
+    sync::{atomic::AtomicBool, Arc, Mutex},
+    thread,
 };
 
 use color_space::Hsv;
@@ -13,6 +12,7 @@ use embedded_graphics::{
 };
 use embedded_graphics_group::DisplayGroup;
 
+use embedded_tone::RawTonePlayer;
 use rand::{rngs::ThreadRng, Rng as _};
 
 mod firework;
@@ -21,7 +21,10 @@ use firework::{Context, ParticleSystem};
 mod vec2;
 use vec2::Vec2f;
 
-use crate::common::{GraphicsAppBase, IGraphicsApp};
+use crate::{
+    common::{play_midi, GraphicsAppBase, IGraphicsApp},
+    resources,
+};
 
 #[derive(Debug, Clone, Copy)]
 enum FireworkAppEvent {
@@ -88,31 +91,53 @@ impl IGraphicsApp for FireworkGraphicsApp {
     }
 }
 
-pub struct FireworkApp<EGC, EGD, EGE>
+pub struct FireworkApp<EGC, EGD, EGE, TONE>
 where
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static,
     EGE: Debug,
 {
     base: GraphicsAppBase<EGD, FireworkAppEvent, FireworkGraphicsApp>,
+    tone: Arc<Mutex<TONE>>,
+    exit_signal: Arc<AtomicBool>,
 }
 
-impl<EGC, EGD, EGE> FireworkApp<EGC, EGD, EGE>
+impl<EGC, EGD, EGE, TONE> FireworkApp<EGC, EGD, EGE, TONE>
 where
     EGC: PixelColor + 'static + From<Rgb888>,
     EGD: DrawTarget<Color = EGC, Error = EGE> + 'static + Send,
     EGE: Debug,
+    TONE: RawTonePlayer + 'static + Send,
 {
-    pub fn new(display_group: Arc<Mutex<DisplayGroup<EGD>>>) -> Self {
+    pub fn new(display_group: Arc<Mutex<DisplayGroup<EGD>>>, tone: Arc<Mutex<TONE>>) -> Self {
         let base = GraphicsAppBase::new(display_group);
-        Self { base }
+        Self {
+            base,
+            tone,
+            exit_signal: Arc::new(AtomicBool::new(false)),
+        }
     }
 
     pub fn enter(&mut self) {
         self.base.enter();
+        let exit_signal = self.exit_signal.clone();
+        let player = self.tone.clone();
+        let sender = self.base.get_sender();
+        thread::spawn(move || {
+            let mut player = player.lock().unwrap();
+            let c = resources::MUSIC_DIST
+                .get_file("Lantern_Rite_1.mid")
+                .unwrap()
+                .contents();
+            play_midi(c, &mut *player, exit_signal, |p, f| {
+                sender.send(FireworkAppEvent::Fire).unwrap();
+            });
+        });
     }
 
     pub fn exit(&mut self) {
+        self.exit_signal
+            .store(true, std::sync::atomic::Ordering::SeqCst);
         self.base.exit();
     }
 

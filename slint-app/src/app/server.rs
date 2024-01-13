@@ -7,6 +7,7 @@ use std::{
 
 use crate::{
     interface::{Server, ServerBuilder},
+    resources,
     util::{read_json_from_req_body, write_json_to_resp_body},
     AppWindow, LEDController,
 };
@@ -21,8 +22,6 @@ mod static_file;
 use static_file::StaticFileHandler;
 mod button;
 mod tone;
-
-static VUE_DIST: Dir = include_dir!("console-dist");
 
 pub struct HttpServerApp<SB, SCBC>
 where
@@ -76,7 +75,7 @@ where
                     let _ = req.into_ok_response()?;
                     Ok(())
                 })?
-                .handler("/*", Method::Get, StaticFileHandler(&VUE_DIST))?;
+                .handler("/*", Method::Get, StaticFileHandler(&resources::VUE_DIST))?;
 
             loop {
                 thread::sleep(Duration::from_secs(1));

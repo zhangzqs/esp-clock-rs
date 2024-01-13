@@ -5,18 +5,16 @@ use std::{
         Arc, Mutex,
     },
     thread,
-    time::{Duration},
+    time::Duration,
 };
 
-use crate::{interface::LEDController, AppWindow, MusicItemInfo};
+use crate::{common, interface::LEDController, resources, AppWindow, MusicItemInfo};
 use embedded_tone::{AbsulateNotePitch, RawTonePlayer};
 use include_dir::{include_dir, Dir};
 use log::{error, info};
 use midly::{MetaMessage, Timing, TrackEventKind};
 use slint::Weak;
 use std::sync::mpsc;
-
-static MUSIC_DIST: Dir = include_dir!("music-dist");
 
 enum MusicAppEvent {
     Exit,
@@ -65,128 +63,18 @@ where
         led: Arc<Mutex<LC>>,
         exit_signal: Arc<AtomicBool>,
     ) {
-        let mut player = tone_player.lock().unwrap();
         let mut led = led.lock().unwrap();
-
-        let (header, mut tracks) = midly::parse(midi_content).unwrap();
-
-        // 一个四分音符中包含的tick数
-        let tpqn = if let Timing::Metrical(t) = header.timing {
-            let tpqn = t.as_int() as u32;
-            info!("TPQN: {}", tpqn);
-            tpqn
-        } else {
-            error!("unsupported timing: {:?}", header.timing);
-            return;
-        };
-
-        // 获取0号轨道
-        let track = tracks.next().unwrap().unwrap();
+        let mut tone_player = tone_player.lock().unwrap();
         let mut max_freq = 0;
         let mut min_freq = 10000;
 
-        let mut tempo = 1_000_000;
-        let mut current_half_steps = 0;
-
-        let mut current_freq = 0;
-
-        for event in track {
-            if exit_signal.load(Ordering::SeqCst) {
-                return;
-            }
-            if event.is_err() {
-                continue;
-            }
-
-            // 一个四分音符的绝对时间长度，单位为microseconds
-            let event = event.unwrap();
-            if let TrackEventKind::Meta(e) = event.kind {
-                match e {
-                    MetaMessage::Text(t) => {
-                        info!("midi meta text: {}", String::from_utf8_lossy(t));
-                    }
-                    MetaMessage::Copyright(t) => {
-                        info!("midi meta copyright: {}", String::from_utf8_lossy(t));
-                    }
-                    MetaMessage::TrackName(t) => {
-                        info!("midi meta track: {}", String::from_utf8_lossy(t));
-                    }
-                    MetaMessage::InstrumentName(t) => {
-                        info!("midi meta instrument: {}", String::from_utf8_lossy(t));
-                    }
-                    MetaMessage::Lyric(t) => {
-                        info!("midi meta lyric: {}", String::from_utf8_lossy(t));
-                    }
-                    MetaMessage::Tempo(t) => {
-                        info!("midi meta tempo: {}", t);
-                        tempo = t.as_int();
-                    }
-                    MetaMessage::EndOfTrack => {
-                        player.off();
-                    }
-                    MetaMessage::KeySignature(half_steps, b) => {
-                        info!("key signature: half_steps: {}, {}", half_steps, b);
-                        current_half_steps = half_steps as i32;
-                    }
-                    _ => {
-                        info!("no process track event: {:?}", e);
-                    }
-                }
-            }
-
-            if let Some(e) = event.kind.as_live_event() {
-                // 等待上一事件结束
-                let dur = Duration::from_micros(
-                    (event.delta.as_int() as u64 * tempo as u64) / tpqn as u64,
-                );
-                thread::sleep(dur);
-
-                match e {
-                    midly::live::LiveEvent::Midi {
-                        channel: _,
-                        message,
-                    } => match message {
-                        midly::MidiMessage::NoteOff { key: _, vel: _ } => {
-                            println!("off");
-                            current_freq = 0;
-                            player.off();
-                        }
-                        midly::MidiMessage::NoteOn { key, vel } => {
-                            if vel == 0 {
-                                current_freq = 0;
-                                player.off();
-                            } else {
-                                println!("key: {}, vel: {}", key, vel);
-                                let p = AbsulateNotePitch::from_midi_note_key(key.as_int())
-                                    .add(current_half_steps);
-                                let freq = p.frequency();
-                                println!("freq: {}", freq);
-                                max_freq = max_freq.max(freq);
-                                min_freq = min_freq.min(freq);
-                                let s = (freq - min_freq) as f32 / (max_freq - min_freq) as f32;
-                                println!("screen: {}", s);
-                                led.set_brightness_percent(s);
-                                // app.upgrade_in_event_loop(move |ui| {
-                                //     ui.set_music_page_note(format!("{:?}", p).into());
-                                //     ui.set_music_page_percent(s);
-                                // })
-                                // .unwrap();
-
-                                // 始终倾向于播放更高音调的音，有更高音调的播放更高音调的
-                                // 或者如果当前播放的音调已经超过1000ms，那么也可以播放新的音调
-
-                                if freq > current_freq {
-                                    current_freq = freq;
-                                    player.tone(freq);
-                                }
-                            }
-                        }
-                        _ => (),
-                    },
-                    _ => (),
-                }
-            }
-        }
+        common::play_midi(midi_content, &mut *tone_player, exit_signal, |_p, freq| {
+            max_freq = max_freq.max(freq);
+            min_freq = min_freq.min(freq);
+            let s = (freq - min_freq) as f32 / (max_freq - min_freq) as f32;
+            info!("set led brightness: {}", s);
+            led.set_brightness_percent(s);
+        })
     }
 
     pub fn enter(&mut self) {
@@ -229,7 +117,13 @@ where
                         let app = app.clone();
                         // 开启新的播放线程，播放新的音乐
                         current_play_thread = Some(thread::spawn(move || {
-                            Self::play_midi(data, app.clone(), tone_player, led, exit_signal.clone());
+                            Self::play_midi(
+                                data,
+                                app.clone(),
+                                tone_player,
+                                led,
+                                exit_signal.clone(),
+                            );
                             if !exit_signal.load(Ordering::SeqCst) {
                                 // 不存在退出信号，自然播放完毕
                                 app.upgrade_in_event_loop(move |ui| {
@@ -256,7 +150,7 @@ where
     }
 
     pub fn play(&mut self, item: MusicItemInfo) -> bool {
-        if let Some(f) = MUSIC_DIST.get_file(item.path.as_str()) {
+        if let Some(f) = resources::MUSIC_DIST.get_file(item.path.as_str()) {
             self.event_sender
                 .send(MusicAppEvent::Switch {
                     info: item,

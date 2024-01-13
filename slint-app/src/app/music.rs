@@ -89,7 +89,6 @@ where
         let mut current_half_steps = 0;
 
         let mut current_freq = 0;
-        let mut current_freq_play_time = Instant::now();
 
         for event in track {
             if exit_signal.load(Ordering::SeqCst) {
@@ -150,13 +149,11 @@ where
                         midly::MidiMessage::NoteOff { key: _, vel: _ } => {
                             println!("off");
                             current_freq = 0;
-                            current_freq_play_time = Instant::now();
                             player.off();
                         }
                         midly::MidiMessage::NoteOn { key, vel } => {
                             if vel == 0 {
                                 current_freq = 0;
-                                current_freq_play_time = Instant::now();
                                 player.off();
                             } else {
                                 println!("key: {}, vel: {}", key, vel);
@@ -176,13 +173,10 @@ where
                                 // .unwrap();
 
                                 // 始终倾向于播放更高音调的音，有更高音调的播放更高音调的
-                                // 或者如果当前播放的音调已经超过200ms，那么也可以播放新的音调
+                                // 或者如果当前播放的音调已经超过1000ms，那么也可以播放新的音调
 
-                                if freq > current_freq
-                                    || current_freq_play_time.elapsed() > Duration::from_millis(200)
-                                {
+                                if freq > current_freq {
                                     current_freq = freq;
-                                    current_freq_play_time = Instant::now();
                                     player.tone(freq);
                                 }
                             }

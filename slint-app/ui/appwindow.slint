@@ -94,6 +94,10 @@ export component AppWindow inherits Window {
                     music-page-exit => { music-page-exit(); }
             
                     network-monitor-page-plot: network-monitor-page-plot;
+
+                    firework-page-enter => { firework-page-enter(); }
+                    firework-page-exit => { firework-page-exit(); }
+                    firework-page-fire => { firework-page-fire(); }
                 }
             }
         }
@@ -142,6 +146,11 @@ export component AppWindow inherits Window {
 
     // network
     in property <image> network-monitor-page-plot;
+
+    // firework
+    callback firework-page-fire();
+    callback firework-page-enter();
+    callback firework-page-exit();
 
     // 触发点击事件
     // count: 点击次数

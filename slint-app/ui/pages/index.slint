@@ -11,6 +11,7 @@ import { ProjectorPage } from "projector/index.slint";
 import { EvilApplePage } from "evilapple/index.slint";
 import { MusicPage, MusicItemInfo } from "music/index.slint";
 import { NetworkMoniterPage } from "network/index.slint";
+import { FireworkPage } from "firework/index.slint";
 
 export component MultiPage inherits Rectangle {
     property <Page> current-page: Page.Boot;
@@ -18,7 +19,7 @@ export component MultiPage inherits Rectangle {
     // BootPage
     boot-page := BootPage {
         visible: current-page == Page.Boot;
-        boot-finish => { enter-page(Page.Music); }
+        boot-finish => { enter-page(Page.Firework); }
     }
 
     public function boot-page-set-state(state: BootState) {
@@ -143,6 +144,20 @@ export component MultiPage inherits Rectangle {
         plot: network-monitor-page-plot;
     }
 
+    callback firework-page-fire();
+    callback firework-page-enter();
+    callback firework-page-exit();
+    firework-page := FireworkPage {
+        visible: current-page == Page.Firework;
+        fire => { firework-page-fire() }
+        enter => { firework-page-enter() }
+        exit => { 
+            firework-page-exit();
+            current-page = Page.Home;
+        }
+
+    }
+
     menu-page := MenuPage {
         visible: current-page == Page.Menu;
         enter-selected-page(page) => { enter-page(page); }
@@ -155,6 +170,7 @@ export component MultiPage inherits Rectangle {
         if (page == Page.FPSTest) { fpstest-page.on-enter(); }
         if (page == Page.Projector) { projector-page.on-enter(); }
         if (page == Page.Music) { music-page.on-enter(); }
+        if (page == Page.Firework) { firework-page-enter(); }
     }
 
     public function on-one-button-click() {
@@ -164,7 +180,7 @@ export component MultiPage inherits Rectangle {
         if (current-page == Page.LED) { led-page.on-one-button-click(); }
         if (current-page == Page.FPSTest) { fpstest-page.on-one-button-click(); }
         if (current-page == Page.Music) { music-page.on-one-button-click(); }
-
+        if (current-page == Page.Firework) { firework-page.on-one-button-click(); }
     }
 
     public function on-one-button-double-click() {
@@ -185,6 +201,7 @@ export component MultiPage inherits Rectangle {
         if (current-page == Page.FPSTest) { fpstest-page.on-one-button-long-pressed-holding(dur); }
         if (current-page == Page.Projector) { projector-page.on-one-button-long-pressed-holding(dur); }
         if (current-page == Page.Music) { music-page.on-one-button-long-pressed-holding(dur); }
+        if (current-page == Page.Firework) { firework-page.on-one-button-long-pressed-holding(dur); }
     }
 
     public function on-one-button-long-pressed-held(dur: duration) {

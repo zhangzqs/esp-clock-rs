@@ -24,3 +24,6 @@ pub use network::NetworkMonitorApp;
 
 mod server;
 pub use server::HttpServerApp;
+
+mod firework;
+pub use firework::FireworkApp;

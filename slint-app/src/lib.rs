@@ -20,6 +20,7 @@ mod app;
 mod interface;
 mod storage;
 mod util;
+mod common;
 
 use app::*;
 
@@ -82,6 +83,7 @@ where
     network_monitor_app: Rc<RefCell<NetworkMonitorApp>>,
     http_server_app: Rc<RefCell<HttpServerApp<SB, SCBC>>>,
     raw_storage: RS,
+    firework_app: Rc<RefCell<FireworkApp<EGC, EGD, EGE>>>,
 }
 
 impl<CB, SB, SYS, EGC, EGD, EGE, TONE, EA, SCBC, LC, RS>
@@ -131,6 +133,7 @@ where
             app_window.as_weak(),
             screen_led_ctl.clone(),
         )));
+        let firework_app = Rc::new(RefCell::new(FireworkApp::new(deps.display_group.clone())));
         let app = MyApp {
             app_window,
             system: deps.system,
@@ -145,6 +148,7 @@ where
             http_server_app,
             raw_storage,
             _screen_led_ctl: screen_led_ctl,
+            firework_app,
         };
         info!("MyApp created");
         app.bind_event_app();
@@ -229,6 +233,21 @@ where
             ui.on_music_page_play(move |i| {
                 info!("on_music_page_switch: {:?}", i);
                 music_app.borrow_mut().play(i)
+            });
+            let firework_app = self.firework_app.clone();
+            ui.on_firework_page_enter(move || {
+                info!("on_firework_page_enter");
+                firework_app.borrow_mut().enter();
+            });
+            let firework_app = self.firework_app.clone();
+            ui.on_firework_page_exit(move || {
+                info!("on_firework_page_exit");
+                firework_app.borrow_mut().exit();
+            });
+            let firework_app = self.firework_app.clone();
+            ui.on_firework_page_fire(move || {
+                info!("on_firework_page_fire");
+                firework_app.borrow_mut().fire();
             });
         }
     }

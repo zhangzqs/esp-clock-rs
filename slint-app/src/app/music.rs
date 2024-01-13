@@ -5,7 +5,7 @@ use std::{
         Arc, Mutex,
     },
     thread,
-    time::{Duration, Instant},
+    time::{Duration},
 };
 
 use crate::{interface::LEDController, AppWindow, MusicItemInfo};

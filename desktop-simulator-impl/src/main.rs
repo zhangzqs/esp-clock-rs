@@ -21,7 +21,7 @@ use embedded_graphics_simulator::{
 use log::{debug, info};
 
 use slint::Weak;
-use slint_app::{AppWindow, BootState, MyApp, MyAppDeps};
+use slint_app::{BootState, MyApp, MyAppDeps};
 
 use button_driver::{Button, ButtonConfig, PinWrapper};
 use desktop_svc::storage::KVStorage;
@@ -116,7 +116,7 @@ fn main() -> anyhow::Result<()> {
     let button_event_timer = slint::Timer::default();
     button_event_timer.start(
         slint::TimerMode::Repeated,
-        Duration::from_millis(10),
+        Duration::from_millis(16),
         move || {
             {
                 let physical_display_update_ref = physical_display.clone();

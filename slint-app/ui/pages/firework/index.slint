@@ -1,0 +1,20 @@
+export component FireworkPage inherits Rectangle {
+    callback enter();
+    callback exit();
+    callback fire();
+
+    public function on-one-button-click() {
+        self.fire();
+    }
+
+    public function on-enter() {
+        self.enter();
+        self.fire();
+    }
+
+    public function on-one-button-long-pressed-holding(dur: duration) {
+        if (dur > 3000ms) {
+            exit();
+        }
+    }
+}

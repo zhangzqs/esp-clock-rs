@@ -10,10 +10,7 @@ use embedded_graphics::{
 };
 use log::info;
 
-pub struct LogicalDisplay<D>
-where
-    D: DrawTarget,
-{
+pub struct LogicalDisplay<D> {
     parent: Arc<Mutex<DisplayGroup<D>>>,
     aria: Rectangle,
     is_active: bool,
@@ -97,10 +94,7 @@ where
 
         let origin = self.aria.top_left;
         // 过滤并填充
-        phy_display.fill_contiguous(
-            &Rectangle::new(origin + area.top_left, area.size),
-            colors,
-        )
+        phy_display.fill_contiguous(&Rectangle::new(origin + area.top_left, area.size), colors)
     }
 
     fn fill_solid(&mut self, area: &Rectangle, color: Self::Color) -> Result<(), Self::Error> {
@@ -129,10 +123,7 @@ where
     }
 }
 
-pub struct DisplayGroup<D>
-where
-    D: DrawTarget,
-{
+pub struct DisplayGroup<D> {
     physical_display: Arc<Mutex<D>>,
     physical_display_size: Size,
     logical_displays: Vec<Arc<Mutex<LogicalDisplay<D>>>>,

@@ -22,3 +22,6 @@ slint-app = { path = "../slint-app" }
 embedded-graphics-group = { path = "../libs/embedded-graphics-group" }
 embedded-tone = { path = "../libs/embedded-tone" }
 rodio = "0.17.3"
+
+[profile.release]
+debug = true

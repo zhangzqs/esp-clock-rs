@@ -39,11 +39,14 @@ impl PinWrapper for MyButtonPin {
 
 #[no_mangle]
 fn android_main(app: AndroidApp) {
-    let mut db_path = app.internal_data_path().unwrap();
-    db_path.push("storage.db");
     android_logger::init_once(android_logger::Config::default().with_min_level(log::Level::Debug));
 
-    let kv = KVStorage::new(db_path).unwrap();
+    let kv = KVStorage::new({
+        let mut db_path = app.internal_data_path().unwrap();
+        db_path.push("storage.db");
+        db_path
+    })
+    .unwrap();
 
     slint::platform::set_platform(Box::new(AndroidPlatform::new(app))).unwrap();
     info!("Android Main");

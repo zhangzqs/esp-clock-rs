@@ -21,7 +21,7 @@ mod interface;
 mod storage;
 mod util;
 mod common;
-pub mod resources;
+mod resources;
 
 use app::*;
 

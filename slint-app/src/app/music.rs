@@ -5,14 +5,13 @@ use std::{
         Arc, Mutex,
     },
     thread,
-    time::Duration,
 };
 
 use crate::{common, interface::LEDController, resources, AppWindow, MusicItemInfo};
-use embedded_tone::{AbsulateNotePitch, RawTonePlayer};
-use include_dir::{include_dir, Dir};
-use log::{error, info};
-use midly::{MetaMessage, Timing, TrackEventKind};
+use embedded_tone::{RawTonePlayer};
+
+use log::{info};
+
 use slint::Weak;
 use std::sync::mpsc;
 
@@ -129,7 +128,8 @@ where
                                 app.upgrade_in_event_loop(move |ui| {
                                     // 将会自动播放下一曲
                                     ui.invoke_music_page_on_play_done(info);
-                                });
+                                })
+                                .unwrap();
                             }
                         }));
                     }

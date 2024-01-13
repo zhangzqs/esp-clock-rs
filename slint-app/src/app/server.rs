@@ -12,7 +12,7 @@ use crate::{
     AppWindow, LEDController,
 };
 use embedded_io::Write;
-use include_dir::{include_dir, Dir};
+
 
 use embedded_svc::http::Method;
 

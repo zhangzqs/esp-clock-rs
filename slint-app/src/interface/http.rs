@@ -1,5 +1,5 @@
 mod client;
-pub use client::ClientBuilder;
+pub use self::client::ClientBuilder;
 
 mod server;
-pub use server::{ServerBuilder, Server};
+pub use self::server::{ServerBuilder, Server};

@@ -10,14 +10,11 @@ use std::{
 
 use embedded_io::Write as _;
 use embedded_svc::http::{
-    headers::{content_type},
+    headers::content_type,
     server::{Connection, Handler, HandlerResult},
     Headers, Method, Query,
 };
 use log::{debug, info, warn};
-
-
-
 
 struct DefaultHandle404;
 
@@ -338,7 +335,7 @@ impl From<HttpServerError> for std::io::Error {
     fn from(val: HttpServerError) -> Self {
         match val {
             HttpServerError::IO { io_error, .. } => io_error,
-            _ => std::io::Error::other(val.to_string()),
+            _ => std::io::Error::new(std::io::ErrorKind::Other, val.to_string()),
         }
     }
 }

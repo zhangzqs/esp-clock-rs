@@ -30,7 +30,7 @@ jobs:
       - name: Build app for desktop
         run: |
           sudo apt update
-          sudo fapt install libudev-dev libasound2-dev libsdl2-dev
+          sudo apt install libudev-dev libasound2-dev libsdl2-dev
           cd desktop-simulator-impl && cargo build && cd -
 
       - name: Build server

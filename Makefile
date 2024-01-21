@@ -13,6 +13,7 @@ cloc:
 	cloc . --vcs git
 
 generate:
+	cd vue-console && npm install && cd -
 	cd slint-app && make all && cd -
 
 run-on-desktop: generate

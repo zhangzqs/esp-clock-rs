@@ -28,7 +28,10 @@ jobs:
         run: make generate
 
       - name: Build app for desktop
-        run: cd desktop-simulator-impl && cargo build && cd -
+        run: |
+          apt update
+          apt install libudev-dev libasound2-dev libsdl2-dev
+          cd desktop-simulator-impl && cargo build && cd -
 
       - name: Build server
         run: cd server && cargo build && cd -

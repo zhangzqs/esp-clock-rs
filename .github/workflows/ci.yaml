@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          components: rustfmt, clippy
+          override: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 14
+
+      - name: Generate static file
+        run: make generate
+
+      - name: Build app for desktop
+        run: cd desktop-simulator-impl && cargo build && cd -
+
+      - name: Build server
+        run: cd server && cargo build && cd -
+
+      - name: Build app for esp32
+        run: cd esp32c3-impl && cargo build && cd -

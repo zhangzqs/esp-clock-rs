@@ -1,10 +1,14 @@
+mod home;
 mod scheduler;
-pub use scheduler::SchedulerMessage;
+pub use {home::HomeMessage, scheduler::SchedulerMessage};
 
-#[derive(Debug, Clone, Copy)]
+use crate::app::PageRouteTable;
+
+#[derive(Debug, Clone)]
 pub enum Message {
     Empty,
-    SchedulerMessage(SchedulerMessage),
-    HomeMessage,
-    WeatherMessage,
+    Scheduler(SchedulerMessage),
+    GoToPage(PageRouteTable),
+    HomePage(HomeMessage),
+    Weather,
 }

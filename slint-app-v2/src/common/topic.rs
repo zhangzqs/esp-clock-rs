@@ -1,4 +1,2 @@
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub enum Topic {
-    SecondPeriod,
-}
+pub enum Topic {}

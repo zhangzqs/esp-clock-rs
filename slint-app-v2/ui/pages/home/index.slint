@@ -41,12 +41,18 @@ struct WeatherData {
     current-humi: int,
 }
 
-export global TimeWeatherHomeLogic {
+export global HomeViewModel {
     in property <TimeData> time;
     in property <WeatherData> weather;
+}
+
+export component HomePage inherits Rectangle {
+    background: black;
+    property <TimeData> time <=> HomeViewModel.time;
+    property <WeatherData> weather <=> HomeViewModel.weather;
 
     // 将一个整数n转化为2位的字符串，不足2位的前面补0
-    function cvt-n-to-two(n: int) -> string {
+    pure function cvt-n-to-two(n: int) -> string {
         if (n < 10) {
             return "0" + n;
         }
@@ -62,30 +68,24 @@ export global TimeWeatherHomeLogic {
         return "error";
     }
 
-    pure public function build-time-string() -> string {
+    pure function build-time-string() -> string {
         return "\{cvt-n-to-two(time.hour)}:\{cvt-n-to-two(time.minute)}:\{cvt-n-to-two(time.second)}";
     }
 
-    pure public function build-date-week-string() -> string {
+    pure function build-date-week-string() -> string {
         return "\{time.year}年\{cvt-n-to-two(time.month)}月\{cvt-n-to-two(time.day)}日  \{cvt-n-to-week(time.week)}";
     }
 
-    pure public function build-weather-name(n: Weather) -> string {
+    pure function build-weather-name(n: Weather) -> string {
         return "多云";
     }
 
-    pure public function build-localtion-name(n: Location) -> string {
+    pure function build-localtion-name(n: Location) -> string {
         if (n == Location.Shanghai) {
             return "上海";
         }
         return "未知";
     }
-}
-
-export component TimeWeatherHomePage inherits Rectangle {
-    background: black;
-    property <TimeData> time <=> TimeWeatherHomeLogic.time;
-    property <WeatherData> weather <=> TimeWeatherHomeLogic.weather;
 
     VerticalLayout {
         padding: 2px;
@@ -108,7 +108,7 @@ export component TimeWeatherHomePage inherits Rectangle {
                         HorizontalLayout {
                             alignment: center;
                             Text {
-                                text: TimeWeatherHomeLogic.build-localtion-name(weather.location);
+                                text: build-localtion-name(weather.location);
                                 font-size: 15px;
                                 color: white;
                             }
@@ -153,7 +153,7 @@ export component TimeWeatherHomePage inherits Rectangle {
                         HorizontalLayout {
                             alignment: center;
                             Text {
-                                text: TimeWeatherHomeLogic.build-weather-name(weather.weather);
+                                text: build-weather-name(weather.weather);
                                 font-size: 16px;
                                 color: white;
                             }
@@ -176,7 +176,7 @@ export component TimeWeatherHomePage inherits Rectangle {
                 HorizontalLayout {
                     alignment: center;
                     Text {
-                        text: TimeWeatherHomeLogic.build-time-string();
+                        text: build-time-string();
                         font-size: 24px;
                         color: white;
                     }
@@ -185,7 +185,7 @@ export component TimeWeatherHomePage inherits Rectangle {
                 HorizontalLayout {
                     alignment: center;
                     Text {
-                        text: TimeWeatherHomeLogic.build-date-week-string();
+                        text: build-date-week-string();
                         font-size: 20px;
                         color: white;
                     }

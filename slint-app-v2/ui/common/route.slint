@@ -1,11 +1,9 @@
 export enum PageRouteTable {
     home,
     menu,
+    weather,
 }
 
 export global PageRouter {
     out property <PageRouteTable> current-page;
-    public function goto-page(p: PageRouteTable) {
-        current-page = p;
-    }
 }

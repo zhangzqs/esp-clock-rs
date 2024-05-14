@@ -1,14 +1,18 @@
-import { TimeWeatherHomePage } from "home/index.slint";
+import { HomePage, HomeViewModel } from "home/index.slint";
+import { MenuPage, MenuViewModel } from "menu/index.slint";
 import { PageRouter, PageRouteTable } from "../common/route.slint";
 
-export component RouteView {
-    home-page := TimeWeatherHomePage {
+export component RouteView inherits Rectangle {
+    home-page := HomePage {
         visible: PageRouter.current-page == PageRouteTable.home;
-        background: red;
     }
 
-    menu-page := Rectangle {
+    menu-page := MenuPage {
         visible: PageRouter.current-page == PageRouteTable.menu;
-        background: green;
     }
+}
+
+export { 
+    HomeViewModel, 
+    MenuViewModel
 }

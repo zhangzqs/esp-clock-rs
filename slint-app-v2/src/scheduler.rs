@@ -50,7 +50,7 @@ impl Scheduler {
             mq_buffer1: RefCell::new(vec![(
                 AppName::Scheduler,
                 MessageTo::Broadcast,
-                Message::SchedulerMessage(SchedulerMessage::Start), // 首次启动先广播一个开始调度消息
+                Message::Scheduler(SchedulerMessage::Start), // 首次启动先广播一个开始调度消息
             )]),
             mq_buffer2: Rc::new(RefCell::new(Vec::new())),
             topic_subscriber: Rc::new(RefCell::new(HashMap::new())),
@@ -75,7 +75,7 @@ impl Scheduler {
                             }),
                             from,
                             to,
-                            msg,
+                            msg.clone(),
                         )
                     }
                 }
@@ -89,7 +89,7 @@ impl Scheduler {
                             }),
                             from,
                             to,
-                            msg,
+                            msg.clone(),
                         );
                     });
                 }
@@ -105,7 +105,7 @@ impl Scheduler {
                                     }),
                                     from,
                                     to,
-                                    msg,
+                                    msg.clone(),
                                 )
                             });
                         }

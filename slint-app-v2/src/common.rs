@@ -4,7 +4,7 @@ mod topic;
 
 pub use {
     app_name::AppName,
-    message::{Message, SchedulerMessage},
+    message::{Message, SchedulerMessage, HomeMessage},
     topic::Topic,
 };
 

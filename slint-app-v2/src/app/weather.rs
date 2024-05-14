@@ -10,7 +10,7 @@ impl WeatherApp {
 
 impl App for WeatherApp {
     fn app_name(&self) -> AppName {
-        AppName::Weather
+        AppName::WeatherPage
     }
 
     fn handle_message(&mut self, ctx: Box<dyn Context>, from: AppName, to: MessageTo, msg: Message) {}

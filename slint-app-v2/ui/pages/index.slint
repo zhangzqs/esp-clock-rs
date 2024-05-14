@@ -1,0 +1,14 @@
+import { TimeWeatherHomePage } from "home/index.slint";
+import { PageRouter, PageRouteTable } from "../common/route.slint";
+
+export component RouteView {
+    home-page := TimeWeatherHomePage {
+        visible: PageRouter.current-page == PageRouteTable.home;
+        background: red;
+    }
+
+    menu-page := Rectangle {
+        visible: PageRouter.current-page == PageRouteTable.menu;
+        background: green;
+    }
+}

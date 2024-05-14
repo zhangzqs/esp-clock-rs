@@ -1,0 +1,17 @@
+[package]
+name = "slint-app-v2"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.83"
+# slint = { version = "1.3.0", default-features = false, features = [
+#     "compat-1-2",
+#     "unsafe-single-threaded",
+# ] }
+slint = "1.3.2"
+
+[build-dependencies]
+slint-build = { version = "1.3.0" }

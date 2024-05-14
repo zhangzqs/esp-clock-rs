@@ -1,0 +1,275 @@
+import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { HomeIcons } from "assets/index.slint";
+
+export enum Weather {
+    Cloudy,
+    Sunny,
+}
+
+export global WeatherLogic {
+    pure public function icon(w: Weather) -> image {
+        if (w == Weather.Cloudy) {
+            return HomeIcons.cloudy;
+        }
+        if (w == Weather.Sunny) {
+            return HomeIcons.sunny;
+        }
+        return HomeIcons.fog;
+    }
+}
+
+export enum Location {
+    Shanghai,
+}
+
+struct TimeData {
+    year: int,
+    month: int,
+    day: int,
+    hour: int,
+    minute: int,
+    second: int,
+    week: int,
+}
+
+struct WeatherData {
+    weather: Weather,
+    location: Location,
+    max-temp: int,
+    min-temp: int,
+    current-temp: int,
+    current-humi: int,
+}
+
+export global TimeWeatherHomeLogic {
+    in property <TimeData> time;
+    in property <WeatherData> weather;
+
+    // 将一个整数n转化为2位的字符串，不足2位的前面补0
+    function cvt-n-to-two(n: int) -> string {
+        if (n < 10) {
+            return "0" + n;
+        }
+        return n;
+    }
+
+    property <[string]> const-week-string: ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+    // 将一个整数n转化为星期
+    pure function cvt-n-to-week(n: int) -> string {
+        if (n >= 0 && n < 7) {
+            return const-week-string[n];
+        }
+        return "error";
+    }
+
+    pure public function build-time-string() -> string {
+        return "\{cvt-n-to-two(time.hour)}:\{cvt-n-to-two(time.minute)}:\{cvt-n-to-two(time.second)}";
+    }
+
+    pure public function build-date-week-string() -> string {
+        return "\{time.year}年\{cvt-n-to-two(time.month)}月\{cvt-n-to-two(time.day)}日  \{cvt-n-to-week(time.week)}";
+    }
+
+    pure public function build-weather-name(n: Weather) -> string {
+        return "多云";
+    }
+
+    pure public function build-localtion-name(n: Location) -> string {
+        if (n == Location.Shanghai) {
+            return "上海";
+        }
+        return "未知";
+    }
+}
+
+export component TimeWeatherHomePage inherits Rectangle {
+    background: black;
+    property <TimeData> time <=> TimeWeatherHomeLogic.time;
+    property <WeatherData> weather <=> TimeWeatherHomeLogic.weather;
+
+    VerticalLayout {
+        padding: 2px;
+        Rectangle {
+            height: 80px;
+            border-color: gray;
+            border-width: 1px;
+            border-radius: 10px;
+            HorizontalLayout {
+                padding: 5px;
+                Rectangle {
+                    VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: "今日天气";
+                            font-size: 15px;
+                            color: white;
+                        }
+
+                        HorizontalLayout {
+                            alignment: center;
+                            Text {
+                                text: TimeWeatherHomeLogic.build-localtion-name(weather.location);
+                                font-size: 15px;
+                                color: white;
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: 1px;
+                    background: gray;
+                }
+
+                Rectangle {
+                    VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: "最高温度: \{weather.max-temp}℃";
+                            font-size: 15px;
+                            color: white;
+                        }
+
+                        Text {
+                            text: "最低温度: \{weather.min-temp}℃";
+                            font-size: 15px;
+                            color: white;
+                        }
+                    }
+                }
+
+                Rectangle {
+                    border-color: gray;
+                    border-width: 1px;
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: WeatherLogic.icon(weather.weather);
+                            width: 45px;
+                            height: 45px;
+                            colorize: white;
+                        }
+
+                        HorizontalLayout {
+                            alignment: center;
+                            Text {
+                                text: TimeWeatherHomeLogic.build-weather-name(weather.weather);
+                                font-size: 16px;
+                                color: white;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            height: 8px;
+        }
+
+        Rectangle {
+            border-width: 1px;
+            border-radius: 10px;
+            VerticalLayout {
+                height: 80px;
+                alignment: center;
+                HorizontalLayout {
+                    alignment: center;
+                    Text {
+                        text: TimeWeatherHomeLogic.build-time-string();
+                        font-size: 24px;
+                        color: white;
+                    }
+                }
+
+                HorizontalLayout {
+                    alignment: center;
+                    Text {
+                        text: TimeWeatherHomeLogic.build-date-week-string();
+                        font-size: 20px;
+                        color: white;
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            height: 10px;
+        }
+
+        Rectangle {
+            height: 80px;
+            VerticalLayout {
+                alignment: center;
+                padding-bottom: 10px;
+                HorizontalLayout {
+                    Image {
+                        source: HomeIcons.thermometer;
+                        colorize: red;
+                    }
+
+                    HorizontalBox {
+                        Rectangle {
+                            border-width: 1px;
+                            border-color: white;
+                            border-radius: 5px;
+                            HorizontalLayout {
+                                padding: 2px;
+                                Rectangle {
+                                    background: red;
+                                    width: 50%;
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "\{weather.current-temp}";
+                        font-size: 20px;
+                        color: red;
+                    }
+
+                    Text {
+                        text: "℃";
+                        font-size: 20px;
+                        color: white;
+                    }
+                }
+
+                HorizontalLayout {
+                    Image {
+                        source: HomeIcons.water-level;
+                        colorize: skyblue;
+                    }
+
+                    HorizontalBox {
+                        Rectangle {
+                            border-width: 1px;
+                            border-color: white;
+                            border-radius: 5px;
+                            HorizontalLayout {
+                                padding: 2px;
+                                Rectangle {
+                                    background: green;
+                                    width: 75%;
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "\{weather.current-humi}";
+                        font-size: 20px;
+                        color: green;
+                    }
+
+                    Text {
+                        text: "%";
+                        font-size: 20px;
+                        color: white;
+                    }
+                }
+            }
+        }
+    }
+}

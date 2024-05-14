@@ -13,12 +13,5 @@ impl App for WeatherApp {
         AppName::Weather
     }
 
-    fn handle_message(&self, ctx: Box<dyn Context>, from: AppName, to: MessageTo, msg: Message) {
-        match from {
-            AppName::Home => {
-                ctx.send_message(MessageTo::App(AppName::Home), Message::WeatherMessage);
-            }
-            _ => {}
-        }
-    }
+    fn handle_message(&mut self, ctx: Box<dyn Context>, from: AppName, to: MessageTo, msg: Message) {}
 }

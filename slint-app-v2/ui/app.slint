@@ -2,7 +2,15 @@ import { Env } from "common/env.slint";
 import { PageRouteTable, PageRouter } from "common/route.slint";
 import { RouteView } from "pages/index.slint";
 
+export global AppWindowViewModel {
+    in-out property <string> now;
+}
+
 export component AppWindow inherits Window {
     width: Env.screen-width;
     height: Env.screen-height;
+
+    Text {
+        text: AppWindowViewModel.now;
+    }
 }

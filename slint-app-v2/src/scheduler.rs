@@ -22,9 +22,8 @@ impl Context for ContextImpl {
         self.topic_subscriber
             .borrow_mut()
             .entry(topic)
-            .and_modify(|x| {
-                x.insert(self.app_name);
-            });
+            .or_default()
+            .insert(self.app_name);
     }
 
     fn unsubscribe_topic_message(&self, topic: Topic) {
@@ -67,7 +66,7 @@ impl Scheduler {
         for (from, to, msg) in self.mq_buffer1.borrow_mut().drain(..) {
             match to {
                 MessageTo::Broadcast => {
-                    for (app_name, app) in self.apps.iter() {
+                    for (app_name, app) in self.apps.iter_mut() {
                         app.handle_message(
                             Box::new(ContextImpl {
                                 app_name: *app_name,
@@ -80,28 +79,36 @@ impl Scheduler {
                         )
                     }
                 }
-                MessageTo::App(app_name) => self.apps[&app_name].handle_message(
-                    Box::new(ContextImpl {
-                        app_name: app_name,
-                        mq_buffer: self.mq_buffer2.clone(),
-                        topic_subscriber: self.topic_subscriber.clone(),
-                    }),
-                    from,
-                    to,
-                    msg,
-                ),
-                MessageTo::Topic(topic) => {
-                    for app_name in self.topic_subscriber.borrow()[&topic].iter() {
-                        self.apps[app_name].handle_message(
+                MessageTo::App(app_name) => {
+                    self.apps.entry(app_name).and_modify(|x| {
+                        x.handle_message(
                             Box::new(ContextImpl {
-                                app_name: *app_name,
+                                app_name: app_name,
                                 mq_buffer: self.mq_buffer2.clone(),
                                 topic_subscriber: self.topic_subscriber.clone(),
                             }),
                             from,
                             to,
                             msg,
-                        )
+                        );
+                    });
+                }
+                MessageTo::Topic(topic) => {
+                    if let Some(apps) = self.topic_subscriber.borrow().get(&topic) {
+                        for app_name in apps.iter() {
+                            self.apps.entry(*app_name).and_modify(|x| {
+                                x.handle_message(
+                                    Box::new(ContextImpl {
+                                        app_name: *app_name,
+                                        mq_buffer: self.mq_buffer2.clone(),
+                                        topic_subscriber: self.topic_subscriber.clone(),
+                                    }),
+                                    from,
+                                    to,
+                                    msg,
+                                )
+                            });
+                        }
                     }
                 }
             }

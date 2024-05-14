@@ -31,5 +31,5 @@ pub trait App {
     fn app_name(&self) -> AppName;
 
     // 当app收到消息时
-    fn handle_message(&self, ctx: Box<dyn Context>, from: AppName, to: MessageTo, msg: Message);
+    fn handle_message(&mut self, ctx: Box<dyn Context>, from: AppName, to: MessageTo, msg: Message);
 }

@@ -1,17 +1,17 @@
 use crate::common::{App, AppName, Context, Message, MessageTo};
 
-pub struct WeatherApp {}
+pub struct WeatherPageApp {}
 
-impl WeatherApp {
+impl WeatherPageApp {
     pub fn new() -> Self {
         Self {}
     }
 }
 
-impl App for WeatherApp {
+impl App for WeatherPageApp {
     fn app_name(&self) -> AppName {
         AppName::WeatherPage
     }
 
-    fn handle_message(&mut self, ctx: Box<dyn Context>, from: AppName, to: MessageTo, msg: Message) {}
+    fn handle_message(&mut self, _ctx: Box<dyn Context>, _from: AppName, _to: MessageTo, _msg: Message) {}
 }

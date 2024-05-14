@@ -50,7 +50,7 @@ impl Scheduler {
             mq_buffer1: RefCell::new(vec![(
                 AppName::Scheduler,
                 MessageTo::Broadcast,
-                Message::Scheduler(SchedulerMessage::Start), // 首次启动先广播一个开始调度消息
+                Message::Lifecycle(LifecycleMessage::Init), // 首次启动先广播一个开始调度消息
             )]),
             mq_buffer2: Rc::new(RefCell::new(Vec::new())),
             topic_subscriber: Rc::new(RefCell::new(HashMap::new())),
@@ -83,7 +83,7 @@ impl Scheduler {
                     self.apps.entry(app_name).and_modify(|x| {
                         x.handle_message(
                             Box::new(ContextImpl {
-                                app_name: app_name,
+                                app_name,
                                 mq_buffer: self.mq_buffer2.clone(),
                                 topic_subscriber: self.topic_subscriber.clone(),
                             }),

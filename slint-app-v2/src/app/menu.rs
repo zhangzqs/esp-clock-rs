@@ -1,19 +1,76 @@
-use crate::common::{App, AppName, Context, Message, MessageTo};
+use std::rc::Rc;
 
-pub struct MenuApp {}
+use slint::{ComponentHandle, Model, Weak};
 
-impl App for MenuApp {
-    fn app_name(&self) -> crate::common::AppName {
+use crate::app::{AppWindow, MenuViewModel};
+use crate::common::{
+    App, AppName, Context, LifecycleMessage, Message, MessageTo, OneButtonMessage,
+};
+
+use super::RouterApp;
+
+pub struct MenuPageApp {
+    app: Weak<AppWindow>,
+    is_show: bool,
+}
+
+impl MenuPageApp {
+    pub fn new(app: Weak<AppWindow>) -> Self {
+        Self {
+            app,
+            is_show: false,
+        }
+    }
+
+    fn next_page(&self) {
+        if let Some(ui) = self.app.upgrade() {
+            let menu = ui.global::<MenuViewModel>();
+            let total_size = menu.get_entry_list().row_count();
+            menu.set_current_id((menu.get_current_id() + 1) % total_size as i32);
+        }
+    }
+
+    fn enter_page(&self, ctx: Rc<Box<dyn Context>>) {
+        if let Some(ui) = self.app.upgrade() {
+            let menu = ui.global::<MenuViewModel>();
+            if let Some(x) = menu
+                .get_entry_list()
+                .row_data(menu.get_current_id() as usize)
+            {
+                ctx.send_message(MessageTo::App(AppName::Router), Message::Router(x.page))
+            }
+        }
+    }
+}
+
+impl App for MenuPageApp {
+    fn app_name(&self) -> AppName {
         AppName::MenuPage
     }
 
     fn handle_message(
         &mut self,
-        _ctx: Box<dyn Context>,
+        ctx: Box<dyn Context>,
         _from: AppName,
         _to: MessageTo,
-        _msg: Message,
+        msg: Message,
     ) {
-        todo!()
+        match msg {
+            Message::Lifecycle(msg) => match msg {
+                LifecycleMessage::Show => self.is_show = true,
+                LifecycleMessage::Hide => self.is_show = false,
+                _ => {}
+            },
+            Message::OneButton(msg) => {
+                if self.is_show {
+                    match msg {
+                        OneButtonMessage::Click => self.next_page(),
+                        OneButtonMessage::DoubleClick => self.enter_page(Rc::new(ctx)),
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
     }
 }

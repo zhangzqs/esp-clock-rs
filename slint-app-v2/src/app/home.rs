@@ -1,24 +1,18 @@
-use std::{
-    rc::Rc,
-    time::{self, Duration},
-};
+use std::{rc::Rc, time::Duration};
 
 use ::time::{OffsetDateTime, UtcOffset};
 use slint::{ComponentHandle, Weak};
 
-use super::{AppWindow, HomeViewModel, MenuViewModel, TimeData, WeatherData};
-use crate::{
-    common::{App, AppName, Context, HomeMessage, Message, MessageTo, SchedulerMessage, Topic},
-    scheduler::Scheduler,
-};
+use super::{AppWindow, HomeViewModel, TimeData, WeatherData};
+use crate::common::{App, AppName, Context, HomeMessage, LifecycleMessage, Message, MessageTo};
 
-pub struct HomeApp {
+pub struct HomePageApp {
     app: Weak<AppWindow>,
     time_update_timer: Option<slint::Timer>,
     weather_update_timer: Option<slint::Timer>,
 }
 
-impl HomeApp {
+impl HomePageApp {
     pub fn new(app: Weak<AppWindow>) -> Self {
         Self {
             app,
@@ -28,7 +22,7 @@ impl HomeApp {
     }
 }
 
-impl HomeApp {
+impl HomePageApp {
     fn init(&mut self, ctx: Rc<Box<dyn Context>>) {
         let app = self.app.clone();
         self.time_update_timer
@@ -75,7 +69,7 @@ impl HomeApp {
     }
 }
 
-impl App for HomeApp {
+impl App for HomePageApp {
     fn app_name(&self) -> AppName {
         AppName::HomePage
     }
@@ -89,10 +83,11 @@ impl App for HomeApp {
     ) {
         let ctx = Rc::new(ctx);
         match msg {
-            Message::Scheduler(msg) => match msg {
-                SchedulerMessage::Start => {
+            Message::Lifecycle(msg) => match msg {
+                LifecycleMessage::Init => {
                     self.init(ctx);
                 }
+                _ => {}
             },
             Message::HomePage(msg) => match msg {
                 HomeMessage::UpdateWeather(data) => {

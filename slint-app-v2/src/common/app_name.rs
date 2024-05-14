@@ -2,6 +2,8 @@
 pub enum AppName {
     // 天气查询器
     WeatherClient,
+    // 路由器
+    Router,
     // App框架调度器
     Scheduler,
     // 首页

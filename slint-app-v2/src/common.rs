@@ -22,8 +22,8 @@ pub trait Context {
     // 订阅话题消息
     fn subscribe_topic_message(&self, topic: Topic);
 
-    // 退出app
-    fn exit(self);
+    // 取消订阅话题消息
+    fn unsubscribe_topic_message(&self, topic: Topic);
 }
 
 pub trait App {

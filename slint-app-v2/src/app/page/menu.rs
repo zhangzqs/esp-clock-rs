@@ -2,12 +2,10 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Model, Weak};
 
-use crate::app::{AppWindow, MenuViewModel};
 use crate::common::{
-    App, AppName, Context, LifecycleMessage, Message, MessageTo, OneButtonMessage,
+    App, AppName, Context, HandleResult, LifecycleMessage, Message, MessageTo, OneButtonMessage,
 };
-
-use super::RouterApp;
+use crate::ui::{AppWindow, MenuViewModel};
 
 pub struct MenuPageApp {
     app: Weak<AppWindow>,
@@ -54,7 +52,7 @@ impl App for MenuPageApp {
         _from: AppName,
         _to: MessageTo,
         msg: Message,
-    ) {
+    ) -> HandleResult {
         match msg {
             Message::Lifecycle(msg) => match msg {
                 LifecycleMessage::Show => self.is_show = true,
@@ -65,12 +63,13 @@ impl App for MenuPageApp {
                 if self.is_show {
                     match msg {
                         OneButtonMessage::Click => self.next_page(),
-                        OneButtonMessage::DoubleClick => self.enter_page(Rc::new(ctx)),
+                        OneButtonMessage::Clicks(2) => self.enter_page(Rc::new(ctx)),
                         _ => {}
                     }
                 }
             }
             _ => {}
         }
+        HandleResult::Discard
     }
 }

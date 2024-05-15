@@ -1,9 +1,8 @@
-mod home;
+use crate::ui::PageRouteTable;
 use std::time::Duration;
 
+mod home;
 pub use home::HomeMessage;
-
-use crate::app::PageRouteTable;
 
 #[derive(Debug, Clone)]
 pub enum LifecycleMessage {
@@ -19,14 +18,12 @@ pub enum LifecycleMessage {
 pub enum OneButtonMessage {
     // 单击
     Click,
-    // 双击
-    DoubleClick,
-    // 三击
-    TripleClick,
+    // 点击超过一次
+    Clicks(usize),
     // 长按
     LongPressHolding(Duration),
     // 长按松手
-    LongPressHolded,
+    LongPressHeld(Duration),
 }
 
 #[derive(Debug, Clone)]

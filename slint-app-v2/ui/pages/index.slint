@@ -3,6 +3,13 @@ import { MenuPage, MenuViewModel } from "menu/index.slint";
 import { PageRouter, PageRouteTable } from "../common/route.slint";
 
 export component RouteView inherits Rectangle {
+    boot-page := Rectangle {
+        visible: PageRouter.current-page == PageRouteTable.boot;
+        Text {
+            text: "原神，启动！";
+        }
+    }
+
     home-page := HomePage {
         visible: PageRouter.current-page == PageRouteTable.home;
     }

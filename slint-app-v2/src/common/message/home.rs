@@ -1,4 +1,4 @@
-use crate::app::WeatherData;
+use crate::ui::WeatherData;
 
 #[derive(Debug, Clone)]
 pub enum HomeMessage {

@@ -2,9 +2,19 @@ import { Env } from "common/env.slint";
 import { PageRouteTable, PageRouter } from "common/route.slint";
 import { RouteView, HomeViewModel, MenuViewModel } from "pages/index.slint";
 
+export global TouchOneButten {
+    callback pointer-event(PointerEvent);
+}
+
 export component AppWindow inherits Window {
     width: Env.screen-width;
     height: Env.screen-height;
+
+    TouchArea {
+        pointer-event(it) => {
+            TouchOneButten.pointer-event(it);
+        }
+    }
 
     RouteView { }
 }

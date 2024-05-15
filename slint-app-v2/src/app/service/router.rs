@@ -1,7 +1,7 @@
 use slint::{ComponentHandle, Weak};
 
-use crate::app::{AppWindow, PageRouteTable, PageRouter};
-use crate::common::{App, AppName, Context, LifecycleMessage, Message, MessageTo};
+use crate::common::{App, AppName, Context, HandleResult, LifecycleMessage, Message, MessageTo};
+use crate::ui::{AppWindow, PageRouteTable, PageRouter};
 
 pub struct RouterApp {
     app: Weak<AppWindow>,
@@ -11,8 +11,8 @@ impl RouterApp {
     pub fn new(app: Weak<AppWindow>) -> Self {
         Self { app }
     }
-    fn goto_page(&self, r: PageRouteTable) {
-        if let Some(ui) = self.app.upgrade() {
+    fn goto_page(app: Weak<AppWindow>, r: PageRouteTable) {
+        if let Some(ui) = app.upgrade() {
             let router = ui.global::<PageRouter>();
             router.set_current_page(r);
         }
@@ -26,6 +26,7 @@ impl RouterApp {
 
     fn route_table_to_app_name(r: PageRouteTable) -> AppName {
         match r {
+            PageRouteTable::Boot => AppName::BootPage,
             PageRouteTable::Home => AppName::HomePage,
             PageRouteTable::Menu => AppName::MenuPage,
             PageRouteTable::Weather => AppName::WeatherPage,
@@ -35,7 +36,7 @@ impl RouterApp {
 
 impl App for RouterApp {
     fn app_name(&self) -> AppName {
-        AppName::MenuPage
+        AppName::Router
     }
 
     fn handle_message(
@@ -44,7 +45,7 @@ impl App for RouterApp {
         _from: AppName,
         _to: MessageTo,
         msg: Message,
-    ) {
+    ) -> HandleResult {
         match msg {
             Message::Router(r) => {
                 if let Some(c) = self.get_current_page() {
@@ -53,13 +54,17 @@ impl App for RouterApp {
                         Message::Lifecycle(LifecycleMessage::Hide),
                     )
                 }
-                ctx.send_message(
+                let app = self.app.clone();
+                ctx.send_message_with_reply_once(
                     MessageTo::App(Self::route_table_to_app_name(r)),
                     Message::Lifecycle(LifecycleMessage::Show),
+                    Box::new(move |_, _msg| {
+                        Self::goto_page(app, r);
+                    }),
                 );
-                self.goto_page(r);
             }
             _ => {}
         }
+        HandleResult::Discard
     }
 }

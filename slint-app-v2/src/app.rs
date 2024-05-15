@@ -1,7 +1,4 @@
-mod home;
-mod menu;
-mod router;
-mod weather;
+mod page;
+mod service;
 
-pub use {home::HomePageApp, menu::MenuPageApp, router::RouterApp, weather::WeatherPageApp};
-slint::include_modules!();
+pub use {page::*, service::*};

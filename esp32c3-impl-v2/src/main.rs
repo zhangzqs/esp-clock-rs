@@ -1,46 +1,25 @@
+use anyhow::Ok;
 use display_interface_spi::SPIInterface;
-use embedded_graphics::{pixelcolor::Rgb565, prelude::*, primitives::Rectangle};
-use embedded_graphics_group::{DisplayGroup, LogicalDisplay};
-use embedded_hal::{delay::DelayUs, spi::MODE_3};
-use embedded_software_slint_backend::{EmbeddedSoftwarePlatform, RGB565PixelColorAdapter};
-
+use embedded_hal::spi::MODE_3;
 use esp_idf_hal::{
     delay::FreeRtos,
     gpio::{AnyIOPin, PinDriver},
     ledc::{config::TimerConfig, LedcDriver, LedcTimerDriver},
     prelude::*,
-    rmt::{
-        config::{Loop, TransmitConfig},
-        TxRmtDriver,
-    },
     spi::{config::Config, Dma, SpiDeviceDriver, SpiDriverConfig},
 };
-use esp_idf_svc::{
-    eventloop::EspSystemEventLoop,
-    nvs::{EspDefaultNvsPartition, EspNvs},
-    sntp::{EspSntp, OperatingMode, SntpConf, SyncMode},
-};
 use esp_idf_sys as _;
-use log::*;
 use mipidsi::{Builder, ColorInversion, Orientation};
-use std::{
-    cell::RefCell,
-    marker::PhantomData,
-    rc::Rc,
-    sync::{Arc, Mutex},
-    thread,
-    time::{self, Duration},
-};
 
 fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
-    esp_idf_svc::log::set_target_level("esp32c3_impl", log::LevelFilter::Debug)?;
-    esp_idf_svc::log::set_target_level("slint_app", log::LevelFilter::Debug)?;
+    esp_idf_svc::log::set_target_level("esp32c3_impl_v2", log::LevelFilter::Debug)?;
+    esp_idf_svc::log::set_target_level("slint_app_v2", log::LevelFilter::Debug)?;
 
     let peripherals = Peripherals::take().unwrap();
     // 所有引脚定义
-    let btn_pin = PinDriver::input(peripherals.pins.gpio9)?;
+    // let btn_pin = PinDriver::input(peripherals.pins.gpio9)?;
     let cs = PinDriver::output(peripherals.pins.gpio5)?;
     let dc = PinDriver::output(peripherals.pins.gpio4)?;
     let rst = PinDriver::output(peripherals.pins.gpio8)?;
@@ -71,7 +50,7 @@ fn main() -> anyhow::Result<()> {
     .unwrap();
     blue_led.set_duty(0).unwrap();
 
-    // 设置屏幕背光亮度为33%
+    // 设置屏幕背光亮度为100%
     let mut screen_ledc = LedcDriver::new(
         peripherals.ledc.channel1,
         LedcTimerDriver::new(
@@ -84,9 +63,8 @@ fn main() -> anyhow::Result<()> {
     .unwrap();
     screen_ledc.set_duty(screen_ledc.get_max_duty()).unwrap();
 
-    let di = SPIInterface::new(spi, dc, cs);
     // 初始化显示屏驱动
-    let mut physical_display = Builder::st7789(di)
+    let display = Builder::st7789(SPIInterface::new(spi, dc, cs))
         .with_display_size(240, 240)
         .with_framebuffer_size(240, 240)
         .with_orientation(Orientation::Portrait(false))
@@ -94,21 +72,8 @@ fn main() -> anyhow::Result<()> {
         .init(&mut FreeRtos, Some(rst))
         .unwrap();
 
-    let mut frames = 0;
-    let mut t1 = time::Instant::now();
-    loop {
-        frames += 1;
-        if frames >= 100 {
-            let t2 = time::Instant::now();
-            let d = t2 - t1;
-            println!("fps: {:?}", frames / d.as_secs());
-            t1 = t2;
-            frames = 0;
-        }
-        // 显示白色表示初始化完成
-        physical_display.clear(Rgb565::RED);
-        thread::sleep(Duration::from_millis(16));
-    }
-
+    let platform = embedded_software_slint_backend::MySoftwarePlatform::new(display);
+    slint::platform::set_platform(Box::new(platform)).map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    slint::run_event_loop().map_err(|e| anyhow::anyhow!("{:?}", e))?;
     Ok(())
 }

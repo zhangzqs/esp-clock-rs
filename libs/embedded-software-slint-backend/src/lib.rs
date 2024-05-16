@@ -1,175 +1,77 @@
-use core::{cell::RefCell, ops::Range};
-
 use std::{
+    cell::RefCell,
     rc::Rc,
     sync::{Arc, Mutex},
     thread,
 };
 
-use log::{error, info};
-
 use slint::{
     platform::{
-        software_renderer::{LineBufferProvider, MinimalSoftwareWindow, TargetPixel as SlintPixel},
+        software_renderer::{LineBufferProvider, MinimalSoftwareWindow},
         EventLoopProxy, Platform, WindowAdapter,
     },
-    EventLoopError, PlatformError,
+    EventLoopError, PlatformError, Rgb8Pixel,
 };
 
-use embedded_graphics::{
-    pixelcolor::{raw::RawU16, PixelColor as EmbeddedPixelColor},
-    prelude::*,
-    primitives::Rectangle,
-};
+use embedded_graphics::{pixelcolor::Rgb888, prelude::*, primitives::Rectangle};
 
-pub trait PixelColorAdapter<EC, STC>: Default
+struct MyLineBufferProvider<'a, DrawTarget> {
+    display: &'a mut DrawTarget,
+    line_buffer: &'a mut [Rgb8Pixel],
+}
+
+impl<DrawTarget, EmbeddedPixelColor> LineBufferProvider for MyLineBufferProvider<'_, DrawTarget>
 where
-    EC: EmbeddedPixelColor,
-    STC: SlintPixel + Default,
+    DrawTarget: embedded_graphics::draw_target::DrawTarget<Color = EmbeddedPixelColor>,
+    EmbeddedPixelColor: From<Rgb888>,
 {
-    fn convert(self, pixel: &STC) -> EC;
-}
-
-#[derive(Default)]
-pub struct RGB888PixelColorAdapter;
-
-impl PixelColorAdapter<embedded_graphics::pixelcolor::Rgb888, slint::Rgb8Pixel>
-    for RGB888PixelColorAdapter
-{
-    fn convert(self, pixel: &slint::Rgb8Pixel) -> embedded_graphics::pixelcolor::Rgb888 {
-        embedded_graphics::pixelcolor::Rgb888::new(pixel.r, pixel.g, pixel.b)
-    }
-}
-
-#[derive(Default)]
-pub struct RGB565PixelColorAdapter;
-
-impl
-    PixelColorAdapter<
-        embedded_graphics::pixelcolor::Rgb565,
-        slint::platform::software_renderer::Rgb565Pixel,
-    > for RGB565PixelColorAdapter
-{
-    fn convert(
-        self,
-        pixel: &slint::platform::software_renderer::Rgb565Pixel,
-    ) -> embedded_graphics::pixelcolor::Rgb565 {
-        embedded_graphics::pixelcolor::Rgb565::from(RawU16::from(pixel.0))
-    }
-}
-
-struct MyLineBufferProvider<'a, T, EC, STC, PCA>
-where
-    T: DrawTarget<Color = EC>,
-    EC: EmbeddedPixelColor,
-    STC: SlintPixel + Default,
-{
-    display: &'a mut T,
-    line_buffer: Vec<STC>,
-    _phantom: std::marker::PhantomData<PCA>,
-}
-
-impl<'a, T, EC, STC, PCA> MyLineBufferProvider<'a, T, EC, STC, PCA>
-where
-    T: DrawTarget<Color = EC>,
-    EC: EmbeddedPixelColor,
-    STC: SlintPixel + Default,
-    PCA: PixelColorAdapter<EC, STC>,
-{
-    pub fn new(display: &'a mut T) -> Self {
-        let width = display.bounding_box().size.width as usize;
-        Self {
-            display,
-            line_buffer: vec![Default::default(); width],
-            _phantom: std::marker::PhantomData,
-        }
-    }
-}
-
-impl<T, EC, STC, PCA> LineBufferProvider for MyLineBufferProvider<'_, T, EC, STC, PCA>
-where
-    T: DrawTarget<Color = EC>,
-    EC: EmbeddedPixelColor,
-    STC: SlintPixel + Default,
-    PCA: PixelColorAdapter<EC, STC>,
-{
-    type TargetPixel = STC;
+    type TargetPixel = Rgb8Pixel;
 
     fn process_line(
         &mut self,
         line: usize,
-        range: Range<usize>,
+        range: core::ops::Range<usize>,
         render_fn: impl FnOnce(&mut [Self::TargetPixel]),
     ) {
-        let rect = Rectangle::new(
-            Point::new(range.start as _, line as _),
-            Size::new(range.len() as _, 1),
-        );
+        let rect = Rectangle {
+            top_left: Point::new(range.start as _, line as _),
+            size: Size::new(range.len() as _, 1),
+        };
         render_fn(&mut self.line_buffer[range]);
         self.display
             .fill_contiguous(
                 &rect,
                 self.line_buffer
                     .iter()
-                    .map(|p: &STC| PCA::default().convert(p)),
+                    .map(|p| Rgb888::new(p.r, p.g, p.g).into()),
             )
             .map_err(drop)
             .unwrap();
     }
 }
 
-enum EventQueueElement {
-    Quit,
-    Invoke(Box<dyn FnOnce() + Send>),
-}
-
-pub struct EmbeddedSoftwarePlatform<T, F, EC, STC, PCA = RGB888PixelColorAdapter>
-where
-    T: DrawTarget<Color = EC>,
-    F: FnMut(bool) -> Result<(), PlatformError> + 'static,
-    EC: EmbeddedPixelColor,
-    STC: SlintPixel + Default,
-    PCA: PixelColorAdapter<EC, STC>,
-{
-    display: Arc<Mutex<T>>,
+pub struct MySoftwarePlatform<DrawTarget> {
+    display: RefCell<DrawTarget>,
     window: Rc<MinimalSoftwareWindow>,
     start_time: std::time::Instant,
-    event_loop_callback: Option<Rc<RefCell<F>>>,
     event_loop_queue: Arc<Mutex<Vec<EventQueueElement>>>,
-    _phantom: std::marker::PhantomData<(EC, STC, PCA)>,
 }
 
-impl<T, F, EC, STC, PCA> EmbeddedSoftwarePlatform<T, F, EC, STC, PCA>
-where
-    T: DrawTarget<Color = EC>,
-    F: FnMut(bool) -> Result<(), PlatformError> + 'static,
-    EC: EmbeddedPixelColor,
-    STC: SlintPixel + Default,
-    PCA: PixelColorAdapter<EC, STC>,
-{
-    pub fn new(
-        display: Arc<Mutex<T>>,
-        event_loop_callback: Option<F>,
-    ) -> EmbeddedSoftwarePlatform<T, F, EC, STC, PCA> {
-        let window = MinimalSoftwareWindow::new(Default::default());
-        EmbeddedSoftwarePlatform {
-            window: window.clone(),
+impl<DrawTarget> MySoftwarePlatform<DrawTarget> {
+    pub fn new(display: DrawTarget) -> Self {
+        Self {
+            display: RefCell::new(display),
+            window: MinimalSoftwareWindow::new(Default::default()),
             start_time: std::time::Instant::now(),
-            event_loop_callback: event_loop_callback.map(|f| Rc::new(RefCell::new(f))),
             event_loop_queue: Arc::new(Mutex::new(Vec::new())),
-            _phantom: std::marker::PhantomData,
-            display,
         }
     }
 }
 
-impl<T, F, EC, STC, PCA> Platform for EmbeddedSoftwarePlatform<T, F, EC, STC, PCA>
+impl<DrawTarget, EmbeddedPixelColor> Platform for MySoftwarePlatform<DrawTarget>
 where
-    T: DrawTarget<Color = EC>,
-    F: FnMut(bool) -> Result<(), PlatformError> + 'static,
-    EC: EmbeddedPixelColor,
-    STC: SlintPixel + Default,
-    PCA: PixelColorAdapter<EC, STC>,
+    DrawTarget: embedded_graphics::draw_target::DrawTarget<Color = EmbeddedPixelColor>,
+    EmbeddedPixelColor: From<Rgb888>,
 {
     fn create_window_adapter(&self) -> Result<Rc<dyn WindowAdapter>, PlatformError> {
         Ok(self.window.clone())
@@ -186,27 +88,22 @@ where
     }
 
     fn run_event_loop(&self) -> Result<(), PlatformError> {
-        info!("Starting event loop");
         let window = self.window.clone();
+        let mut line_buffer =
+            vec![Rgb8Pixel::default(); self.display.borrow().bounding_box().size.width as usize];
         loop {
-            // render
             if let Some(d) = slint::platform::duration_until_next_timer_update() {
                 thread::sleep(d);
             }
             slint::platform::update_timers_and_animations();
-            let redraw = {
-                let mut d = self.display.lock().unwrap();
-                window.draw_if_needed(|renderer| {
-                    let provider = MyLineBufferProvider::<T, EC, STC, PCA>::new(&mut *d);
-                    renderer.render_by_line(provider);
-                })
-            };
-            if let Some(f) = self.event_loop_callback.clone() {
-                if let Err(e) = f.borrow_mut()(redraw) {
-                    error!("Error in event loop callback: {:?}", e);
-                    return Err(e);
-                }
-            }
+            window.draw_if_needed(|renderer| {
+                renderer.render_by_line(MyLineBufferProvider {
+                    display: &mut (*self.display.borrow_mut()),
+                    line_buffer: &mut line_buffer,
+                });
+            });
+
+            // 动画没处理完优先处理动画
             if window.has_active_animations() {
                 continue;
             }
@@ -216,7 +113,6 @@ where
             for event in queue.drain(..) {
                 match event {
                     EventQueueElement::Quit => {
-                        info!("Quit event loop");
                         return Ok(());
                     }
                     EventQueueElement::Invoke(f) => f(),
@@ -224,6 +120,11 @@ where
             }
         }
     }
+}
+
+enum EventQueueElement {
+    Quit,
+    Invoke(Box<dyn FnOnce() + Send>),
 }
 
 struct MyEventLoopProxy {

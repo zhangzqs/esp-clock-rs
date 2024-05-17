@@ -1,5 +1,5 @@
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
-pub enum AppName {
+pub enum NodeName {
     // App框架调度器
     Scheduler,
     // Http客户端

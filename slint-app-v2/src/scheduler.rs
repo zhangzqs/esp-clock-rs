@@ -7,7 +7,7 @@ use std::{
 use crate::common::*;
 
 struct MessageQueueItem {
-    from: AppName,
+    from: NodeName,
     to: MessageTo,
     message: Message,
     callback_once: Option<MessageCallbackOnce>,
@@ -15,16 +15,16 @@ struct MessageQueueItem {
 }
 
 struct ContextImpl {
-    app_name: AppName,
+    node_name: NodeName,
     mq_buffer: Rc<RefCell<Vec<MessageQueueItem>>>,
-    topic_subscriber: Rc<RefCell<HashMap<Topic, HashSet<AppName>>>>,
+    topic_subscriber: Rc<RefCell<HashMap<Topic, HashSet<NodeName>>>>,
 }
 
 impl Context for ContextImpl {
     // 发送消息
     fn send_message(&self, to: MessageTo, msg: Message) {
         self.mq_buffer.borrow_mut().push(MessageQueueItem {
-            from: self.app_name,
+            from: self.node_name,
             to,
             message: msg,
             callback_once: None,
@@ -38,7 +38,7 @@ impl Context for ContextImpl {
             .borrow_mut()
             .entry(topic)
             .or_default()
-            .insert(self.app_name);
+            .insert(self.node_name);
     }
 
     fn unsubscribe_topic_message(&self, topic: Topic) {
@@ -46,7 +46,7 @@ impl Context for ContextImpl {
             .borrow_mut()
             .entry(topic)
             .and_modify(|x| {
-                x.remove(&self.app_name);
+                x.remove(&self.node_name);
             });
     }
 
@@ -57,7 +57,7 @@ impl Context for ContextImpl {
         callback: MessageCallbackOnce,
     ) {
         self.mq_buffer.borrow_mut().push(MessageQueueItem {
-            from: self.app_name,
+            from: self.node_name,
             to,
             message: msg,
             callback_once: Some(callback),
@@ -67,7 +67,7 @@ impl Context for ContextImpl {
 
     fn send_message_with_reply(&self, to: MessageTo, msg: Message, callback: MessageCallback) {
         self.mq_buffer.borrow_mut().push(MessageQueueItem {
-            from: self.app_name,
+            from: self.node_name,
             to,
             message: msg,
             callback_once: None,
@@ -77,10 +77,10 @@ impl Context for ContextImpl {
 }
 
 pub struct Scheduler {
-    apps: HashMap<AppName, Box<dyn App>>,
+    nodes: HashMap<NodeName, Box<dyn Node>>,
     mq_buffer1: RefCell<Vec<MessageQueueItem>>,
     mq_buffer2: Rc<RefCell<Vec<MessageQueueItem>>>,
-    topic_subscriber: Rc<RefCell<HashMap<Topic, HashSet<AppName>>>>,
+    topic_subscriber: Rc<RefCell<HashMap<Topic, HashSet<NodeName>>>>,
 }
 
 impl Default for Scheduler {
@@ -92,9 +92,9 @@ impl Default for Scheduler {
 impl Scheduler {
     pub fn new() -> Self {
         Self {
-            apps: HashMap::new(),
+            nodes: HashMap::new(),
             mq_buffer1: RefCell::new(vec![MessageQueueItem {
-                from: AppName::Scheduler,
+                from: NodeName::Scheduler,
                 to: MessageTo::Broadcast,
                 message: Message::Lifecycle(LifecycleMessage::Init),
                 callback: None,
@@ -105,8 +105,8 @@ impl Scheduler {
         }
     }
 
-    pub fn register_app<A: App + 'static>(&mut self, app: A) {
-        self.apps.insert(app.app_name(), Box::new(app));
+    pub fn register_node<A: Node + 'static>(&mut self, app: A) {
+        self.nodes.insert(app.node_name(), Box::new(app));
     }
 
     pub fn schedule_once(&mut self) {
@@ -122,10 +122,10 @@ impl Scheduler {
             println!("from: {:?}, to: {:?}, msg: {:?}", from, to, message);
             match to {
                 MessageTo::Broadcast => {
-                    for (app_name, app) in self.apps.iter_mut() {
-                        let ret = app.handle_message(
+                    for (node_name, node) in self.nodes.iter_mut() {
+                        let ret = node.handle_message(
                             Box::new(ContextImpl {
-                                app_name: *app_name,
+                                node_name: *node_name,
                                 mq_buffer: self.mq_buffer2.clone(),
                                 topic_subscriber: self.topic_subscriber.clone(),
                             }),
@@ -134,18 +134,18 @@ impl Scheduler {
                             message.clone(),
                         );
                         if let Some(cb) = callback_once.take() {
-                            cb(*app_name, ret.clone());
+                            cb(*node_name, ret.clone());
                         }
                         if let Some(ref cb) = callback {
-                            cb(*app_name, ret);
+                            cb(*node_name, ret);
                         }
                     }
                 }
-                MessageTo::App(app_name) => {
-                    self.apps.entry(app_name).and_modify(|x| {
+                MessageTo::Point(node_name) => {
+                    self.nodes.entry(node_name).and_modify(|x| {
                         let ret = x.handle_message(
                             Box::new(ContextImpl {
-                                app_name,
+                                node_name,
                                 mq_buffer: self.mq_buffer2.clone(),
                                 topic_subscriber: self.topic_subscriber.clone(),
                             }),
@@ -154,21 +154,21 @@ impl Scheduler {
                             message.clone(),
                         );
                         if let Some(cb) = callback_once {
-                            cb(app_name, ret.clone());
+                            cb(node_name, ret.clone());
                         }
                         if let Some(ref cb) = callback {
-                            cb(app_name, ret);
+                            cb(node_name, ret);
                         }
                     });
                 }
                 MessageTo::Topic(topic) => {
-                    if let Some(apps) = self.topic_subscriber.borrow().get(&topic) {
-                        for app_name in apps.iter() {
+                    if let Some(nodes) = self.topic_subscriber.borrow().get(&topic) {
+                        for node_name in nodes.iter() {
                             let mut ret = Option::<HandleResult>::None;
-                            self.apps.entry(*app_name).and_modify(|x| {
+                            self.nodes.entry(*node_name).and_modify(|x| {
                                 let ret1 = x.handle_message(
                                     Box::new(ContextImpl {
-                                        app_name: *app_name,
+                                        node_name: *node_name,
                                         mq_buffer: self.mq_buffer2.clone(),
                                         topic_subscriber: self.topic_subscriber.clone(),
                                     }),
@@ -177,13 +177,13 @@ impl Scheduler {
                                     message.clone(),
                                 );
                                 if let Some(cb) = callback_once.take() {
-                                    cb(*app_name, ret1.clone());
+                                    cb(*node_name, ret1.clone());
                                 }
                                 ret = Some(ret1);
                             });
                             if let Some(ret) = ret {
                                 if let Some(ref cb) = callback {
-                                    cb(*app_name, ret);
+                                    cb(*node_name, ret);
                                 }
                             }
                         }

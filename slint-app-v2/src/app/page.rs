@@ -4,4 +4,6 @@ mod menu;
 
 mod weather;
 
-pub use {boot::BootPageApp, home::HomePageApp, menu::MenuPageApp, weather::WeatherPageApp};
+pub use {
+    boot::BootPage, home::HomePage, menu::MenuPage, weather::WeatherPage,
+};

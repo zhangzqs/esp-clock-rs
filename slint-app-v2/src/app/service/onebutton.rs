@@ -8,7 +8,7 @@ use slint::{ComponentHandle, Weak};
 
 use crate::ui::{AppWindow, TouchOneButten};
 use crate::common::{
-    App, AppName, Context, HandleResult, LifecycleMessage, Message, MessageTo, OneButtonMessage,
+    Node, NodeName, Context, HandleResult, LifecycleMessage, Message, MessageTo, OneButtonMessage,
 };
 
 #[derive(Clone)]
@@ -20,13 +20,14 @@ impl PinWrapper for MyButtonPin {
     }
 }
 
-pub struct TouchOneButtonApp {
+// 基于触摸事件模拟的单按钮事件的适配器服务
+pub struct TouchOneButtonAdapterService {
     app: Weak<AppWindow>,
     button_event_timer: Option<slint::Timer>,
     button_state: Rc<RefCell<bool>>,
 }
 
-impl TouchOneButtonApp {
+impl TouchOneButtonAdapterService {
     pub fn new(app: Weak<AppWindow>) -> Self {
         Self {
             app,
@@ -36,15 +37,15 @@ impl TouchOneButtonApp {
     }
 }
 
-impl App for TouchOneButtonApp {
-    fn app_name(&self) -> AppName {
-        AppName::TouchOneButton
+impl Node for TouchOneButtonAdapterService {
+    fn node_name(&self) -> NodeName {
+        NodeName::TouchOneButton
     }
 
     fn handle_message(
         &mut self,
         ctx: Box<dyn Context>,
-        _from: AppName,
+        _from: NodeName,
         _to: MessageTo,
         msg: Message,
     ) -> HandleResult {

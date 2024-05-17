@@ -1,9 +1,7 @@
-use std::{
-    sync::{Once},
-};
+use std::sync::Once;
 
+use slint::ComponentHandle;
 use slint::Weak;
-use slint::{ComponentHandle};
 
 slint::include_modules!();
 

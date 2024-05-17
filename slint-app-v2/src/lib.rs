@@ -1,4 +1,4 @@
-use app::{BootPageApp, HomePageApp, MenuPageApp, RouterApp, TouchOneButtonApp, WeatherPageApp};
+use app::{BootPage, HomePage, MenuPage, RouterService, TouchOneButtonAdapterService, WeatherPage};
 use scheduler::Scheduler;
 
 mod app;
@@ -12,13 +12,13 @@ pub fn get_schedular() -> Scheduler {
     let app = get_app_window();
 
     let mut sche = Scheduler::new();
-    sche.register_app(HomePageApp::new(app.clone()));
-    sche.register_app(WeatherPageApp::new());
-    sche.register_app(MenuPageApp::new(app.clone()));
-    sche.register_app(BootPageApp::new(app.clone()));
+    sche.register_node(HomePage::new(app.clone()));
+    sche.register_node(WeatherPage::new());
+    sche.register_node(MenuPage::new(app.clone()));
+    sche.register_node(BootPage::new(app.clone()));
 
-    sche.register_app(RouterApp::new(app.clone()));
-    sche.register_app(TouchOneButtonApp::new(app.clone()));
+    sche.register_node(RouterService::new(app.clone()));
+    sche.register_node(TouchOneButtonAdapterService::new(app.clone()));
 
     sche
 }

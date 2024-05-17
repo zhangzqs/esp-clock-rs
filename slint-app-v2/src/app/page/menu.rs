@@ -3,16 +3,16 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Model, Weak};
 
 use crate::common::{
-    App, AppName, Context, HandleResult, LifecycleMessage, Message, MessageTo, OneButtonMessage,
+    Node, NodeName, Context, HandleResult, LifecycleMessage, Message, MessageTo, OneButtonMessage,
 };
 use crate::ui::{AppWindow, MenuViewModel};
 
-pub struct MenuPageApp {
+pub struct MenuPage {
     app: Weak<AppWindow>,
     is_show: bool,
 }
 
-impl MenuPageApp {
+impl MenuPage {
     pub fn new(app: Weak<AppWindow>) -> Self {
         Self {
             app,
@@ -35,21 +35,21 @@ impl MenuPageApp {
                 .get_entry_list()
                 .row_data(menu.get_current_id() as usize)
             {
-                ctx.send_message(MessageTo::App(AppName::Router), Message::Router(x.page))
+                ctx.send_message(MessageTo::Point(NodeName::Router), Message::Router(x.page))
             }
         }
     }
 }
 
-impl App for MenuPageApp {
-    fn app_name(&self) -> AppName {
-        AppName::MenuPage
+impl Node for MenuPage {
+    fn node_name(&self) -> NodeName {
+        NodeName::MenuPage
     }
 
     fn handle_message(
         &mut self,
         ctx: Box<dyn Context>,
-        _from: AppName,
+        _from: NodeName,
         _to: MessageTo,
         msg: Message,
     ) -> HandleResult {

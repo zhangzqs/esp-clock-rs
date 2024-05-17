@@ -1,5 +1,5 @@
 use crate::common::{
-    App, AppName, Context, HandleResult, HomeMessage, HttpBody, HttpMessage, HttpRequestMethod,
+    Node, NodeName, Context, HandleResult, HomeMessage, HttpBody, HttpMessage, HttpRequestMethod,
     LifecycleMessage, Message, MessageTo, OneButtonMessage,
 };
 use crate::ui::{AppWindow, HomeViewModel, PageRouteTable, TimeData, WeatherData};
@@ -7,14 +7,14 @@ use slint::{ComponentHandle, Weak};
 use std::{rc::Rc, time::Duration};
 use time::{OffsetDateTime, UtcOffset};
 
-pub struct HomePageApp {
+pub struct HomePage {
     app: Weak<AppWindow>,
     time_update_timer: Option<slint::Timer>,
     weather_update_timer: Option<slint::Timer>,
     is_show: bool,
 }
 
-impl HomePageApp {
+impl HomePage {
     pub fn new(app: Weak<AppWindow>) -> Self {
         Self {
             app,
@@ -25,7 +25,7 @@ impl HomePageApp {
     }
 }
 
-impl HomePageApp {
+impl HomePage {
     fn update_time(app: Weak<AppWindow>) {
         if let Some(ui) = app.upgrade() {
             let home_app = ui.global::<HomeViewModel>();
@@ -62,7 +62,7 @@ impl HomePageApp {
                 Duration::from_secs(60),
                 move || {
                     ctx.send_message(
-                        MessageTo::App(AppName::WeatherClient),
+                        MessageTo::Point(NodeName::WeatherClient),
                         Message::HomePage(HomeMessage::RequestUpdateWeather),
                     )
                 },
@@ -82,15 +82,15 @@ impl HomePageApp {
     }
 }
 
-impl App for HomePageApp {
-    fn app_name(&self) -> AppName {
-        AppName::HomePage
+impl Node for HomePage {
+    fn node_name(&self) -> NodeName {
+        NodeName::HomePage
     }
 
     fn handle_message(
         &mut self,
         ctx: Box<dyn Context>,
-        _from: AppName,
+        _from: NodeName,
         _to: MessageTo,
         msg: Message,
     ) -> HandleResult {
@@ -111,7 +111,7 @@ impl App for HomePageApp {
                 HomeMessage::UpdateWeather(data) => {
                     self.update_weather(data);
                     ctx.send_message_with_reply_once(
-                        MessageTo::App(AppName::HttpClient),
+                        MessageTo::Point(NodeName::HttpClient),
                         Message::Http(HttpMessage::Request(HttpRequest {
                             method: HttpRequestMethod::Get,
                             url: "http://www.baidu.com".to_string(),
@@ -136,7 +136,7 @@ impl App for HomePageApp {
                 if self.is_show {
                     match msg {
                         OneButtonMessage::Click => ctx.send_message(
-                            MessageTo::App(AppName::Router),
+                            MessageTo::Point(NodeName::Router),
                             Message::Router(PageRouteTable::Menu),
                         ),
                         _ => {}

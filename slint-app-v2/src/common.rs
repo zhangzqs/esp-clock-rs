@@ -1,18 +1,18 @@
-mod app_name;
 mod message;
+mod node;
 mod topic;
 
-pub use {app_name::AppName, message::*, topic::Topic};
+pub use {message::*, node::NodeName, topic::Topic};
 
 #[derive(Debug, Clone, Copy)]
 pub enum MessageTo {
     Broadcast,
-    App(AppName),
+    Point(NodeName),
     Topic(Topic),
 }
 
-pub type MessageCallbackOnce = Box<dyn FnOnce(AppName, HandleResult)>;
-pub type MessageCallback = Box<dyn Fn(AppName, HandleResult)>;
+pub type MessageCallbackOnce = Box<dyn FnOnce(NodeName, HandleResult)>;
+pub type MessageCallback = Box<dyn Fn(NodeName, HandleResult)>;
 
 pub trait Context {
     // 发送消息无反馈
@@ -46,15 +46,15 @@ pub enum HandleResult {
     Error(Message),
 }
 
-pub trait App {
+pub trait Node {
     // app名称
-    fn app_name(&self) -> AppName;
+    fn node_name(&self) -> NodeName;
 
     // 当app收到消息时
     fn handle_message(
         &mut self,
         _ctx: Box<dyn Context>,
-        _from: AppName,
+        _from: NodeName,
         _to: MessageTo,
         _msg: Message,
     ) -> HandleResult;

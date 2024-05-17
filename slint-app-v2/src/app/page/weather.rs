@@ -1,22 +1,22 @@
-use crate::common::{App, AppName, Context, HandleResult, Message, MessageTo};
+use crate::common::{Node, NodeName, Context, HandleResult, Message, MessageTo};
 
-pub struct WeatherPageApp {}
+pub struct WeatherPage {}
 
-impl WeatherPageApp {
+impl WeatherPage {
     pub fn new() -> Self {
         Self {}
     }
 }
 
-impl App for WeatherPageApp {
-    fn app_name(&self) -> AppName {
-        AppName::WeatherPage
+impl Node for WeatherPage {
+    fn node_name(&self) -> NodeName {
+        NodeName::WeatherPage
     }
 
     fn handle_message(
         &mut self,
         _ctx: Box<dyn Context>,
-        _from: AppName,
+        _from: NodeName,
         _to: MessageTo,
         _msg: Message,
     ) -> HandleResult {

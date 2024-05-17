@@ -1,13 +1,13 @@
 use slint::{ComponentHandle, Weak};
 
-use crate::common::{App, AppName, Context, HandleResult, LifecycleMessage, Message, MessageTo};
+use crate::common::{Context, HandleResult, LifecycleMessage, Message, MessageTo, Node, NodeName};
 use crate::ui::{AppWindow, PageRouteTable, PageRouter};
 
-pub struct RouterApp {
+pub struct RouterService {
     app: Weak<AppWindow>,
 }
 
-impl RouterApp {
+impl RouterService {
     pub fn new(app: Weak<AppWindow>) -> Self {
         Self { app }
     }
@@ -24,25 +24,25 @@ impl RouterApp {
             .map(|x| x.global::<PageRouter>().get_current_page())
     }
 
-    fn route_table_to_app_name(r: PageRouteTable) -> AppName {
+    fn route_table_to_app_name(r: PageRouteTable) -> NodeName {
         match r {
-            PageRouteTable::Boot => AppName::BootPage,
-            PageRouteTable::Home => AppName::HomePage,
-            PageRouteTable::Menu => AppName::MenuPage,
-            PageRouteTable::Weather => AppName::WeatherPage,
+            PageRouteTable::Boot => NodeName::BootPage,
+            PageRouteTable::Home => NodeName::HomePage,
+            PageRouteTable::Menu => NodeName::MenuPage,
+            PageRouteTable::Weather => NodeName::WeatherPage,
         }
     }
 }
 
-impl App for RouterApp {
-    fn app_name(&self) -> AppName {
-        AppName::Router
+impl Node for RouterService {
+    fn node_name(&self) -> NodeName {
+        NodeName::Router
     }
 
     fn handle_message(
         &mut self,
         ctx: Box<dyn Context>,
-        _from: AppName,
+        _from: NodeName,
         _to: MessageTo,
         msg: Message,
     ) -> HandleResult {
@@ -50,13 +50,13 @@ impl App for RouterApp {
             Message::Router(r) => {
                 if let Some(c) = self.get_current_page() {
                     ctx.send_message(
-                        MessageTo::App(Self::route_table_to_app_name(c)),
+                        MessageTo::Point(Self::route_table_to_app_name(c)),
                         Message::Lifecycle(LifecycleMessage::Hide),
                     )
                 }
                 let app = self.app.clone();
                 ctx.send_message_with_reply_once(
-                    MessageTo::App(Self::route_table_to_app_name(r)),
+                    MessageTo::Point(Self::route_table_to_app_name(r)),
                     Message::Lifecycle(LifecycleMessage::Show),
                     Box::new(move |_, _msg| {
                         Self::goto_page(app, r);

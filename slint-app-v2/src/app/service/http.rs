@@ -1,25 +1,25 @@
 use slint::{ComponentHandle, Weak};
 
-use crate::common::{App, AppName, Context, HandleResult, LifecycleMessage, Message, MessageTo};
+use crate::common::{Node, NodeName, Context, HandleResult, LifecycleMessage, Message, MessageTo};
 use crate::ui::{AppWindow, PageRouteTable, PageRouter};
 
-pub struct HttpClientApp {}
+pub struct HttpClientService {}
 
-impl HttpClientApp {
+impl HttpClientService {
     pub fn new() -> Self {
         Self {}
     }
 }
 
-impl App for HttpClientApp {
-    fn app_name(&self) -> AppName {
-        AppName::HttpClient
+impl Node for HttpClientService {
+    fn node_name(&self) -> NodeName {
+        NodeName::HttpClient
     }
 
     fn handle_message(
         &mut self,
         ctx: Box<dyn Context>,
-        _from: AppName,
+        _from: NodeName,
         _to: MessageTo,
         msg: Message,
     ) -> HandleResult {

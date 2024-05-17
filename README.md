@@ -1,79 +1,32 @@
-# esp-clock-rs
+# V2 设计思想
 
-使用 Rust 语言编写的个人时钟，使用 Rust 开发的桌面客户端，移动 App，嵌入式软件，服务端，小工具，使用 Vue 开发 app 后台 ui 管理界面。
+V1 的开发中，为了实现跨平台编写了大量的抽象接口，同时为了性能考虑大量使用了智能指针。但由于个人的 Rust 开发经验不足导致代码逻辑较为混乱，代码后来维护不下去了，开始重开 v2 项目计划重写。
 
-## 特性
+## 消息通信机制
 
-- 跨平台
-- 使用Slint作为GUI框架
-- 接入和风天气
-- 使用 Vue+Typescript 开发 App 后台管理 ui
+原先的 v1 设计为了跨平台，需要分离出平台相关的接口与平台无关的接口，同时使用 trait 作为抽象并通过泛型进行静态分发，大量的静态分发的泛型定义导致代码越来越难以维护。
 
-## 支持平台
+新版本采用消息传递机制完成整个 app 框架的设计，各个组件通过消息进行相互耦合通信，各个通信节点称为`Node`，通过枚举`NodeName`可以唯一标识一个组件。
 
-目前已支持运行在如下平台（加粗的为重点优先适配支持的目标平台）：
+### 目前项目中实现了以下消息通信机制:
 
-### 桌面端
+**发送源**
+发送源通常使用`NodeName`来标识消息从哪个`Node`发出，`Schedular`是一个特殊的`Node`标识调度器消息。
 
-- - [x] **Linux**
-  - [x] **Windows**
-  - [x] MacOS
+**发送目标**
+- Boardcast: 某个组件可以向所有组件发起一个广播消息，其他组件均可接收到广播消息。
+- Point: 一个组件可以向另一个组件发送消息
+- Topic: 一些组件可以订阅指定的话题消息，某个组件可以向该话题下的所有组件发送话题消息。
 
-* 使用 embedded-graphics-simulator（基于 SDL2），基于 slint 软件渲染器逐行像素渲染到屏幕上，实现 GUI 的启动
-* 使用了 reqwest 作为 http client 实现
-* 使用了 rodio 作为蜂鸣器演奏框架的演奏器实现
-* 直接基于 tcp 自己实现了 http server
-* 使用 sled 作为 KV 存储
-* 使用 env_logger 进行日志输出
+**消息处理结果**
+当一个消息被处理完成后，需要反馈一个消息处理结果，目前定义了三种处理结果：
+- Successful(Message): 消息成功处理，并返回处理结果消息
+- Discard(Message): 消息被丢弃不处理
+- Error(Message): 消息发生错误，并返回错误消息
 
-### 移动端
+**消息反馈**
+当一个消息发送者发送完一个消息后，可以通过回调异步地感知消息处理完成后的结果，可以使用`send_message_with_reply_once`只感知一次消息处理结果或使用`send_message_with_reply`允许感知多次消息处理结果。
 
-- - [x] Android
-  - [ ] iOS
+## 消息通信图
 
-* 直接使用 slint 的 Android 平台后端实现 GUI 的启动
-* 使用了 reqwest 作为 http client 实现
-* 使用了 rodio 作为蜂鸣器演奏框架的演奏器实现
-* 直接基于 tcp 自己实现了 http server
-* 使用 sled 作为 KV 存储
-* 使用 android logger 进行日志输出
-
-### MCU
-
-- - [x] **ESP32C3**
-
-* 使用 ST7789 驱动，通过 embedded-graphics 作为接口，基于 slint 软件渲染器逐行渲染到屏幕上，实现 GUI 的启动
-* 基于 RMT 通过驱动蜂鸣器实现演奏者
-* 使用了 esp-idf-svc 的 http client 作为 http client 的实现
-* 使用了 esp-idf-svc 的 http server 作为 http server 的实现
-* 使用 LEDC 控制屏幕亮度
-* 使用 esp32-nimbe 使用蓝牙功能，实现 iOS BLE 攻击
-* 使用 ESP NVS 分区作为 KV 存储
-* 使用 esp logger 进行日志输出
-
-## 服务端
-
-- 使用 poem 框架，基于 poem-openapi 开发
-- 图片服务
-- 天气服务
-- OpenWRT 监控
-
-# 运行方式
-
-## PC 桌面端模拟器
-
-```bash
-make run-on-desktop
-```
-
-## ESP32
-
-```bash
-make run-on-esp32c3
-```
-
-## Android
-
-```bash
-make run-on-android
-```
+略

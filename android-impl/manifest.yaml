@@ -1,5 +1,0 @@
-android:
-  manifest:
-    uses_permission: 
-      - name: android.permission.INTERNET
-      - name: android.permission.ACCESS_NETWORK_STATE

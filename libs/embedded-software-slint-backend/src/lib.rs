@@ -5,9 +5,10 @@ use std::{
     thread,
 };
 
+use log::{error, info};
 use slint::{
     platform::{
-        software_renderer::{LineBufferProvider, MinimalSoftwareWindow},
+        software_renderer::{LineBufferProvider, MinimalSoftwareWindow, RepaintBufferType},
         EventLoopProxy, Platform, WindowAdapter,
     },
     EventLoopError, PlatformError, Rgb8Pixel,
@@ -43,35 +44,42 @@ where
                 &rect,
                 self.line_buffer
                     .iter()
-                    .map(|p| Rgb888::new(p.r, p.g, p.g).into()),
+                    .map(|p| Rgb888::new(p.r, p.g, p.b).into()),
             )
             .map_err(drop)
             .unwrap();
     }
 }
 
-pub struct MySoftwarePlatform<DrawTarget> {
-    display: RefCell<DrawTarget>,
+pub struct MySoftwarePlatform<DrawTarget, Callback> {
+    display: Rc<RefCell<DrawTarget>>,
     window: Rc<MinimalSoftwareWindow>,
     start_time: std::time::Instant,
     event_loop_queue: Arc<Mutex<Vec<EventQueueElement>>>,
+    redraw_callback: Option<Rc<RefCell<Callback>>>,
 }
 
-impl<DrawTarget> MySoftwarePlatform<DrawTarget> {
-    pub fn new(display: DrawTarget) -> Self {
+impl<DrawTarget, Callback> MySoftwarePlatform<DrawTarget, Callback> {
+    pub fn new(display: Rc<RefCell<DrawTarget>>, redraw_callback: Option<Callback>) -> Self {
         Self {
-            display: RefCell::new(display),
+            display,
             window: MinimalSoftwareWindow::new(Default::default()),
+            redraw_callback: redraw_callback.map(|x| Rc::new(RefCell::new(x))),
             start_time: std::time::Instant::now(),
             event_loop_queue: Arc::new(Mutex::new(Vec::new())),
         }
     }
+
+    pub fn get_software_window(&self) -> Rc<MinimalSoftwareWindow> {
+        self.window.clone()
+    }
 }
 
-impl<DrawTarget, EmbeddedPixelColor> Platform for MySoftwarePlatform<DrawTarget>
+impl<DrawTarget, EmbeddedPixelColor, Callback> Platform for MySoftwarePlatform<DrawTarget, Callback>
 where
     DrawTarget: embedded_graphics::draw_target::DrawTarget<Color = EmbeddedPixelColor>,
     EmbeddedPixelColor: From<Rgb888>,
+    Callback: FnMut(bool) -> Result<(), PlatformError> + 'static,
 {
     fn create_window_adapter(&self) -> Result<Rc<dyn WindowAdapter>, PlatformError> {
         Ok(self.window.clone())
@@ -89,19 +97,30 @@ where
 
     fn run_event_loop(&self) -> Result<(), PlatformError> {
         let window = self.window.clone();
-        let mut line_buffer =
-            vec![Rgb8Pixel::default(); self.display.borrow().bounding_box().size.width as usize];
+        let size = self.display.borrow().bounding_box().size;
+        let mut line_buffer = vec![Rgb8Pixel::default(); size.width as usize];
+        window.set_size(slint::PhysicalSize::new(size.width, size.height));
+
         loop {
             if let Some(d) = slint::platform::duration_until_next_timer_update() {
                 thread::sleep(d);
             }
             slint::platform::update_timers_and_animations();
-            window.draw_if_needed(|renderer| {
+            let redraw = window.draw_if_needed(|renderer| {
                 renderer.render_by_line(MyLineBufferProvider {
                     display: &mut (*self.display.borrow_mut()),
                     line_buffer: &mut line_buffer,
                 });
             });
+
+            if redraw {
+                if let Some(f) = self.redraw_callback.clone() {
+                    if let Err(e) = f.borrow_mut()(redraw) {
+                        error!("Error in event loop callback: {:?}", e);
+                        return Err(e);
+                    }
+                }
+            }
 
             // 动画没处理完优先处理动画
             if window.has_active_animations() {

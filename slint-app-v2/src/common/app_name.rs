@@ -2,11 +2,13 @@
 pub enum AppName {
     // App框架调度器
     Scheduler,
+    // Http客户端
+    HttpClient,
     // 触摸
     TouchOneButton,
     // 天气查询器
     WeatherClient,
-    // 路由器
+    // 页面路由器
     Router,
     // 启动页
     BootPage,

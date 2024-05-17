@@ -2,11 +2,7 @@ mod app_name;
 mod message;
 mod topic;
 
-pub use {
-    app_name::AppName,
-    message::{HomeMessage, LifecycleMessage, Message, OneButtonMessage},
-    topic::Topic,
-};
+pub use {app_name::AppName, message::*, topic::Topic};
 
 #[derive(Debug, Clone, Copy)]
 pub enum MessageTo {

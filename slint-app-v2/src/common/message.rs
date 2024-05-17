@@ -3,6 +3,8 @@ use std::time::Duration;
 
 mod home;
 pub use home::HomeMessage;
+mod http;
+pub use http::{HttpMessage, HttpRequestMethod, HttpBody, HttpResponse};
 
 #[derive(Debug, Clone)]
 pub enum LifecycleMessage {
@@ -40,4 +42,6 @@ pub enum Message {
     HomePage(HomeMessage),
     // 天气页相关消息
     WeatherPage,
+    // Http消息
+    Http(HttpMessage),
 }

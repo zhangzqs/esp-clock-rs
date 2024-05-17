@@ -53,6 +53,8 @@ slint = { version = "1.3.0", default-features = false, features = [
     "unsafe-single-threaded",
 ] }
 embedded-software-slint-backend = { path = "../libs/embedded-software-slint-backend" }
+slint-app-v2 = { path = "../slint-app-v2" }
+button-driver = { version = "=0.1.3", features = ["esp", "std"] }
 
 [build-dependencies]
 embuild = "0.31.2"

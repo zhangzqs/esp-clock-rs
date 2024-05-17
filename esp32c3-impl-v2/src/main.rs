@@ -1,4 +1,5 @@
-use anyhow::Ok;
+use std::{cell::RefCell, rc::Rc, time::Duration};
+
 use display_interface_spi::SPIInterface;
 use embedded_hal::spi::MODE_3;
 use esp_idf_hal::{
@@ -9,7 +10,13 @@ use esp_idf_hal::{
     spi::{config::Config, Dma, SpiDeviceDriver, SpiDriverConfig},
 };
 use esp_idf_sys as _;
+use log::info;
 use mipidsi::{Builder, ColorInversion, Orientation};
+use slint::{
+    platform::{PointerEventButton, WindowEvent},
+    LogicalPosition,
+};
+use slint_app_v2::get_schedular;
 
 fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();
@@ -19,7 +26,6 @@ fn main() -> anyhow::Result<()> {
 
     let peripherals = Peripherals::take().unwrap();
     // 所有引脚定义
-    // let btn_pin = PinDriver::input(peripherals.pins.gpio9)?;
     let cs = PinDriver::output(peripherals.pins.gpio5)?;
     let dc = PinDriver::output(peripherals.pins.gpio4)?;
     let rst = PinDriver::output(peripherals.pins.gpio8)?;
@@ -72,8 +78,62 @@ fn main() -> anyhow::Result<()> {
         .init(&mut FreeRtos, Some(rst))
         .unwrap();
 
-    let platform = embedded_software_slint_backend::MySoftwarePlatform::new(display);
+    let platform = embedded_software_slint_backend::MySoftwarePlatform::new(
+        Rc::new(RefCell::new(display)),
+        Some(|_| Ok(())),
+    );
+
+    let window = platform.get_software_window();
     slint::platform::set_platform(Box::new(platform)).map_err(|e| anyhow::anyhow!("{:?}", e))?;
+
+    let mut btn_pin = PinDriver::input(peripherals.pins.gpio9)?;
+    let mut button = button_driver::Button::new(btn_pin, Default::default());
+
+    let button_timer = slint::Timer::default();
+    button_timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(20),
+        move || {
+            button.tick();
+
+            if button.clicks() > 0 {
+                let clicks = button.clicks();
+                info!("Clicks: {}", clicks);
+                window.dispatch_event(WindowEvent::PointerPressed {
+                    position: LogicalPosition::new(0.0, 0.0),
+                    button: PointerEventButton::Left,
+                });
+                window.dispatch_event(WindowEvent::PointerReleased {
+                    position: LogicalPosition::new(0.0, 0.0),
+                    button: PointerEventButton::Left,
+                });
+            } else if let Some(dur) = button.current_holding_time() {
+                info!("Held for {dur:?}");
+                window.dispatch_event(WindowEvent::PointerPressed {
+                    position: LogicalPosition::new(0.0, 0.0),
+                    button: PointerEventButton::Left,
+                });
+            } else if let Some(dur) = button.held_time() {
+                info!("Total holding time {dur:?}");
+                window.dispatch_event(WindowEvent::PointerReleased {
+                    position: LogicalPosition::new(0.0, 0.0),
+                    button: PointerEventButton::Left,
+                });
+            }
+            button.reset();
+        },
+    );
+
+    let mut sche = get_schedular();
+    let sche_timer = slint::Timer::default();
+    sche_timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(20),
+        move || {
+            sche.schedule_once();
+        },
+    );
+
     slint::run_event_loop().map_err(|e| anyhow::anyhow!("{:?}", e))?;
     Ok(())
 }

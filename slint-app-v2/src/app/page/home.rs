@@ -1,8 +1,8 @@
-use crate::ui::{AppWindow, HomeViewModel, PageRouteTable, TimeData, WeatherData};
 use crate::common::{
-    App, AppName, Context, HandleResult, HomeMessage, LifecycleMessage, Message, MessageTo,
-    OneButtonMessage,
+    App, AppName, Context, HandleResult, HomeMessage, HttpBody, HttpMessage, HttpRequestMethod,
+    LifecycleMessage, Message, MessageTo, OneButtonMessage,
 };
+use crate::ui::{AppWindow, HomeViewModel, PageRouteTable, TimeData, WeatherData};
 use slint::{ComponentHandle, Weak};
 use std::{rc::Rc, time::Duration};
 use time::{OffsetDateTime, UtcOffset};
@@ -108,7 +108,28 @@ impl App for HomePageApp {
                 _ => {}
             },
             Message::HomePage(msg) => match msg {
-                HomeMessage::UpdateWeather(data) => self.update_weather(data),
+                HomeMessage::UpdateWeather(data) => {
+                    self.update_weather(data);
+                    ctx.send_message_with_reply_once(
+                        MessageTo::App(AppName::HttpClient),
+                        Message::Http(HttpMessage::Request(HttpRequest {
+                            method: HttpRequestMethod::Get,
+                            url: "http://www.baidu.com".to_string(),
+                            header: None,
+                            body: None,
+                        })),
+                        Box::new(|n, r| match r {
+                            HandleResult::Successful(msg) => {
+                                if let Message::Http(HttpMessage::Response(resp)) = msg {
+                                    if let HttpBody::Bytes(bs) = resp.body {
+                                        println!("{}", String::from_utf8(bs));
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }),
+                    )
+                }
                 _ => {}
             },
             Message::OneButton(msg) => {

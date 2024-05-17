@@ -1,12 +1,14 @@
 import { Env } from "common/env.slint";
 import { PageRouteTable, PageRouter } from "common/route.slint";
 import { RouteView, HomeViewModel, MenuViewModel } from "pages/index.slint";
+import "fonts/microsoft-yahei.ttf";
 
 export global TouchOneButten {
     callback pointer-event(PointerEvent);
 }
 
 export component AppWindow inherits Window {
+    default-font-family: "Microsoft YaHei";
     width: Env.screen-width;
     height: Env.screen-height;
 

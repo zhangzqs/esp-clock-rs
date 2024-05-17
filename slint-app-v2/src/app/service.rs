@@ -1,4 +1,5 @@
+mod http;
 mod onebutton;
 mod router;
 
-pub use {onebutton::TouchOneButtonApp, router::RouterApp};
+pub use {http::HttpClientApp, onebutton::TouchOneButtonApp, router::RouterApp};

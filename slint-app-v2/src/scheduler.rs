@@ -83,6 +83,12 @@ pub struct Scheduler {
     topic_subscriber: Rc<RefCell<HashMap<Topic, HashSet<AppName>>>>,
 }
 
+impl Default for Scheduler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Scheduler {
     pub fn new() -> Self {
         Self {

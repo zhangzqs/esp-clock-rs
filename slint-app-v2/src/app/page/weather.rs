@@ -1,4 +1,4 @@
-use crate::common::{Node, NodeName, Context, HandleResult, Message, MessageTo};
+use crate::proto::{Node, NodeName, Context, HandleResult, Message, MessageTo};
 
 pub struct WeatherPage {}
 

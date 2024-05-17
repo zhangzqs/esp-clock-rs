@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Model, Weak};
 
-use crate::common::{
+use crate::proto::{
     Node, NodeName, Context, HandleResult, LifecycleMessage, Message, MessageTo, OneButtonMessage,
 };
 use crate::ui::{AppWindow, MenuViewModel};

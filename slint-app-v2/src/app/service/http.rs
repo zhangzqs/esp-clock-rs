@@ -1,6 +1,6 @@
 use slint::{ComponentHandle, Weak};
 
-use crate::common::{Node, NodeName, Context, HandleResult, LifecycleMessage, Message, MessageTo};
+use crate::proto::{Node, NodeName, Context, HandleResult, LifecycleMessage, Message, MessageTo};
 use crate::ui::{AppWindow, PageRouteTable, PageRouter};
 
 pub struct HttpClientService {}

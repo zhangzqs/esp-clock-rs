@@ -1,6 +1,6 @@
 use slint::{ComponentHandle, Weak};
 
-use crate::common::{Context, HandleResult, LifecycleMessage, Message, MessageTo, Node, NodeName};
+use crate::proto::{Context, HandleResult, LifecycleMessage, Message, MessageTo, Node, NodeName};
 use crate::ui::{AppWindow, PageRouteTable, PageRouter};
 
 pub struct RouterService {

@@ -1,6 +1,6 @@
-use crate::common::{
-    Node, NodeName, Context, HandleResult, HomeMessage, HttpBody, HttpMessage, HttpRequestMethod,
-    LifecycleMessage, Message, MessageTo, OneButtonMessage,
+use crate::proto::{
+    Context, HandleResult, HomeMessage, HttpBody, HttpMessage, HttpRequest, HttpRequestMethod,
+    LifecycleMessage, Message, MessageTo, Node, NodeName, OneButtonMessage,
 };
 use crate::ui::{AppWindow, HomeViewModel, PageRouteTable, TimeData, WeatherData};
 use slint::{ComponentHandle, Weak};
@@ -112,17 +112,17 @@ impl Node for HomePage {
                     self.update_weather(data);
                     ctx.send_message_with_reply_once(
                         MessageTo::Point(NodeName::HttpClient),
-                        Message::Http(HttpMessage::Request(HttpRequest {
+                        Message::Http(HttpMessage::Request(Rc::new(HttpRequest {
                             method: HttpRequestMethod::Get,
                             url: "http://www.baidu.com".to_string(),
                             header: None,
-                            body: None,
-                        })),
+                            body: HttpBody::Empty,
+                        }))),
                         Box::new(|n, r| match r {
                             HandleResult::Successful(msg) => {
                                 if let Message::Http(HttpMessage::Response(resp)) = msg {
-                                    if let HttpBody::Bytes(bs) = resp.body {
-                                        println!("{}", String::from_utf8(bs));
+                                    if let HttpBody::Bytes(bs) = resp.body.clone() {
+                                        println!("{:?}", String::from_utf8(bs));
                                     }
                                 }
                             }

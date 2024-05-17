@@ -7,7 +7,7 @@ use button_driver::{Button, ButtonConfig, PinWrapper};
 use slint::{ComponentHandle, Weak};
 
 use crate::ui::{AppWindow, TouchOneButten};
-use crate::common::{
+use crate::proto::{
     Node, NodeName, Context, HandleResult, LifecycleMessage, Message, MessageTo, OneButtonMessage,
 };
 

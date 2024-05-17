@@ -1,10 +1,10 @@
 use crate::ui::PageRouteTable;
-use std::time::Duration;
+use std::{rc::Rc, time::Duration};
 
 mod home;
 pub use home::HomeMessage;
 mod http;
-pub use http::{HttpMessage, HttpRequestMethod, HttpBody, HttpResponse};
+pub use http::{HttpBody, HttpMessage, HttpRequest, HttpRequestMethod, HttpResponse};
 
 #[derive(Debug, Clone)]
 pub enum LifecycleMessage {

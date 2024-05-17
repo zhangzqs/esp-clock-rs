@@ -3,7 +3,7 @@ use std::time::Duration;
 use slint::Weak;
 
 use crate::ui::{AppWindow, PageRouteTable};
-use crate::common::{Node, NodeName, Context, HandleResult, LifecycleMessage, Message, MessageTo};
+use crate::proto::{Node, NodeName, Context, HandleResult, LifecycleMessage, Message, MessageTo};
 
 pub struct BootPage {
     app: Weak<AppWindow>,

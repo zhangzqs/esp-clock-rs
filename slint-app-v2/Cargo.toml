@@ -9,7 +9,7 @@ edition = "2021"
 anyhow = "1.0.83"
 button-driver = { version = "0.1.3", features = ["std"] }
 log = "0.4.21"
-slint = { version = "1.3.0", default-features = false }
+slint = { version = "1.3.0" }
 time = "0.3.36"
 
 [build-dependencies]

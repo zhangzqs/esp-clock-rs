@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::common::*;
+use crate::proto::*;
 
 struct MessageQueueItem {
     from: NodeName,

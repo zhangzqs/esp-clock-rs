@@ -2,10 +2,10 @@ use app::{BootPage, HomePage, MenuPage, RouterService, TouchOneButtonAdapterServ
 use scheduler::Scheduler;
 
 mod app;
-mod common;
 mod scheduler;
 mod ui;
 
+pub mod proto;
 pub use ui::get_app_window;
 
 pub fn get_schedular() -> Scheduler {

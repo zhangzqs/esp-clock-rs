@@ -112,6 +112,7 @@ impl Node for TouchOneButtonAdapterService {
                             }
                         });
                     }
+                    return HandleResult::Successful(Message::Empty);
                 }
                 _ => {}
             },

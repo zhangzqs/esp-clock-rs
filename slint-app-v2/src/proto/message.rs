@@ -45,3 +45,37 @@ pub enum Message {
     // Http消息
     Http(HttpMessage),
 }
+
+impl Message {
+    pub fn debug_msg(&self) -> &'static str {
+        match self {
+            Message::Empty => "empty",
+            Message::Lifecycle(msg) => match msg {
+                LifecycleMessage::Init => "lifecycle/init",
+                LifecycleMessage::Show => "lifecycle/show",
+                LifecycleMessage::Hide => "lifecycle/hide",
+            },
+            Message::OneButton(msg) => match msg {
+                OneButtonMessage::Click => "onebutton/click",
+                OneButtonMessage::Clicks(_) => "onebutton/clicks",
+                OneButtonMessage::LongPressHolding(_) => "onebutton/holding",
+                OneButtonMessage::LongPressHeld(_) => "onebutton/held",
+            },
+            Message::Router(msg) => match msg {
+                PageRouteTable::Boot => "router/boot",
+                PageRouteTable::Home => "router/home",
+                PageRouteTable::Menu => "router/menu",
+                PageRouteTable::Weather => "router/weather",
+            },
+            Message::HomePage(msg) => match msg {
+                HomeMessage::RequestUpdateWeather => "home/request_update_weather",
+                HomeMessage::UpdateWeather(_) => "home/update_weather",
+            },
+            Message::WeatherPage => "weather",
+            Message::Http(msg) => match msg {
+                HttpMessage::Request(_) => "http/request",
+                HttpMessage::Response(_) => "http/response",
+            },
+        }
+    }
+}

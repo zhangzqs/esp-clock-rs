@@ -62,6 +62,7 @@ impl Node for RouterService {
                         Self::goto_page(app, r);
                     }),
                 );
+                return HandleResult::Successful(Message::Empty);
             }
             _ => {}
         }

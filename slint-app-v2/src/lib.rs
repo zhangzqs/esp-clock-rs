@@ -1,7 +1,7 @@
-use app::{BootPage, HomePage, MenuPage, RouterService, TouchOneButtonAdapterService, WeatherPage};
+use node::{BootPage, HomePage, MenuPage, RouterService, TouchOneButtonAdapterService, WeatherPage};
 use scheduler::Scheduler;
 
-mod app;
+mod node;
 mod scheduler;
 mod ui;
 

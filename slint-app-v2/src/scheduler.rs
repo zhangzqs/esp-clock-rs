@@ -4,6 +4,8 @@ use std::{
     rc::Rc,
 };
 
+use log::debug;
+
 use crate::proto::*;
 
 struct MessageQueueItem {
@@ -119,10 +121,17 @@ impl Scheduler {
             callback,
         } in self.mq_buffer1.borrow_mut().drain(..)
         {
-            println!("from: {:?}, to: {:?}, msg: {:?}", from, to, message);
+            debug!(
+                "dispatch message from: {:?}, to: {:?}, msg: {:?}",
+                from, to, message
+            );
             match to {
                 MessageTo::Broadcast => {
                     for (node_name, node) in self.nodes.iter_mut() {
+                        debug!(
+                            "handle message from node: {from:?}, to node: {node_name:?}, msg: {}",
+                            message.debug_msg()
+                        );
                         let ret = node.handle_message(
                             Box::new(ContextImpl {
                                 node_name: *node_name,
@@ -133,6 +142,7 @@ impl Scheduler {
                             to,
                             message.clone(),
                         );
+                        debug!("handle message result: {ret:?}");
                         if let Some(cb) = callback_once.take() {
                             cb(*node_name, ret.clone());
                         }
@@ -143,6 +153,10 @@ impl Scheduler {
                 }
                 MessageTo::Point(node_name) => {
                     self.nodes.entry(node_name).and_modify(|x| {
+                        debug!(
+                            "handle message from node: {from:?}, to node: {node_name:?}, msg: {}",
+                            message.debug_msg()
+                        );
                         let ret = x.handle_message(
                             Box::new(ContextImpl {
                                 node_name,
@@ -153,6 +167,8 @@ impl Scheduler {
                             to,
                             message.clone(),
                         );
+                        debug!("handle message result: {ret:?}");
+
                         if let Some(cb) = callback_once {
                             cb(node_name, ret.clone());
                         }
@@ -166,6 +182,10 @@ impl Scheduler {
                         for node_name in nodes.iter() {
                             let mut ret = Option::<HandleResult>::None;
                             self.nodes.entry(*node_name).and_modify(|x| {
+                                debug!(
+                                    "handle message from node: {from:?}, to node: {node_name:?}, msg: {}",
+                                    message.debug_msg()
+                                );
                                 let ret1 = x.handle_message(
                                     Box::new(ContextImpl {
                                         node_name: *node_name,
@@ -176,6 +196,8 @@ impl Scheduler {
                                     to,
                                     message.clone(),
                                 );
+                                debug!("handle message result: {ret1:?}");
+
                                 if let Some(cb) = callback_once.take() {
                                     cb(*node_name, ret1.clone());
                                 }

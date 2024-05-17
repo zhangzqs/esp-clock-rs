@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use slint::Weak;
 
+use crate::proto::{Context, HandleResult, LifecycleMessage, Message, MessageTo, Node, NodeName};
 use crate::ui::{AppWindow, PageRouteTable};
-use crate::proto::{Node, NodeName, Context, HandleResult, LifecycleMessage, Message, MessageTo};
 
 pub struct BootPage {
     app: Weak<AppWindow>,
@@ -36,6 +36,7 @@ impl Node for BootPage {
                             Message::Router(PageRouteTable::Home),
                         );
                     });
+                    return HandleResult::Successful(Message::Empty);
                 }
                 _ => {}
             },

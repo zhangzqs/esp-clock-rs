@@ -100,10 +100,12 @@ impl Node for HomePage {
                 LifecycleMessage::Show => {
                     self.is_show = true;
                     self.on_show(ctx);
+                    return HandleResult::Successful(Message::Empty);
                 }
                 LifecycleMessage::Hide => {
                     self.is_show = false;
                     self.on_hide();
+                    return HandleResult::Successful(Message::Empty);
                 }
                 _ => {}
             },
@@ -128,17 +130,21 @@ impl Node for HomePage {
                             }
                             _ => {}
                         }),
-                    )
+                    );
+                    return HandleResult::Successful(Message::Empty);
                 }
                 _ => {}
             },
             Message::OneButton(msg) => {
                 if self.is_show {
                     match msg {
-                        OneButtonMessage::Click => ctx.send_message(
-                            MessageTo::Point(NodeName::Router),
-                            Message::Router(PageRouteTable::Menu),
-                        ),
+                        OneButtonMessage::Click => {
+                            ctx.send_message(
+                                MessageTo::Point(NodeName::Router),
+                                Message::Router(PageRouteTable::Menu),
+                            );
+                            return HandleResult::Successful(Message::Empty);
+                        }
                         _ => {}
                     }
                 }

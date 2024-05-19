@@ -4,8 +4,8 @@ use scheduler::Scheduler;
 mod node;
 mod scheduler;
 mod ui;
+mod adapter;
 
-pub mod proto;
 pub use ui::get_app_window;
 
 pub fn get_schedular() -> Scheduler {

@@ -1,9 +1,12 @@
-use std::time::Duration;
+use std::{rc::Rc, time::Duration};
 
 use slint::Weak;
 
-use crate::proto::{Context, HandleResult, LifecycleMessage, Message, MessageTo, Node, NodeName};
 use crate::ui::{AppWindow, PageRouteTable};
+use proto::{
+    Context, HandleResult, LifecycleMessage, Message, MessageTo, Node, NodeName, RoutePage,
+    RouterMessage,
+};
 
 pub struct BootPage {
     app: Weak<AppWindow>,
@@ -22,7 +25,7 @@ impl Node for BootPage {
 
     fn handle_message(
         &mut self,
-        ctx: Box<dyn Context>,
+        ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
         msg: Message,
@@ -33,7 +36,7 @@ impl Node for BootPage {
                     slint::Timer::single_shot(Duration::from_secs(1), move || {
                         ctx.send_message(
                             MessageTo::Point(NodeName::Router),
-                            Message::Router(PageRouteTable::Home),
+                            Message::Router(RouterMessage::GotoPage(RoutePage::Home)),
                         );
                     });
                     return HandleResult::Successful(Message::Empty);

@@ -1,0 +1,18 @@
+[package]
+name = "wasm-impl"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wasm-bindgen = { version = "0.2" }
+slint = "1.6.0"
+log = "0.4.6"
+slint-app-v2 = { path = "../slint-app-v2" }
+wasm-logger = "0.2.0"
+time = "0.3.36"
+web-sys = "0.3.69"
+proto = { path = "../proto" }
+
+[lib]
+path = "src/main.rs"
+crate-type = ["cdylib"]

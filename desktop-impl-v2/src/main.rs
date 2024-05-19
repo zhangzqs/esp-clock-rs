@@ -17,7 +17,7 @@ use slint::{
 };
 use slint_app_v2::{get_app_window, get_schedular};
 
-fn main() {
+fn main1() {
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
     info!("Starting desktop simulator");
@@ -92,7 +92,7 @@ fn main() {
     slint::run_event_loop_until_quit().unwrap();
 }
 
-fn main1() {
+fn main() {
     let app = get_app_window();
     let mut sche = get_schedular();
     let sche_timer = slint::Timer::default();

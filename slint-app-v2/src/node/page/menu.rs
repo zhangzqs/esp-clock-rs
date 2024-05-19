@@ -2,10 +2,14 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Model, Weak};
 
-use crate::proto::{
-    Context, HandleResult, LifecycleMessage, Message, MessageTo, Node, NodeName, OneButtonMessage,
+use crate::{
+    adapter,
+    ui::{AppWindow, MenuViewModel},
 };
-use crate::ui::{AppWindow, MenuViewModel};
+use proto::{
+    Context, HandleResult, LifecycleMessage, Message, MessageTo, Node, NodeName, OneButtonMessage,
+    RouterMessage,
+};
 
 pub struct MenuPage {
     app: Weak<AppWindow>,
@@ -28,14 +32,19 @@ impl MenuPage {
         }
     }
 
-    fn enter_page(&self, ctx: Rc<Box<dyn Context>>) {
+    fn enter_page(&self, ctx: Rc<dyn Context>) {
         if let Some(ui) = self.app.upgrade() {
             let menu = ui.global::<MenuViewModel>();
             if let Some(x) = menu
                 .get_entry_list()
                 .row_data(menu.get_current_id() as usize)
             {
-                ctx.send_message(MessageTo::Point(NodeName::Router), Message::Router(x.page))
+                ctx.send_message(
+                    MessageTo::Point(NodeName::Router),
+                    Message::Router(RouterMessage::GotoPage(
+                        adapter::slint_route_table_to_proto_route_table(x.page),
+                    )),
+                )
             }
         }
     }
@@ -48,7 +57,7 @@ impl Node for MenuPage {
 
     fn handle_message(
         &mut self,
-        ctx: Box<dyn Context>,
+        ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
         msg: Message,
@@ -73,7 +82,7 @@ impl Node for MenuPage {
                             return HandleResult::Successful(Message::Empty);
                         }
                         OneButtonMessage::Clicks(2) => {
-                            self.enter_page(Rc::new(ctx));
+                            self.enter_page(ctx.clone());
                             return HandleResult::Successful(Message::Empty);
                         }
                         _ => {}

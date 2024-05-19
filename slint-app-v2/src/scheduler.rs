@@ -6,7 +6,7 @@ use std::{
 
 use log::debug;
 
-use crate::proto::*;
+use proto::*;
 
 struct MessageQueueItem {
     from: NodeName,
@@ -133,7 +133,7 @@ impl Scheduler {
                             message.debug_msg()
                         );
                         let ret = node.handle_message(
-                            Box::new(ContextImpl {
+                            Rc::new(ContextImpl {
                                 node_name: *node_name,
                                 mq_buffer: self.mq_buffer2.clone(),
                                 topic_subscriber: self.topic_subscriber.clone(),
@@ -152,30 +152,36 @@ impl Scheduler {
                     }
                 }
                 MessageTo::Point(node_name) => {
-                    self.nodes.entry(node_name).and_modify(|x| {
-                        debug!(
+                    self.nodes
+                        .entry(node_name)
+                        .and_modify(|x| {
+                            debug!(
                             "handle message from node: {from:?}, to node: {node_name:?}, msg: {}",
                             message.debug_msg()
                         );
-                        let ret = x.handle_message(
-                            Box::new(ContextImpl {
-                                node_name,
-                                mq_buffer: self.mq_buffer2.clone(),
-                                topic_subscriber: self.topic_subscriber.clone(),
-                            }),
-                            from,
-                            to,
-                            message.clone(),
-                        );
-                        debug!("handle message result: {ret:?}");
+                            let ret = x.handle_message(
+                                Rc::new(ContextImpl {
+                                    node_name,
+                                    mq_buffer: self.mq_buffer2.clone(),
+                                    topic_subscriber: self.topic_subscriber.clone(),
+                                }),
+                                from,
+                                to,
+                                message.clone(),
+                            );
+                            debug!("handle message result: {ret:?}");
 
-                        if let Some(cb) = callback_once {
-                            cb(node_name, ret.clone());
-                        }
-                        if let Some(ref cb) = callback {
-                            cb(node_name, ret);
-                        }
-                    });
+                            if let Some(cb) = callback_once {
+                                cb(node_name, ret.clone());
+                            }
+                            if let Some(ref cb) = callback {
+                                cb(node_name, ret);
+                            }
+                        })
+                        .or_insert_with(|| {
+                            // 如果不存在，则panic
+                            panic!("not found node {:?}", node_name);
+                        });
                 }
                 MessageTo::Topic(topic) => {
                     if let Some(nodes) = self.topic_subscriber.borrow().get(&topic) {
@@ -187,7 +193,7 @@ impl Scheduler {
                                     message.debug_msg()
                                 );
                                 let ret1 = x.handle_message(
-                                    Box::new(ContextImpl {
+                                    Rc::new(ContextImpl {
                                         node_name: *node_name,
                                         mq_buffer: self.mq_buffer2.clone(),
                                         topic_subscriber: self.topic_subscriber.clone(),
@@ -202,6 +208,8 @@ impl Scheduler {
                                     cb(*node_name, ret1.clone());
                                 }
                                 ret = Some(ret1);
+                            }).or_insert_with(|| {
+                                panic!("not found node {:?}", *node_name);
                             });
                             if let Some(ret) = ret {
                                 if let Some(ref cb) = callback {

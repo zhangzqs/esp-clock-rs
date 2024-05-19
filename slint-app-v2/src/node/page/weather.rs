@@ -1,4 +1,6 @@
-use crate::proto::{Node, NodeName, Context, HandleResult, Message, MessageTo};
+use std::rc::Rc;
+
+use proto::{Context, HandleResult, Message, MessageTo, Node, NodeName};
 
 pub struct WeatherPage {}
 
@@ -15,7 +17,7 @@ impl Node for WeatherPage {
 
     fn handle_message(
         &mut self,
-        _ctx: Box<dyn Context>,
+        _ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
         _msg: Message,

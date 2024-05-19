@@ -14,11 +14,12 @@ fn build_slint_normal() -> Result<(), Box<dyn std::error::Error>> {
 
 fn build_slint() -> Result<(), Box<dyn std::error::Error>> {
     // 先按照软件渲染器编译
-    if let Err(e) = build_slint_embedded() {
-        println!("build slint with embedded failed: {}", e);
-        // 如果失败了，再按照普通的编译
-        build_slint_normal()?;
-    }
+    // if let Err(e) = build_slint_embedded() {
+    //     println!("build slint with embedded failed: {}", e);
+    //     // 如果失败了，再按照普通的编译
+    //     build_slint_normal()?;
+    // }
+    build_slint_normal()?;
     Ok(())
 }
 

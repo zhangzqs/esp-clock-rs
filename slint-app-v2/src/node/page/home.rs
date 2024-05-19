@@ -1,11 +1,11 @@
-use crate::proto::{
-    Context, HandleResult, HomeMessage, HttpBody, HttpMessage, HttpRequest, HttpRequestMethod,
-    LifecycleMessage, Message, MessageTo, Node, NodeName, OneButtonMessage,
-};
 use crate::ui::{AppWindow, HomeViewModel, PageRouteTable, TimeData, WeatherData};
+use proto::{
+    Context, HandleResult, HttpBody, HttpMessage, HttpRequest, HttpRequestMethod, LifecycleMessage,
+    Message, MessageTo, Node, NodeName, OneButtonMessage, RoutePage, RouterMessage,
+};
 use slint::{ComponentHandle, Weak};
-use std::{rc::Rc, time::Duration};
-use time::{OffsetDateTime, UtcOffset};
+use std::{borrow::Borrow, rc::Rc, time::Duration};
+use time::{Date, Month, Time, UtcOffset};
 
 pub struct HomePage {
     app: Weak<AppWindow>,
@@ -26,33 +26,54 @@ impl HomePage {
 }
 
 impl HomePage {
-    fn update_time(app: Weak<AppWindow>) {
-        if let Some(ui) = app.upgrade() {
-            let home_app = ui.global::<HomeViewModel>();
-            let t = OffsetDateTime::now_utc().to_offset(UtcOffset::from_hms(8, 0, 0).unwrap());
-            home_app.set_time(TimeData {
-                day: t.day() as i32,
-                hour: t.hour() as i32,
-                minute: t.minute() as i32,
-                month: t.month() as i32,
-                second: t.second() as i32,
-                week: t.weekday().number_days_from_sunday() as i32,
-                year: t.year(),
-            })
-        }
+    fn update_time(app: Weak<AppWindow>, ctx: Rc<dyn Context>) {
+        proto::call_datetime_utc_datetime(
+            ctx,
+            Box::new(move |d| {
+                let t = time::OffsetDateTime::new_in_offset(
+                    Date::from_calendar_date(d.year as _, d.month.try_into().unwrap(), d.day as _)
+                        .unwrap(),
+                    Time::from_hms(d.hour as _, d.minute as _, d.seconds as _).unwrap(),
+                    UtcOffset::UTC,
+                )
+                .to_offset(UtcOffset::from_hms(8, 0, 0).unwrap());
+                if let Some(ui) = app.upgrade() {
+                    let home_app = ui.global::<HomeViewModel>();
+                    home_app.set_time(TimeData {
+                        day: t.day() as _,
+                        hour: t.hour() as _,
+                        minute: t.minute() as _,
+                        month: t.month() as _,
+                        second: t.second() as _,
+                        week: t.weekday().number_days_from_sunday() as _,
+                        year: t.year() as _,
+                    })
+                    // home_app.set_time(TimeData {
+                    //     day: d.day as _,
+                    //     hour: d.hour as _,
+                    //     minute: d.minute as _,
+                    //     month: d.month as _,
+                    //     second: d.seconds as _,
+                    //     week: d.week as _,
+                    //     year: d.year as _,
+                    // })
+                }
+            }),
+        )
     }
 
-    fn on_show(&mut self, ctx: Rc<Box<dyn Context>>) {
-        Self::update_time(self.app.clone());
-
+    fn on_show(&mut self, ctx: Rc<dyn Context>) {
         let app = self.app.clone();
+        Self::update_time(app.clone(), ctx.clone());
+
+        let ctx_ref = ctx.clone();
         self.time_update_timer
             .get_or_insert(slint::Timer::default())
             .start(
                 slint::TimerMode::Repeated,
                 Duration::from_secs(1),
                 move || {
-                    Self::update_time(app.clone());
+                    Self::update_time(app.clone(), ctx_ref.clone());
                 },
             );
         self.weather_update_timer
@@ -61,10 +82,10 @@ impl HomePage {
                 slint::TimerMode::Repeated,
                 Duration::from_secs(60),
                 move || {
-                    ctx.send_message(
-                        MessageTo::Point(NodeName::WeatherClient),
-                        Message::HomePage(HomeMessage::RequestUpdateWeather),
-                    )
+                    // ctx.send_message(
+                    //     MessageTo::Point(NodeName::WeatherClient),
+                    //     Message::HomePage(HomeMessage::RequestUpdateWeather),
+                    // )
                 },
             );
     }
@@ -89,12 +110,11 @@ impl Node for HomePage {
 
     fn handle_message(
         &mut self,
-        ctx: Box<dyn Context>,
+        ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
         msg: Message,
     ) -> HandleResult {
-        let ctx = Rc::new(ctx);
         match msg {
             Message::Lifecycle(msg) => match msg {
                 LifecycleMessage::Show => {
@@ -109,39 +129,39 @@ impl Node for HomePage {
                 }
                 _ => {}
             },
-            Message::HomePage(msg) => match msg {
-                HomeMessage::UpdateWeather(data) => {
-                    self.update_weather(data);
-                    ctx.send_message_with_reply_once(
-                        MessageTo::Point(NodeName::HttpClient),
-                        Message::Http(HttpMessage::Request(Rc::new(HttpRequest {
-                            method: HttpRequestMethod::Get,
-                            url: "http://www.baidu.com".to_string(),
-                            header: None,
-                            body: HttpBody::Empty,
-                        }))),
-                        Box::new(|n, r| match r {
-                            HandleResult::Successful(msg) => {
-                                if let Message::Http(HttpMessage::Response(resp)) = msg {
-                                    if let HttpBody::Bytes(bs) = resp.body.clone() {
-                                        println!("{:?}", String::from_utf8(bs));
-                                    }
-                                }
-                            }
-                            _ => {}
-                        }),
-                    );
-                    return HandleResult::Successful(Message::Empty);
-                }
-                _ => {}
-            },
+            // Message::HomePage(msg) => match msg {
+            //     HomeMessage::UpdateWeather(data) => {
+            //         self.update_weather(data);
+            //         ctx.send_message_with_reply_once(
+            //             MessageTo::Point(NodeName::HttpClient),
+            //             Message::Http(HttpMessage::Request(Rc::new(HttpRequest {
+            //                 method: HttpRequestMethod::Get,
+            //                 url: "http://www.baidu.com".to_string(),
+            //                 header: None,
+            //                 body: HttpBody::Empty,
+            //             }))),
+            //             Box::new(|n, r| match r {
+            //                 HandleResult::Successful(msg) => {
+            //                     if let Message::Http(HttpMessage::Response(resp)) = msg {
+            //                         if let HttpBody::Bytes(bs) = resp.body.clone() {
+            //                             println!("{:?}", String::from_utf8(bs));
+            //                         }
+            //                     }
+            //                 }
+            //                 _ => {}
+            //             }),
+            //         );
+            //         return HandleResult::Successful(Message::Empty);
+            //     }
+            //     _ => {}
+            // },
             Message::OneButton(msg) => {
                 if self.is_show {
                     match msg {
                         OneButtonMessage::Click => {
                             ctx.send_message(
                                 MessageTo::Point(NodeName::Router),
-                                Message::Router(PageRouteTable::Menu),
+                                Message::Router(RouterMessage::GotoPage(RoutePage::Menu)),
                             );
                             return HandleResult::Successful(Message::Empty);
                         }

@@ -2,13 +2,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
 
-use button_driver::{Button, ButtonConfig, PinWrapper};
+use button_driver::{Button, ButtonConfig, PinWrapper, Platform};
 
 use slint::{ComponentHandle, Weak};
 
 use crate::ui::{AppWindow, TouchOneButten};
-use crate::proto::{
-    Node, NodeName, Context, HandleResult, LifecycleMessage, Message, MessageTo, OneButtonMessage,
+use proto::{
+    Context, HandleResult, LifecycleMessage, Message, MessageTo, Node, NodeName, OneButtonMessage,
 };
 
 #[derive(Clone)]
@@ -17,6 +17,31 @@ struct MyButtonPin(Rc<RefCell<bool>>);
 impl PinWrapper for MyButtonPin {
     fn is_high(&self) -> bool {
         *self.0.borrow()
+    }
+}
+
+struct MyButtonPlatform {
+    t: slint::Timer,
+    dur: Rc<RefCell<Duration>>,
+}
+
+impl MyButtonPlatform {
+    fn new() -> Self {
+        let dur = Rc::new(RefCell::new(Duration::ZERO));
+        let t = slint::Timer::default();
+        let dur1 = dur.clone();
+        t.start(
+            slint::TimerMode::Repeated,
+            Duration::from_millis(20),
+            move || *dur1.borrow_mut() += Duration::from_millis(20),
+        );
+        Self { t, dur }
+    }
+}
+
+impl Platform for MyButtonPlatform {
+    fn duration_since_init(&self) -> Duration {
+        *self.dur.borrow()
     }
 }
 
@@ -39,12 +64,12 @@ impl TouchOneButtonAdapterService {
 
 impl Node for TouchOneButtonAdapterService {
     fn node_name(&self) -> NodeName {
-        NodeName::TouchOneButton
+        NodeName::OneButton
     }
 
     fn handle_message(
         &mut self,
-        ctx: Box<dyn Context>,
+        ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
         msg: Message,
@@ -52,8 +77,9 @@ impl Node for TouchOneButtonAdapterService {
         match msg {
             Message::Lifecycle(msg) => match msg {
                 LifecycleMessage::Init => {
-                    let mut button = Button::new(
+                    let mut button = Button::new_with_platform(
                         MyButtonPin(self.button_state.clone()),
+                        MyButtonPlatform::new(),
                         ButtonConfig {
                             mode: button_driver::Mode::PullDown, // 当按键松开时，是低电平
                             ..Default::default()
@@ -63,7 +89,7 @@ impl Node for TouchOneButtonAdapterService {
                         .get_or_insert(slint::Timer::default())
                         .start(
                             slint::TimerMode::Repeated,
-                            Duration::from_millis(10),
+                            Duration::from_millis(20),
                             move || {
                                 button.tick();
                                 if button.clicks() > 0 {

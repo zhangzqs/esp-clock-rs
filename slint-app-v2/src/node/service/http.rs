@@ -1,6 +1,8 @@
+use std::rc::Rc;
+
 use slint::{ComponentHandle, Weak};
 
-use crate::proto::{Node, NodeName, Context, HandleResult, LifecycleMessage, Message, MessageTo};
+use proto::{Node, NodeName, Context, HandleResult, LifecycleMessage, Message, MessageTo};
 use crate::ui::{AppWindow, PageRouteTable, PageRouter};
 
 pub struct HttpClientService {}
@@ -18,7 +20,7 @@ impl Node for HttpClientService {
 
     fn handle_message(
         &mut self,
-        ctx: Box<dyn Context>,
+        ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
         msg: Message,

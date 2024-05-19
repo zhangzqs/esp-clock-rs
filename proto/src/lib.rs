@@ -1,8 +1,9 @@
+mod ipc;
 mod message;
 mod node;
 mod topic;
-
-pub use {message::*, node::NodeName, topic::Topic};
+use std::rc::Rc;
+pub use {ipc::*, message::*, node::NodeName, topic::Topic};
 
 #[derive(Debug, Clone, Copy)]
 pub enum MessageTo {
@@ -15,7 +16,7 @@ pub type MessageCallbackOnce = Box<dyn FnOnce(NodeName, HandleResult)>;
 pub type MessageCallback = Box<dyn Fn(NodeName, HandleResult)>;
 
 pub trait Context {
-    // 发送消息无反馈
+    // 发送一条消息，无反馈
     fn send_message(&self, to: MessageTo, msg: Message);
 
     // 发送只会反馈一次的消息
@@ -29,7 +30,7 @@ pub trait Context {
     // 发送可能会反馈多次的消息
     fn send_message_with_reply(&self, to: MessageTo, msg: Message, callback: MessageCallback);
 
-    // 订阅话题消息
+    // 订阅一个话题消息
     fn subscribe_topic_message(&self, topic: Topic);
 
     // 取消订阅话题消息
@@ -53,7 +54,7 @@ pub trait Node {
     // 当app收到消息时
     fn handle_message(
         &mut self,
-        _ctx: Box<dyn Context>,
+        _ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
         _msg: Message,

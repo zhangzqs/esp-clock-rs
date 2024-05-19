@@ -1,7 +1,15 @@
+use std::rc::Rc;
+
+use log::info;
 use slint::{ComponentHandle, Weak};
 
-use crate::proto::{Context, HandleResult, LifecycleMessage, Message, MessageTo, Node, NodeName};
-use crate::ui::{AppWindow, PageRouteTable, PageRouter};
+use crate::{
+    adapter::{self},
+    ui::{AppWindow, PageRouteTable, PageRouter},
+};
+use proto::{
+    Context, HandleResult, LifecycleMessage, Message, MessageTo, Node, NodeName, RouterMessage,
+};
 
 pub struct RouterService {
     app: Weak<AppWindow>,
@@ -11,26 +19,22 @@ impl RouterService {
     pub fn new(app: Weak<AppWindow>) -> Self {
         Self { app }
     }
-    fn goto_page(app: Weak<AppWindow>, r: PageRouteTable) {
+    fn goto_page(app: Weak<AppWindow>, r: proto::RoutePage) {
         if let Some(ui) = app.upgrade() {
+            let slint_route = adapter::proto_route_table_to_slint_route_table(r);
             let router = ui.global::<PageRouter>();
-            router.set_current_page(r);
+            router.set_current_page(slint_route);
         }
     }
 
-    fn get_current_page(&self) -> Option<PageRouteTable> {
-        self.app
+    fn get_current_page(&self) -> proto::RoutePage {
+        let slint_route = self
+            .app
             .upgrade()
-            .map(|x| x.global::<PageRouter>().get_current_page())
-    }
-
-    fn route_table_to_app_name(r: PageRouteTable) -> NodeName {
-        match r {
-            PageRouteTable::Boot => NodeName::BootPage,
-            PageRouteTable::Home => NodeName::HomePage,
-            PageRouteTable::Menu => NodeName::MenuPage,
-            PageRouteTable::Weather => NodeName::WeatherPage,
-        }
+            .unwrap()
+            .global::<PageRouter>()
+            .get_current_page();
+        adapter::slint_route_table_to_proto_route_table(slint_route)
     }
 }
 
@@ -41,26 +45,22 @@ impl Node for RouterService {
 
     fn handle_message(
         &mut self,
-        ctx: Box<dyn Context>,
+        ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
         msg: Message,
     ) -> HandleResult {
         match msg {
-            Message::Router(r) => {
-                if let Some(c) = self.get_current_page() {
-                    ctx.send_message(
-                        MessageTo::Point(Self::route_table_to_app_name(c)),
-                        Message::Lifecycle(LifecycleMessage::Hide),
-                    )
-                }
+            Message::Router(RouterMessage::GotoPage(r)) => {
+                ctx.send_message(
+                    MessageTo::Point(self.get_current_page().map_to_node_name()),
+                    Message::Lifecycle(LifecycleMessage::Hide),
+                );
                 let app = self.app.clone();
                 ctx.send_message_with_reply_once(
-                    MessageTo::Point(Self::route_table_to_app_name(r)),
+                    MessageTo::Point(r.map_to_node_name()),
                     Message::Lifecycle(LifecycleMessage::Show),
-                    Box::new(move |_, _msg| {
-                        Self::goto_page(app, r);
-                    }),
+                    Box::new(move |_, _msg| Self::goto_page(app, r)),
                 );
                 return HandleResult::Successful(Message::Empty);
             }

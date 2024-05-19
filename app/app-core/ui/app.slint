@@ -1,0 +1,48 @@
+import { Env } from "common/env.slint";
+import { PageRouteTable, PageRouter } from "common/route.slint";
+import { RouteView, HomeViewModel, MenuViewModel } from "pages/index.slint";
+import "fonts/microsoft-yahei.ttf";
+
+export global OneButtenAdapter {
+    callback pressed();
+    callback release();
+}
+
+export component AppWindow inherits Window {
+    default-font-family: "Microsoft YaHei";
+    width: Env.screen-width;
+    height: Env.screen-height;
+
+    TouchArea {
+        pointer-event(e) => {
+            if (e.button == PointerEventButton.left) {
+                if (e.kind == PointerEventKind.down) {
+                    OneButtenAdapter.pressed()
+                } else if (e.kind == PointerEventKind.up) {
+                    OneButtenAdapter.release()
+                }
+            }
+        }
+    }
+
+    FocusScope {
+        key-pressed(e) => {
+            if (e.text == Key.Space) {
+                OneButtenAdapter.pressed();
+            }
+            accept
+        }
+        key-released(e) => {
+            OneButtenAdapter.release();
+            accept
+        }
+    }
+
+    RouteView { }
+}
+
+export { 
+    HomeViewModel,
+    MenuViewModel,
+    PageRouter
+}

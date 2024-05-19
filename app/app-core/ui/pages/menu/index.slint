@@ -1,0 +1,82 @@
+import { VerticalBox , StandardButton, Button, HorizontalBox, ListView} from "std-widgets.slint";
+import { PageRouteTable } from "../../common/route.slint";
+import { MenuIcons } from "assets/index.slint";
+
+struct MenuItemEntry {
+    page: PageRouteTable,
+    icon: image,
+}
+
+export global MenuViewModel {
+    out property <[MenuItemEntry]> entry-list: [
+        {
+            page: PageRouteTable.home,
+            icon: MenuIcons.home,
+        },
+        {
+            page: PageRouteTable.weather,
+            icon: MenuIcons.sun,
+        },
+    ];
+    in-out property <int> current-id: 0;
+}
+
+component MenuItem inherits Rectangle {
+    in property <MenuItemEntry> entry;
+    width: 240px;
+    height: 240px;
+
+    function menu-item-name(p: PageRouteTable) -> string {
+        if (p == PageRouteTable.home) {
+            return "首页";
+        } else if (p == PageRouteTable.weather) {
+            return "天气";
+        } else {
+            return "未知";
+        }
+    }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            VerticalLayout {
+                Image {
+                    source: entry.icon;
+                    width: 120px;
+                    height: 120px;
+                    colorize: goldenrod;
+                }
+
+                Rectangle {
+                    height: 10px;
+                }
+
+                Text {
+                    horizontal-alignment: center;
+                    text: menu-item-name(entry.page);
+                    font-size: 24px;
+                    color: white;
+                }
+            }
+        }
+    }
+}
+
+export component MenuPage inherits Rectangle {
+    width: 240px;
+    height: 240px;
+    background: black;
+    border-width: 2px;
+
+    HorizontalLayout {
+        x: -MenuViewModel.current-id * parent.height;
+        for entry in MenuViewModel.entry-list: MenuItem {
+            entry: entry;
+        }
+        animate x {
+            duration: 500ms;
+            easing: ease-in-out;
+        }
+    }
+}

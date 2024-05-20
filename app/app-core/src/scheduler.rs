@@ -156,11 +156,27 @@ impl Scheduler {
                             message.clone(),
                         );
                         debug!("handle message result: {ret:?}");
-                        if let Some(cb) = callback_once.take() {
-                            cb(*node_name, ret.clone());
-                        }
-                        if let Some(ref cb) = callback {
-                            cb(*node_name, ret);
+                        match ret {
+                            HandleResult::Successful(e) => {
+                                if let Some(cb) = callback_once.take() {
+                                    cb(*node_name, HandleResult::Successful(e.clone()));
+                                }
+                                if let Some(ref cb) = callback {
+                                    cb(*node_name, HandleResult::Successful(e));
+                                }
+                            }
+                            HandleResult::Error(e) => {
+                                if let Some(cb) = callback_once.take() {
+                                    cb(*node_name, HandleResult::Error(e.clone()));
+                                }
+                                if let Some(ref cb) = callback {
+                                    cb(*node_name, HandleResult::Error(e));
+                                }
+                            }
+                            HandleResult::Pending => {
+                                unimplemented!()
+                            }
+                            HandleResult::Discard => {}
                         }
                     }
                 }
@@ -184,11 +200,27 @@ impl Scheduler {
                             );
                             debug!("handle message result: {ret:?}");
 
-                            if let Some(cb) = callback_once {
-                                cb(node_name, ret.clone());
-                            }
-                            if let Some(ref cb) = callback {
-                                cb(node_name, ret);
+                            match ret {
+                                HandleResult::Successful(e) => {
+                                    if let Some(cb) = callback_once.take() {
+                                        cb(node_name, HandleResult::Successful(e.clone()));
+                                    }
+                                    if let Some(ref cb) = callback {
+                                        cb(node_name, HandleResult::Successful(e));
+                                    }
+                                }
+                                HandleResult::Error(e) => {
+                                    if let Some(cb) = callback_once.take() {
+                                        cb(node_name, HandleResult::Error(e.clone()));
+                                    }
+                                    if let Some(ref cb) = callback {
+                                        cb(node_name, HandleResult::Error(e));
+                                    }
+                                }
+                                HandleResult::Pending => {
+                                    unimplemented!()
+                                }
+                                HandleResult::Discard => {}
                             }
                         })
                         .or_insert_with(|| {
@@ -199,13 +231,13 @@ impl Scheduler {
                 MessageTo::Topic(topic) => {
                     if let Some(nodes) = self.topic_subscriber.borrow().get(&topic) {
                         for node_name in nodes.iter() {
-                            let mut ret = Option::<HandleResult>::None;
+                            // let mut ret = Option::<HandleResult>::None;
                             self.nodes.entry(*node_name).and_modify(|x| {
                                 debug!(
                                     "handle message from node: {from:?}, to node: {node_name:?}, msg: {}",
                                     message.debug_msg()
                                 );
-                                let ret1 = x.handle_message(
+                                let ret = x.handle_message(
                                     Rc::new(ContextImpl {
                                         node_name: *node_name,
                                         mq_buffer: self.mq_buffer2.clone(),
@@ -215,20 +247,33 @@ impl Scheduler {
                                     to,
                                     message.clone(),
                                 );
-                                debug!("handle message result: {ret1:?}");
-
-                                if let Some(cb) = callback_once.take() {
-                                    cb(*node_name, ret1.clone());
+                                debug!("handle message result: {ret:?}");
+                                
+                                match ret {
+                                    HandleResult::Successful(e) => {
+                                        if let Some(cb) = callback_once.take() {
+                                            cb(*node_name, HandleResult::Successful(e.clone()));
+                                        }
+                                        if let Some(ref cb) = callback {
+                                            cb(*node_name, HandleResult::Successful(e));
+                                        }
+                                    }
+                                    HandleResult::Error(e) => {
+                                        if let Some(cb) = callback_once.take() {
+                                            cb(*node_name, HandleResult::Error(e.clone()));
+                                        }
+                                        if let Some(ref cb) = callback {
+                                            cb(*node_name, HandleResult::Error(e));
+                                        }
+                                    }
+                                    HandleResult::Pending => {
+                                        unimplemented!()
+                                    }
+                                    HandleResult::Discard => {}
                                 }
-                                ret = Some(ret1);
                             }).or_insert_with(|| {
                                 panic!("not found node {:?}", *node_name);
                             });
-                            if let Some(ret) = ret {
-                                if let Some(ref cb) = callback {
-                                    cb(*node_name, ret);
-                                }
-                            }
                         }
                     }
                 }

@@ -1,8 +1,7 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, rc::Rc, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub enum HttpBody {
-    Empty,
     Bytes(Vec<u8>),
 }
 
@@ -15,17 +14,16 @@ pub enum HttpRequestMethod {
 pub struct HttpRequest {
     pub method: HttpRequestMethod,
     pub url: String,
-    pub header: Option<HashMap<String, String>>,
-    pub body: HttpBody,
 }
 
 #[derive(Debug, Clone)]
 pub struct HttpResponse {
+    pub request: Arc<HttpRequest>,
     pub body: HttpBody,
 }
 
 #[derive(Debug, Clone)]
 pub enum HttpMessage {
-    Request(Rc<HttpRequest>),
-    Response(Rc<HttpResponse>),
+    Request(Arc<HttpRequest>),
+    Response(Arc<HttpResponse>),
 }

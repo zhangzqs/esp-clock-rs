@@ -41,10 +41,12 @@ pub trait Context {
 pub enum HandleResult {
     // 成功处理消息，发送方收到一个反馈响应回调消息
     Successful(Message),
-    // 消息被丢弃，发送方也得不到响应回调
+    // 消息被丢弃，发送方也得不到响应回调(仅调度器可感知该消息结果)
     Discard,
     // 消息处理失败，发送方收到一个响应回调错误消息
     Error(Message),
+    // 消息还在处理(仅调度器可感知该消息结果)
+    Pending,
 }
 
 pub trait Node {

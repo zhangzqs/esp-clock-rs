@@ -1,6 +1,5 @@
 use std::rc::Rc;
 
-
 use proto::{Context, HandleResult, Message, MessageTo, Node, NodeName};
 
 pub struct HttpClientService {}

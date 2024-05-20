@@ -9,3 +9,5 @@ anyhow = "1.0.44"
 env_logger = "0.10.1"
 log = "0.4.20"
 app-core = { path = "../app-core" }
+proto = { path = "../proto" }
+reqwest = { version = "0.12.4", features = ["blocking"] }

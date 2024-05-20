@@ -5,7 +5,7 @@ use proto::{
 };
 use slint::{ComponentHandle, Weak};
 use std::{rc::Rc, time::Duration};
-use time::{Date, OffsetDateTime, Time, UtcOffset};
+use time::{OffsetDateTime, UtcOffset};
 
 pub struct HomePage {
     app: Weak<AppWindow>,

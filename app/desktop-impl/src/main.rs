@@ -3,6 +3,8 @@ use std::time::Duration;
 use app_core::{get_app_window, get_schedular};
 use slint::ComponentHandle;
 
+mod http_client;
+
 fn main() {
     let app = get_app_window();
     let mut sche = get_schedular();

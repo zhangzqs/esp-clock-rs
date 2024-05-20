@@ -34,15 +34,13 @@ impl Node for WeatherPage {
         match msg {
             Message::OneButton(msg) => match msg {
                 OneButtonMessage::LongPressHolding(dur) => {
-                    if !self.hold_close_once_flag {
-                        if dur > Duration::from_secs(1) && self.is_show {
-                            self.hold_close_once_flag = true;
-                            ctx.send_message(
-                                MessageTo::Point(NodeName::Router),
-                                Message::Router(RouterMessage::GotoPage(RoutePage::Home)),
-                            );
-                            return HandleResult::Successful(Message::Empty);
-                        }
+                    if !self.hold_close_once_flag && dur > Duration::from_secs(1) && self.is_show {
+                        self.hold_close_once_flag = true;
+                        ctx.send_message(
+                            MessageTo::Point(NodeName::Router),
+                            Message::Router(RouterMessage::GotoPage(RoutePage::Home)),
+                        );
+                        return HandleResult::Successful(Message::Empty);
                     }
                 }
                 OneButtonMessage::LongPressHeld(_) => self.hold_close_once_flag = false,

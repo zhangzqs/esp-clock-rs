@@ -1,7 +1,7 @@
 pub mod ipc;
 mod message;
 mod node;
-use std::rc::Rc;
+use std::{rc::Rc, time::Duration};
 pub use {message::*, node::NodeName};
 
 #[derive(Debug, Clone, Copy)]
@@ -17,13 +17,23 @@ pub trait Context {
     // 发送一条消息，无反馈
     fn send_message(&self, to: MessageTo, msg: Message);
 
+    fn send_message_with_timeout_and_reply_once(
+        &self,
+        to: MessageTo,
+        msg: Message,
+        timeout: Option<Duration>,
+        callback: MessageCallbackOnce,
+    );
+
     // 发送只会反馈一次的消息
     fn send_message_with_reply_once(
         &self,
         to: MessageTo,
         msg: Message,
         callback: MessageCallbackOnce,
-    );
+    ) {
+        self.send_message_with_timeout_and_reply_once(to, msg, None, callback);
+    }
 
     // 发送可能会反馈多次的消息
     fn send_message_with_reply(&self, to: MessageTo, msg: Message, callback: MessageCallback);
@@ -39,12 +49,16 @@ pub enum HandleResult {
     Error(Message),
     // 消息还在处理，下一轮将继续被轮询(仅调度器可感知该消息结果)
     Pending,
+    // 消息处理超时
+    Timeout,
 }
 
 #[derive(Debug, Clone)]
 pub struct MessageWithHeader {
     /// 消息帧ID
     pub seq: u32,
+    /// 消息超时时间点，相对于调度器首次调度的时间点
+    pub timeout: Option<Duration>,
     /// 消息体
     pub body: Message,
 }

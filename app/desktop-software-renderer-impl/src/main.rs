@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc, time::Duration};
 
-use app_core::get_schedular;
+use app_core::get_scheduler;
 use embedded_graphics::{geometry::Size, pixelcolor::Rgb888};
 use embedded_graphics_simulator::{
     sdl2::MouseButton, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
@@ -82,7 +82,7 @@ fn main() {
         }
     });
 
-    let mut sche = get_schedular();
+    let mut sche = get_scheduler();
     let sche_timer = slint::Timer::default();
     sche_timer.start(
         slint::TimerMode::Repeated,

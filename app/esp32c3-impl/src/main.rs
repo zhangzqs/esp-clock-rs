@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc, time::Duration};
 
-use app_core::get_schedular;
+use app_core::get_scheduler;
 use button_driver::Button;
 use display_interface_spi::SPIInterface;
 use embedded_hal::spi::MODE_3;
@@ -161,7 +161,7 @@ fn main() -> anyhow::Result<()> {
     let btn_pin = PinDriver::input(peripherals.pins.gpio9)?;
 
     let one_butten_node = EspOneButton::new(btn_pin);
-    let mut sche = get_schedular();
+    let mut sche = get_scheduler();
     sche.register_node(one_butten_node);
     let sche_timer = slint::Timer::default();
     sche_timer.start(

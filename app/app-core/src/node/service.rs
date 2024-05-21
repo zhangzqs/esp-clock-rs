@@ -1,4 +1,3 @@
-mod http;
 mod onebutton;
 mod router;
 mod timestamp;

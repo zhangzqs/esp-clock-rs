@@ -14,9 +14,9 @@ impl proto::Node for TimestampClientService {
         _ctx: Rc<dyn proto::Context>,
         _from: proto::NodeName,
         _to: proto::MessageTo,
-        msg: proto::Message,
+        msg: proto::MessageWithHeader,
     ) -> proto::HandleResult {
-        if let proto::Message::DateTime(proto::TimeMessage::GetTimestampNanosRequest) = msg {
+        if let proto::Message::DateTime(proto::TimeMessage::GetTimestampNanosRequest) = msg.body {
             return proto::HandleResult::Successful(proto::Message::DateTime(
                 proto::TimeMessage::GetTimestampNanosResponse(
                     OffsetDateTime::now_utc().unix_timestamp_nanos(),

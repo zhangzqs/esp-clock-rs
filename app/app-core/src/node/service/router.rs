@@ -7,7 +7,7 @@ use crate::{
     ui::{AppWindow, PageRouter},
 };
 use proto::{
-    Context, HandleResult, LifecycleMessage, Message, MessageTo, Node, NodeName, RouterMessage,
+    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName, RouterMessage
 };
 
 pub struct RouterService {
@@ -47,9 +47,9 @@ impl Node for RouterService {
         ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
-        msg: Message,
+        msg: MessageWithHeader,
     ) -> HandleResult {
-        match msg {
+        match msg.body {
             Message::Router(RouterMessage::GotoPage(r)) => {
                 ctx.send_message(
                     MessageTo::Point(self.get_current_page().map_to_node_name()),

@@ -11,26 +11,33 @@ use proto::*;
 struct MessageQueueItem {
     from: NodeName,
     to: MessageTo,
-    message: Message,
+    message: MessageWithHeader,
     callback_once: Option<MessageCallbackOnce>,
     callback: Option<MessageCallback>,
+    is_pending: bool,
 }
 
 struct ContextImpl {
     node_name: NodeName,
     mq_buffer: Rc<RefCell<Vec<MessageQueueItem>>>,
     topic_subscriber: Rc<RefCell<HashMap<Topic, HashSet<NodeName>>>>,
+    msg_seq_inc: Rc<RefCell<u32>>,
 }
 
 impl Context for ContextImpl {
     // 发送消息
     fn send_message(&self, to: MessageTo, msg: Message) {
+        *self.msg_seq_inc.borrow_mut() += 1;
         self.mq_buffer.borrow_mut().push(MessageQueueItem {
             from: self.node_name,
             to,
-            message: msg,
+            message: MessageWithHeader { 
+                seq: *self.msg_seq_inc.borrow(),
+                body: msg 
+            },
             callback_once: None,
             callback: None,
+            is_pending: false,
         })
     }
 
@@ -58,22 +65,32 @@ impl Context for ContextImpl {
         msg: Message,
         callback: MessageCallbackOnce,
     ) {
+        *self.msg_seq_inc.borrow_mut() += 1;
         self.mq_buffer.borrow_mut().push(MessageQueueItem {
             from: self.node_name,
             to,
-            message: msg,
+            message: MessageWithHeader { 
+                seq: *self.msg_seq_inc.borrow(),
+                body: msg 
+            },
             callback_once: Some(callback),
             callback: None,
+            is_pending: false,
         })
     }
 
     fn send_message_with_reply(&self, to: MessageTo, msg: Message, callback: MessageCallback) {
+        *self.msg_seq_inc.borrow_mut() += 1;
         self.mq_buffer.borrow_mut().push(MessageQueueItem {
             from: self.node_name,
             to,
-            message: msg,
+            message: MessageWithHeader { 
+                seq: *self.msg_seq_inc.borrow(),
+                body: msg 
+            },
             callback_once: None,
             callback: Some(callback),
+            is_pending: false,
         })
     }
 }
@@ -83,6 +100,7 @@ pub struct Scheduler {
     mq_buffer1: RefCell<Vec<MessageQueueItem>>,
     mq_buffer2: Rc<RefCell<Vec<MessageQueueItem>>>,
     topic_subscriber: Rc<RefCell<HashMap<Topic, HashSet<NodeName>>>>,
+    msg_seq_inc: Rc<RefCell<u32>>,
 }
 
 impl Default for Scheduler {
@@ -98,12 +116,17 @@ impl Scheduler {
             mq_buffer1: RefCell::new(vec![MessageQueueItem {
                 from: NodeName::Scheduler,
                 to: MessageTo::Broadcast,
-                message: Message::Lifecycle(LifecycleMessage::Init),
+                message: MessageWithHeader { 
+                    seq: 0, 
+                    body: Message::Lifecycle(LifecycleMessage::Init),
+                },
                 callback: None,
                 callback_once: None,
+                is_pending: false,
             }]),
             mq_buffer2: Rc::new(RefCell::new(Vec::new())),
             topic_subscriber: Rc::new(RefCell::new(HashMap::new())),
+            msg_seq_inc: Rc::new(RefCell::new(0)),
         }
     }
 
@@ -119,12 +142,17 @@ impl Scheduler {
                     node_name: *node_name,
                     mq_buffer: self.mq_buffer2.clone(),
                     topic_subscriber: self.topic_subscriber.clone(),
+                    msg_seq_inc: self.msg_seq_inc.clone(),
                 }),
                 NodeName::Scheduler,
                 MessageTo::Broadcast,
-                Message::Schedule,
+                MessageWithHeader { 
+                    seq: 0, 
+                    body: Message::Schedule,
+                },
             );
         }
+
         // 消费消息
         for MessageQueueItem {
             from,
@@ -132,24 +160,28 @@ impl Scheduler {
             message,
             mut callback_once,
             callback,
+            is_pending,
         } in self.mq_buffer1.borrow_mut().drain(..)
         {
-            debug!(
-                "dispatch message from: {:?}, to: {:?}, msg: {:?}",
-                from, to, message
-            );
+            if !is_pending {
+                debug!(
+                    "dispatch message from: {:?}, to: {:?}, msg: {:?}",
+                    from, to, message
+                );
+            }
             match to {
                 MessageTo::Broadcast => {
                     for (node_name, node) in self.nodes.iter_mut() {
                         debug!(
                             "handle message from node: {from:?}, to node: {node_name:?}, msg: {}",
-                            message.debug_msg()
+                            message.body.debug_msg()
                         );
                         let ret = node.handle_message(
                             Rc::new(ContextImpl {
                                 node_name: *node_name,
                                 mq_buffer: self.mq_buffer2.clone(),
                                 topic_subscriber: self.topic_subscriber.clone(),
+                                msg_seq_inc: self.msg_seq_inc.clone(),
                             }),
                             from,
                             to,
@@ -174,7 +206,7 @@ impl Scheduler {
                                 }
                             }
                             HandleResult::Pending => {
-                                unimplemented!()
+                                unimplemented!("broadcast is unsupported for pending message")
                             }
                             HandleResult::Discard => {}
                         }
@@ -184,21 +216,23 @@ impl Scheduler {
                     self.nodes
                         .entry(node_name)
                         .and_modify(|x| {
-                            debug!(
-                            "handle message from node: {from:?}, to node: {node_name:?}, msg: {}",
-                            message.debug_msg()
-                        );
+                            if !is_pending {
+                                debug!("handle message from node: {from:?}, to node: {node_name:?}, msg: {}", message.body.debug_msg());
+                            }
                             let ret = x.handle_message(
                                 Rc::new(ContextImpl {
                                     node_name,
                                     mq_buffer: self.mq_buffer2.clone(),
                                     topic_subscriber: self.topic_subscriber.clone(),
+                                    msg_seq_inc: self.msg_seq_inc.clone(),
                                 }),
                                 from,
                                 to,
                                 message.clone(),
                             );
-                            debug!("handle message result: {ret:?}");
+                            if !is_pending {
+                                debug!("handle message result: {ret:?}");
+                            }
 
                             match ret {
                                 HandleResult::Successful(e) => {
@@ -217,8 +251,15 @@ impl Scheduler {
                                         cb(node_name, HandleResult::Error(e));
                                     }
                                 }
-                                HandleResult::Pending => {
-                                    unimplemented!()
+                                HandleResult::Pending => { // 复制一份消息，下一轮pending将继续传递
+                                    self.mq_buffer2.borrow_mut().push(MessageQueueItem { 
+                                        from: from, 
+                                        to: to, 
+                                        message: message, 
+                                        callback_once: callback_once, 
+                                        callback: callback,
+                                        is_pending: true,
+                                    })
                                 }
                                 HandleResult::Discard => {}
                             }
@@ -231,17 +272,17 @@ impl Scheduler {
                 MessageTo::Topic(topic) => {
                     if let Some(nodes) = self.topic_subscriber.borrow().get(&topic) {
                         for node_name in nodes.iter() {
-                            // let mut ret = Option::<HandleResult>::None;
                             self.nodes.entry(*node_name).and_modify(|x| {
                                 debug!(
                                     "handle message from node: {from:?}, to node: {node_name:?}, msg: {}",
-                                    message.debug_msg()
+                                    message.body.debug_msg()
                                 );
                                 let ret = x.handle_message(
                                     Rc::new(ContextImpl {
                                         node_name: *node_name,
                                         mq_buffer: self.mq_buffer2.clone(),
                                         topic_subscriber: self.topic_subscriber.clone(),
+                                        msg_seq_inc: self.msg_seq_inc.clone(),
                                     }),
                                     from,
                                     to,
@@ -267,7 +308,7 @@ impl Scheduler {
                                         }
                                     }
                                     HandleResult::Pending => {
-                                        unimplemented!()
+                                        unimplemented!("topic is unsupported for pending message")
                                     }
                                     HandleResult::Discard => {}
                                 }

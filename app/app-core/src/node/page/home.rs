@@ -1,7 +1,6 @@
 use crate::ui::{AppWindow, HomeViewModel, TimeData, WeatherData};
 use proto::{
-    Context, HandleResult, LifecycleMessage, Message, MessageTo, Node, NodeName, OneButtonMessage,
-    RoutePage, RouterMessage,
+    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName, OneButtonMessage, RoutePage, RouterMessage
 };
 use slint::{ComponentHandle, Weak};
 use std::{rc::Rc, time::Duration};
@@ -100,9 +99,9 @@ impl Node for HomePage {
         ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
-        msg: Message,
+        msg: MessageWithHeader,
     ) -> HandleResult {
-        match msg {
+        match msg.body {
             Message::Lifecycle(msg) => match msg {
                 LifecycleMessage::Show => {
                     self.is_show = true;

@@ -45,8 +45,16 @@ pub enum HandleResult {
     Discard,
     // 消息处理失败，发送方收到一个响应回调错误消息
     Error(Message),
-    // 消息还在处理(仅调度器可感知该消息结果)
+    // 消息还在处理，下一轮将继续被轮询(仅调度器可感知该消息结果)
     Pending,
+}
+
+#[derive(Debug, Clone)]
+pub struct MessageWithHeader {
+    /// 消息帧ID
+    pub seq: u32,
+    /// 消息体
+    pub body: Message,
 }
 
 pub trait Node {
@@ -59,7 +67,7 @@ pub trait Node {
         _ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
-        _msg: Message,
+        _msg: MessageWithHeader,
     ) -> HandleResult {
         HandleResult::Discard
     }

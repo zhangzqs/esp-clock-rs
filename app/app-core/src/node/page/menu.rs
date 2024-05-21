@@ -7,8 +7,7 @@ use crate::{
     ui::{AppWindow, MenuViewModel},
 };
 use proto::{
-    Context, HandleResult, LifecycleMessage, Message, MessageTo, Node, NodeName, OneButtonMessage,
-    RouterMessage,
+    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName, OneButtonMessage, RouterMessage
 };
 
 pub struct MenuPage {
@@ -60,9 +59,9 @@ impl Node for MenuPage {
         ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
-        msg: Message,
+        msg: MessageWithHeader,
     ) -> HandleResult {
-        match msg {
+        match msg.body {
             Message::Lifecycle(msg) => match msg {
                 LifecycleMessage::Show => {
                     self.is_show = true;

@@ -4,8 +4,7 @@ use slint::Weak;
 
 use crate::ui::AppWindow;
 use proto::{
-    Context, HandleResult, LifecycleMessage, Message, MessageTo, Node, NodeName, RoutePage,
-    RouterMessage,
+    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName, RoutePage, RouterMessage
 };
 
 pub struct BootPage {
@@ -28,9 +27,9 @@ impl Node for BootPage {
         ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
-        msg: Message,
+        msg: MessageWithHeader,
     ) -> HandleResult {
-        match msg {
+        match msg.body {
             Message::Lifecycle(msg) => match msg {
                 LifecycleMessage::Init => {
                     slint::Timer::single_shot(Duration::from_secs(1), move || {

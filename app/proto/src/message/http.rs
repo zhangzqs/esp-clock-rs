@@ -3,6 +3,7 @@ use std::{collections::HashMap, rc::Rc, sync::Arc};
 #[derive(Debug, Clone)]
 pub enum HttpBody {
     Bytes(Vec<u8>),
+    Stream,
 }
 
 #[derive(Debug, Clone)]

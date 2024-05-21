@@ -1,8 +1,9 @@
-use std::{rc::Rc, time::Duration};
+use std::{rc::Rc, sync::Arc, time::Duration};
 
 use proto::{
-    Context, HandleResult, LifecycleMessage, Message, MessageTo, Node, NodeName, OneButtonMessage,
-    RoutePage, RouterMessage,
+    Context, HandleResult, HttpBody, HttpMessage, HttpRequest, HttpRequestMethod, LifecycleMessage,
+    Message, MessageTo, MessageWithHeader, Node, NodeName, OneButtonMessage, RoutePage,
+    RouterMessage,
 };
 
 pub struct WeatherPage {
@@ -29,10 +30,32 @@ impl Node for WeatherPage {
         ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
-        msg: Message,
+        msg: MessageWithHeader,
     ) -> HandleResult {
-        match msg {
+        match msg.body {
             Message::OneButton(msg) => match msg {
+                OneButtonMessage::Click => {
+                    if !self.is_show {
+                        return HandleResult::Discard;
+                    }
+                    ctx.send_message_with_reply_once(
+                        MessageTo::Point(NodeName::HttpClient),
+                        Message::Http(HttpMessage::Request(Arc::new(HttpRequest {
+                            method: HttpRequestMethod::Get,
+                            url: "http://www.baidu.com".to_string(),
+                        }))),
+                        Box::new(|n, r| match r {
+                            HandleResult::Successful(msg) => {
+                                if let Message::Http(HttpMessage::Response(resp)) = msg {
+                                    if let HttpBody::Bytes(bs) = resp.body.clone() {
+                                        println!("{:?}", String::from_utf8(bs));
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }),
+                    );
+                }
                 OneButtonMessage::LongPressHolding(dur) => {
                     if !self.hold_close_once_flag && dur > Duration::from_secs(1) && self.is_show {
                         self.hold_close_once_flag = true;

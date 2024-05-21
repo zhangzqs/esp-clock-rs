@@ -8,7 +8,7 @@ use slint::{ComponentHandle, Weak};
 
 use crate::ui::{AppWindow, OneButtenAdapter};
 use proto::{
-    Context, HandleResult, LifecycleMessage, Message, MessageTo, Node, NodeName, OneButtonMessage,
+    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName, OneButtonMessage
 };
 
 #[derive(Clone)]
@@ -72,9 +72,9 @@ impl Node for TouchOneButtonAdapterService {
         ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
-        msg: Message,
+        msg: MessageWithHeader,
     ) -> HandleResult {
-        match msg {
+        match msg.body {
             Message::Lifecycle(msg) => match msg {
                 LifecycleMessage::Init => {
                     let mut button = Button::new_with_platform(

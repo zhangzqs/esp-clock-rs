@@ -9,6 +9,7 @@ mod node;
 mod scheduler;
 mod ui;
 
+use slint::ComponentHandle;
 pub use ui::get_app_window;
 
 pub fn get_scheduler() -> Scheduler {

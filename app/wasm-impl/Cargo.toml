@@ -12,6 +12,8 @@ wasm-logger = "0.2.0"
 time = { version = "0.3.36" }
 web-sys = "0.3.69"
 proto = { path = "../proto" }
+reqwest = "0.12.4"
+wasm-bindgen-futures = "0.4.42"
 
 [lib]
 path = "src/main.rs"

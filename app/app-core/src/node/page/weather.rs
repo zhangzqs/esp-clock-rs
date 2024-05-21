@@ -1,5 +1,6 @@
 use std::{rc::Rc, sync::Arc, time::Duration};
 
+use log::info;
 use proto::{
     Context, HandleResult, HttpBody, HttpMessage, HttpRequest, HttpRequestMethod, LifecycleMessage,
     Message, MessageTo, MessageWithHeader, Node, NodeName, OneButtonMessage, RoutePage,
@@ -42,13 +43,13 @@ impl Node for WeatherPage {
                         MessageTo::Point(NodeName::HttpClient),
                         Message::Http(HttpMessage::Request(Arc::new(HttpRequest {
                             method: HttpRequestMethod::Get,
-                            url: "http://www.baidu.com".to_string(),
+                            url: "https://api.github.com/repos/rustwasm/wasm-bindgen/branches/master".to_string(),
                         }))),
                         Box::new(|n, r| match r {
                             HandleResult::Successful(msg) => {
                                 if let Message::Http(HttpMessage::Response(resp)) = msg {
                                     if let HttpBody::Bytes(bs) = resp.body.clone() {
-                                        println!("{:?}", String::from_utf8(bs));
+                                        info!("{:?}", String::from_utf8(bs));
                                     }
                                 }
                             }

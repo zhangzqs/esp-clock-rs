@@ -13,6 +13,9 @@ pub use onebutton::OneButtonMessage;
 mod lifecycle;
 pub use lifecycle::LifecycleMessage;
 
+mod weather;
+pub use weather::*;
+
 #[derive(Debug, Clone)]
 pub enum Message {
     // 空消息
@@ -26,7 +29,7 @@ pub enum Message {
     // 路由消息
     Router(RouterMessage),
     // 天气页相关消息
-    WeatherPage,
+    Weather(WeatherMessage),
     // Http消息
     Http(HttpMessage),
     // 时间日期相关消息
@@ -56,7 +59,7 @@ impl Message {
                     RoutePage::Weather => "router/gotopage/weather",
                 },
             },
-            Message::WeatherPage => "weather",
+            Message::Weather(_) => "weather",
             Message::Http(msg) => match msg {
                 HttpMessage::Request(_) => "http/request",
                 HttpMessage::Response(_) => "http/response",

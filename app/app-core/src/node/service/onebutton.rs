@@ -8,7 +8,8 @@ use slint::{ComponentHandle, Weak};
 
 use crate::ui::{AppWindow, OneButtenAdapter};
 use proto::{
-    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName, OneButtonMessage
+    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName,
+    OneButtonMessage,
 };
 
 #[derive(Clone)]

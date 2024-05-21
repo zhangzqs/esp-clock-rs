@@ -1,6 +1,7 @@
 use crate::ui::{AppWindow, HomeViewModel, TimeData, WeatherData};
 use proto::{
-    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName, OneButtonMessage, RoutePage, RouterMessage
+    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName,
+    OneButtonMessage, RoutePage, RouterMessage,
 };
 use slint::{ComponentHandle, Weak};
 use std::{rc::Rc, time::Duration};

@@ -4,7 +4,8 @@ use slint::Weak;
 
 use crate::ui::AppWindow;
 use proto::{
-    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName, RoutePage, RouterMessage
+    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName,
+    RoutePage, RouterMessage,
 };
 
 pub struct BootPage {

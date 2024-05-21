@@ -7,7 +7,8 @@ use crate::{
     ui::{AppWindow, PageRouter},
 };
 use proto::{
-    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName, RouterMessage
+    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName,
+    RouterMessage,
 };
 
 pub struct RouterService {

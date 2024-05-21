@@ -7,7 +7,8 @@ use crate::{
     ui::{AppWindow, MenuViewModel},
 };
 use proto::{
-    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName, OneButtonMessage, RouterMessage
+    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName,
+    OneButtonMessage, RouterMessage,
 };
 
 pub struct MenuPage {

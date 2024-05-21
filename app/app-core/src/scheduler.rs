@@ -1,8 +1,4 @@
-use std::{
-    cell::RefCell,
-    collections::{HashMap, HashSet},
-    rc::Rc,
-};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use log::debug;
 
@@ -20,7 +16,6 @@ struct MessageQueueItem {
 struct ContextImpl {
     node_name: NodeName,
     mq_buffer: Rc<RefCell<Vec<MessageQueueItem>>>,
-    topic_subscriber: Rc<RefCell<HashMap<Topic, HashSet<NodeName>>>>,
     msg_seq_inc: Rc<RefCell<u32>>,
 }
 
@@ -31,32 +26,14 @@ impl Context for ContextImpl {
         self.mq_buffer.borrow_mut().push(MessageQueueItem {
             from: self.node_name,
             to,
-            message: MessageWithHeader { 
+            message: MessageWithHeader {
                 seq: *self.msg_seq_inc.borrow(),
-                body: msg 
+                body: msg,
             },
             callback_once: None,
             callback: None,
             is_pending: false,
         })
-    }
-
-    // 订阅话题消息
-    fn subscribe_topic_message(&self, topic: Topic) {
-        self.topic_subscriber
-            .borrow_mut()
-            .entry(topic)
-            .or_default()
-            .insert(self.node_name);
-    }
-
-    fn unsubscribe_topic_message(&self, topic: Topic) {
-        self.topic_subscriber
-            .borrow_mut()
-            .entry(topic)
-            .and_modify(|x| {
-                x.remove(&self.node_name);
-            });
     }
 
     fn send_message_with_reply_once(
@@ -69,9 +46,9 @@ impl Context for ContextImpl {
         self.mq_buffer.borrow_mut().push(MessageQueueItem {
             from: self.node_name,
             to,
-            message: MessageWithHeader { 
+            message: MessageWithHeader {
                 seq: *self.msg_seq_inc.borrow(),
-                body: msg 
+                body: msg,
             },
             callback_once: Some(callback),
             callback: None,
@@ -84,9 +61,9 @@ impl Context for ContextImpl {
         self.mq_buffer.borrow_mut().push(MessageQueueItem {
             from: self.node_name,
             to,
-            message: MessageWithHeader { 
+            message: MessageWithHeader {
                 seq: *self.msg_seq_inc.borrow(),
-                body: msg 
+                body: msg,
             },
             callback_once: None,
             callback: Some(callback),
@@ -99,7 +76,6 @@ pub struct Scheduler {
     nodes: HashMap<NodeName, Box<dyn Node>>,
     mq_buffer1: RefCell<Vec<MessageQueueItem>>,
     mq_buffer2: Rc<RefCell<Vec<MessageQueueItem>>>,
-    topic_subscriber: Rc<RefCell<HashMap<Topic, HashSet<NodeName>>>>,
     msg_seq_inc: Rc<RefCell<u32>>,
 }
 
@@ -116,8 +92,8 @@ impl Scheduler {
             mq_buffer1: RefCell::new(vec![MessageQueueItem {
                 from: NodeName::Scheduler,
                 to: MessageTo::Broadcast,
-                message: MessageWithHeader { 
-                    seq: 0, 
+                message: MessageWithHeader {
+                    seq: 0,
                     body: Message::Lifecycle(LifecycleMessage::Init),
                 },
                 callback: None,
@@ -125,7 +101,6 @@ impl Scheduler {
                 is_pending: false,
             }]),
             mq_buffer2: Rc::new(RefCell::new(Vec::new())),
-            topic_subscriber: Rc::new(RefCell::new(HashMap::new())),
             msg_seq_inc: Rc::new(RefCell::new(0)),
         }
     }
@@ -141,13 +116,12 @@ impl Scheduler {
                 Rc::new(ContextImpl {
                     node_name: *node_name,
                     mq_buffer: self.mq_buffer2.clone(),
-                    topic_subscriber: self.topic_subscriber.clone(),
                     msg_seq_inc: self.msg_seq_inc.clone(),
                 }),
                 NodeName::Scheduler,
                 MessageTo::Broadcast,
-                MessageWithHeader { 
-                    seq: 0, 
+                MessageWithHeader {
+                    seq: 0,
                     body: Message::Schedule,
                 },
             );
@@ -180,7 +154,6 @@ impl Scheduler {
                             Rc::new(ContextImpl {
                                 node_name: *node_name,
                                 mq_buffer: self.mq_buffer2.clone(),
-                                topic_subscriber: self.topic_subscriber.clone(),
                                 msg_seq_inc: self.msg_seq_inc.clone(),
                             }),
                             from,
@@ -223,7 +196,6 @@ impl Scheduler {
                                 Rc::new(ContextImpl {
                                     node_name,
                                     mq_buffer: self.mq_buffer2.clone(),
-                                    topic_subscriber: self.topic_subscriber.clone(),
                                     msg_seq_inc: self.msg_seq_inc.clone(),
                                 }),
                                 from,
@@ -252,12 +224,12 @@ impl Scheduler {
                                     }
                                 }
                                 HandleResult::Pending => { // 复制一份消息，下一轮pending将继续传递
-                                    self.mq_buffer2.borrow_mut().push(MessageQueueItem { 
-                                        from: from, 
-                                        to: to, 
-                                        message: message, 
-                                        callback_once: callback_once, 
-                                        callback: callback,
+                                    self.mq_buffer2.borrow_mut().push(MessageQueueItem {
+                                        from,
+                                        to,
+                                        message,
+                                        callback_once,
+                                        callback,
                                         is_pending: true,
                                     })
                                 }
@@ -268,55 +240,6 @@ impl Scheduler {
                             // 如果不存在，则panic
                             panic!("not found node {:?}", node_name);
                         });
-                }
-                MessageTo::Topic(topic) => {
-                    if let Some(nodes) = self.topic_subscriber.borrow().get(&topic) {
-                        for node_name in nodes.iter() {
-                            self.nodes.entry(*node_name).and_modify(|x| {
-                                debug!(
-                                    "handle message from node: {from:?}, to node: {node_name:?}, msg: {}",
-                                    message.body.debug_msg()
-                                );
-                                let ret = x.handle_message(
-                                    Rc::new(ContextImpl {
-                                        node_name: *node_name,
-                                        mq_buffer: self.mq_buffer2.clone(),
-                                        topic_subscriber: self.topic_subscriber.clone(),
-                                        msg_seq_inc: self.msg_seq_inc.clone(),
-                                    }),
-                                    from,
-                                    to,
-                                    message.clone(),
-                                );
-                                debug!("handle message result: {ret:?}");
-                                
-                                match ret {
-                                    HandleResult::Successful(e) => {
-                                        if let Some(cb) = callback_once.take() {
-                                            cb(*node_name, HandleResult::Successful(e.clone()));
-                                        }
-                                        if let Some(ref cb) = callback {
-                                            cb(*node_name, HandleResult::Successful(e));
-                                        }
-                                    }
-                                    HandleResult::Error(e) => {
-                                        if let Some(cb) = callback_once.take() {
-                                            cb(*node_name, HandleResult::Error(e.clone()));
-                                        }
-                                        if let Some(ref cb) = callback {
-                                            cb(*node_name, HandleResult::Error(e));
-                                        }
-                                    }
-                                    HandleResult::Pending => {
-                                        unimplemented!("topic is unsupported for pending message")
-                                    }
-                                    HandleResult::Discard => {}
-                                }
-                            }).or_insert_with(|| {
-                                panic!("not found node {:?}", *node_name);
-                            });
-                        }
-                    }
                 }
             }
         }

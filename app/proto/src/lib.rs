@@ -1,15 +1,13 @@
 pub mod ipc;
 mod message;
 mod node;
-mod topic;
 use std::rc::Rc;
-pub use {message::*, node::NodeName, topic::Topic};
+pub use {message::*, node::NodeName};
 
 #[derive(Debug, Clone, Copy)]
 pub enum MessageTo {
     Broadcast,
     Point(NodeName),
-    Topic(Topic),
 }
 
 pub type MessageCallbackOnce = Box<dyn FnOnce(NodeName, HandleResult)>;
@@ -29,12 +27,6 @@ pub trait Context {
 
     // 发送可能会反馈多次的消息
     fn send_message_with_reply(&self, to: MessageTo, msg: Message, callback: MessageCallback);
-
-    // 订阅一个话题消息
-    fn subscribe_topic_message(&self, topic: Topic);
-
-    // 取消订阅话题消息
-    fn unsubscribe_topic_message(&self, topic: Topic);
 }
 
 #[derive(Debug, Clone)]

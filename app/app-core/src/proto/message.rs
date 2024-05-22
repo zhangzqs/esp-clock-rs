@@ -71,7 +71,7 @@ impl Message {
             },
             Message::DateTime(_) => "datetime/*",
             Message::Schedule => "schedule",
-            Message::Storage(_) => "storage"
+            Message::Storage(_) => "storage",
         }
     }
 }

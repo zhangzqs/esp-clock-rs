@@ -1,4 +1,4 @@
-use crate::proto::{Node, NodeName};
+use crate::proto::NodeName;
 
 #[derive(Debug, Clone)]
 pub enum RoutePage {

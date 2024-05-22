@@ -1,9 +1,8 @@
-use std::{rc::Rc, sync::Arc, time::Duration};
+use std::{rc::Rc, time::Duration};
 
 use crate::proto::{
-    Context, HandleResult, HttpBody, HttpMessage, HttpRequest, HttpRequestMethod, LifecycleMessage,
-    Message, MessageTo, MessageWithHeader, Node, NodeName, OneButtonMessage, RoutePage,
-    RouterMessage, WeatherMessage,
+    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName,
+    OneButtonMessage, RoutePage, RouterMessage, WeatherMessage,
 };
 use log::info;
 

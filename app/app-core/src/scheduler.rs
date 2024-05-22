@@ -92,6 +92,12 @@ impl Platform for DefaultPlatform {
     }
 }
 
+impl Default for Scheduler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Scheduler {
     pub fn new() -> Self {
         Self::new_with_platform(DefaultPlatform::new())

@@ -1,11 +1,4 @@
-use std::{
-    cell::RefCell,
-    collections::{HashMap, HashSet},
-    fmt::Display,
-    rc::Rc,
-    str::FromStr,
-    sync::Arc,
-};
+use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc, str::FromStr, sync::Arc};
 
 use crate::proto::*;
 use serde::{Deserialize, Serialize};
@@ -72,15 +65,15 @@ struct YikeOneDayWeather {
     air: Number<u16>,
 }
 
-impl Into<OneDayWeather> for YikeOneDayWeather {
-    fn into(self) -> OneDayWeather {
+impl From<YikeOneDayWeather> for OneDayWeather {
+    fn from(val: YikeOneDayWeather) -> Self {
         OneDayWeather {
-            date: self.date.take(),
-            now_temperature: self.tem.take(),
-            max_temperature: self.tem1.take(),
-            min_temperature: self.tem2.take(),
-            humidity: self.humidity.strip_suffix("%").unwrap().parse().unwrap(),
-            state: match self.wea_img.as_str() {
+            date: val.date.take(),
+            now_temperature: val.tem.take(),
+            max_temperature: val.tem1.take(),
+            min_temperature: val.tem2.take(),
+            humidity: val.humidity.strip_suffix('%').unwrap().parse().unwrap(),
+            state: match val.wea_img.as_str() {
                 "xue" => WeatherState::Snow,
                 "lei" => WeatherState::Thunder,
                 "shachen" => WeatherState::Sandstorm,
@@ -90,10 +83,10 @@ impl Into<OneDayWeather> for YikeOneDayWeather {
                 "yu" => WeatherState::Rain,
                 "yin" => WeatherState::Overcast,
                 "qing" => WeatherState::Sunny,
-                _ => todo!("not supported {}", self.wea),
+                _ => todo!("not supported {}", val.wea),
             },
-            state_description: self.wea,
-            air_quality_index: self.air.take(),
+            state_description: val.wea,
+            air_quality_index: val.air.take(),
         }
     }
 }
@@ -104,11 +97,11 @@ struct YikeWeatherResponse {
     data: Vec<YikeOneDayWeather>,
 }
 
-impl Into<NextSevenDaysWeather> for YikeWeatherResponse {
-    fn into(self) -> NextSevenDaysWeather {
+impl From<YikeWeatherResponse> for NextSevenDaysWeather {
+    fn from(val: YikeWeatherResponse) -> Self {
         NextSevenDaysWeather {
-            city: self.city,
-            data: self.data.into_iter().map(Into::into).collect(),
+            city: val.city,
+            data: val.data.into_iter().map(Into::into).collect(),
         }
     }
 }

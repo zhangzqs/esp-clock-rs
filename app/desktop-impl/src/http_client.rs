@@ -1,14 +1,14 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     rc::Rc,
     sync::{mpsc, Arc, Mutex},
     thread,
     time::Duration,
 };
 
-use proto::{
-    HandleResult, HttpBody, HttpMessage, HttpRequest, HttpRequestMethod, HttpResponse, Message,
-    MessageTo, MessageWithHeader, Node, NodeName,
+use app_core::proto::{
+    Context, HandleResult, HttpBody, HttpMessage, HttpRequest, HttpRequestMethod, HttpResponse,
+    Message, MessageTo, MessageWithHeader, Node, NodeName,
 };
 use reqwest::blocking::ClientBuilder;
 
@@ -87,7 +87,7 @@ impl Node for HttpClient {
 
     fn handle_message(
         &mut self,
-        _ctx: Rc<dyn proto::Context>,
+        _ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
         msg: MessageWithHeader,

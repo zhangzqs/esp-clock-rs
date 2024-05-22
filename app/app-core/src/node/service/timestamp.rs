@@ -21,7 +21,7 @@ impl Node for TimestampClientService {
         msg: MessageWithHeader,
     ) -> HandleResult {
         if let Message::DateTime(TimeMessage::GetTimestampNanosRequest) = msg.body {
-            return HandleResult::Successful(Message::DateTime(
+            return HandleResult::Finish(Message::DateTime(
                 TimeMessage::GetTimestampNanosResponse(
                     OffsetDateTime::now_utc().unix_timestamp_nanos(),
                 ),

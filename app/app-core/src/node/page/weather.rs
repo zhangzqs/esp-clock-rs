@@ -40,7 +40,7 @@ impl Node for WeatherPage {
                             MessageTo::Point(NodeName::WeatherClient),
                             Message::Weather(WeatherMessage::GetNextSevenDaysWeatherRequest),
                             Box::new(|_, r| match r {
-                                HandleResult::Successful(msg) => {
+                                HandleResult::Finish(msg) => {
                                     if let Message::Weather(
                                         WeatherMessage::GetNextSevenDaysWeatherResponse(resp),
                                     ) = msg
@@ -60,7 +60,7 @@ impl Node for WeatherPage {
                             MessageTo::Point(NodeName::Router),
                             Message::Router(RouterMessage::GotoPage(RoutePage::Home)),
                         );
-                        return HandleResult::Successful(Message::Empty);
+                        return HandleResult::Finish(Message::Empty);
                     }
                 }
                 OneButtonMessage::LongPressHeld(_) => self.hold_close_once_flag = false,

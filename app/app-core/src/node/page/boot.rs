@@ -39,7 +39,7 @@ impl Node for BootPage {
                             Message::Router(RouterMessage::GotoPage(RoutePage::Home)),
                         );
                     });
-                    return HandleResult::Successful(Message::Empty);
+                    return HandleResult::Finish(Message::Empty);
                 }
                 _ => {}
             },

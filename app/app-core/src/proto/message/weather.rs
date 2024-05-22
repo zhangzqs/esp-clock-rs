@@ -1,3 +1,5 @@
+use super::HttpError;
+
 #[derive(Debug, Clone)]
 pub enum WeatherState {
     /// 雪
@@ -68,7 +70,14 @@ pub struct NextSevenDaysWeather {
 }
 
 #[derive(Debug, Clone)]
+pub enum WeatherError {
+    SerdeError(String),
+    HttpError(HttpError),
+}
+
+#[derive(Debug, Clone)]
 pub enum WeatherMessage {
+    Error(WeatherError),
     GetNextSevenDaysWeatherRequest,
     GetNextSevenDaysWeatherResponse(NextSevenDaysWeather),
 }

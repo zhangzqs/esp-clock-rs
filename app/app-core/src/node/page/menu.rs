@@ -66,11 +66,11 @@ impl Node for MenuPage {
             Message::Lifecycle(msg) => match msg {
                 LifecycleMessage::Show => {
                     self.is_show = true;
-                    return HandleResult::Successful(Message::Empty);
+                    return HandleResult::Finish(Message::Empty);
                 }
                 LifecycleMessage::Hide => {
                     self.is_show = false;
-                    return HandleResult::Successful(Message::Empty);
+                    return HandleResult::Finish(Message::Empty);
                 }
                 _ => {}
             },
@@ -79,11 +79,11 @@ impl Node for MenuPage {
                     match msg {
                         OneButtonMessage::Click => {
                             self.next_page();
-                            return HandleResult::Successful(Message::Empty);
+                            return HandleResult::Finish(Message::Empty);
                         }
                         OneButtonMessage::Clicks(2) => {
                             self.enter_page(ctx.clone());
-                            return HandleResult::Successful(Message::Empty);
+                            return HandleResult::Finish(Message::Empty);
                         }
                         _ => {}
                     }

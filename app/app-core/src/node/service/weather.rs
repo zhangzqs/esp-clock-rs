@@ -1,8 +1,10 @@
-use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc, str::FromStr, sync::Arc};
+use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc, str::FromStr};
 
 use crate::proto::*;
 use serde::{Deserialize, Serialize};
 use time_macros::format_description;
+
+use self::ipc::HttpClient;
 
 #[derive(Debug, Clone, Copy, Serialize)]
 struct Number<T>(T);
@@ -107,7 +109,7 @@ impl From<YikeWeatherResponse> for NextSevenDaysWeather {
 }
 
 pub struct WeatherClient {
-    ready_resp: Rc<RefCell<HashMap<u32, NextSevenDaysWeather>>>,
+    ready_resp: Rc<RefCell<HashMap<u32, HandleResult>>>,
 }
 
 impl WeatherClient {
@@ -134,11 +136,7 @@ impl Node for WeatherClient {
             Message::Weather(WeatherMessage::GetNextSevenDaysWeatherRequest) => {
                 // 出结果了
                 if self.ready_resp.borrow().contains_key(&msg.seq) {
-                    return HandleResult::Successful(Message::Weather(
-                        WeatherMessage::GetNextSevenDaysWeatherResponse(
-                            self.ready_resp.borrow_mut().remove(&msg.seq).unwrap(),
-                        ),
-                    ));
+                    return self.ready_resp.borrow_mut().remove(&msg.seq).unwrap();
                 }
 
                 // 仍然需要pending
@@ -148,23 +146,26 @@ impl Node for WeatherClient {
 
                 // 首次消息，进入pending状态
                 let ready_resp = self.ready_resp.clone();
-                ctx.send_message_with_reply_once(
-                    MessageTo::Point(NodeName::HttpClient),
-                    Message::Http(HttpMessage::Request(Arc::new(HttpRequest {
+                HttpClient(ctx).request(
+                    HttpRequest {
                         method: HttpRequestMethod::Get,
                         url:
                             "http://v1.yiketianqi.com/api?unescape=1&version=v91&appid=&appsecret="
                                 .into(),
-                    }))),
-                    Box::new(move |_, r| match r {
-                        HandleResult::Successful(Message::Http(HttpMessage::Response(resp))) => {
-                            if let HttpBody::Bytes(bs) = &resp.body {
-                                let resp =
-                                    serde_json::from_slice::<YikeWeatherResponse>(bs).unwrap();
-                                ready_resp.borrow_mut().insert(msg.seq, resp.into());
-                            }
-                        }
-                        _ => {}
+                    },
+                    Box::new(move |r| {
+                        let x = match r {
+                            Ok(x) => match x.body.deserialize_by_json::<YikeWeatherResponse>() {
+                                Ok(x) => WeatherMessage::GetNextSevenDaysWeatherResponse(x.into()),
+                                Err(e) => {
+                                    WeatherMessage::Error(WeatherError::SerdeError(e.to_string()))
+                                }
+                            },
+                            Err(e) => WeatherMessage::Error(WeatherError::HttpError(e)),
+                        };
+                        ready_resp
+                            .borrow_mut()
+                            .insert(msg.seq, HandleResult::Finish(Message::Weather(x)));
                     }),
                 );
                 return HandleResult::Pending;

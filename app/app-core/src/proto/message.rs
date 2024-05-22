@@ -2,7 +2,7 @@ mod time;
 pub use time::TimeMessage;
 
 mod http;
-pub use http::{HttpBody, HttpMessage, HttpRequest, HttpRequestMethod, HttpResponse};
+pub use http::*;
 
 mod router;
 pub use router::{RoutePage, RouterMessage};
@@ -66,6 +66,7 @@ impl Message {
             },
             Message::Weather(_) => "weather",
             Message::Http(msg) => match msg {
+                HttpMessage::Error(_) => "http/error",
                 HttpMessage::Request(_) => "http/request",
                 HttpMessage::Response(_) => "http/response",
             },
@@ -74,4 +75,10 @@ impl Message {
             Message::Storage(_) => "storage",
         }
     }
+}
+
+#[test]
+fn test_message_size() {
+    let s = std::mem::size_of::<Message>();
+    println!("Message size {}", s);
 }

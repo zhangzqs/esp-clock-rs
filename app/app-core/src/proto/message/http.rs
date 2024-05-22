@@ -1,9 +1,23 @@
-use std::sync::Arc;
+use serde::de;
 
 #[derive(Debug, Clone)]
 pub enum HttpBody {
     Bytes(Vec<u8>),
     Stream,
+}
+
+impl HttpBody {
+    pub fn deserialize_by_json<'a, T>(&'a self) -> serde_json::Result<T>
+    where
+        T: de::Deserialize<'a>,
+    {
+        match self {
+            HttpBody::Bytes(bs) => serde_json::from_slice::<T>(bs),
+            HttpBody::Stream => {
+                unimplemented!("not implement");
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -19,12 +33,17 @@ pub struct HttpRequest {
 
 #[derive(Debug, Clone)]
 pub struct HttpResponse {
-    pub request: Arc<HttpRequest>,
     pub body: HttpBody,
 }
 
 #[derive(Debug, Clone)]
+pub enum HttpError {
+    Timeout,
+}
+
+#[derive(Debug, Clone)]
 pub enum HttpMessage {
-    Request(Arc<HttpRequest>),
-    Response(Arc<HttpResponse>),
+    Error(HttpError),
+    Request(HttpRequest),
+    Response(HttpResponse),
 }

@@ -21,17 +21,17 @@ fn convert(method: HttpRequestMethod) -> reqwest::Method {
 
 pub struct HttpClient {
     // 发送一个请求
-    req_tx: mpsc::Sender<(u32, Arc<HttpRequest>)>,
+    req_tx: mpsc::Sender<(u32, HttpRequest)>,
     // 收到一个响应
-    resp_rx: mpsc::Receiver<(u32, Arc<HttpResponse>)>,
+    resp_rx: mpsc::Receiver<(u32, HandleResult)>,
     // 已经就绪的响应
-    ready_resp: HashMap<u32, Arc<HttpResponse>>,
+    ready_resp: HashMap<u32, HandleResult>,
 }
 
 impl HttpClient {
     pub fn new(threads: usize) -> Self {
-        let (req_tx, req_rx) = mpsc::channel::<(u32, Arc<HttpRequest>)>();
-        let (resp_tx, resp_rx) = mpsc::channel::<(u32, Arc<HttpResponse>)>();
+        let (req_tx, req_rx) = mpsc::channel::<(u32, HttpRequest)>();
+        let (resp_tx, resp_rx) = mpsc::channel();
         let client = ClientBuilder::new().build().unwrap();
 
         let req_rx = Arc::new(Mutex::new(req_rx));
@@ -54,10 +54,11 @@ impl HttpClient {
                         resp_tx
                             .send((
                                 seq,
-                                Arc::new(HttpResponse {
-                                    request: req.clone(),
-                                    body: HttpBody::Bytes(content),
-                                }),
+                                HandleResult::Finish(Message::Http(HttpMessage::Response(
+                                    HttpResponse {
+                                        body: HttpBody::Bytes(content),
+                                    },
+                                ))),
                             ))
                             .unwrap();
                     }
@@ -96,9 +97,7 @@ impl Node for HttpClient {
             Message::Http(HttpMessage::Request(req)) => {
                 if self.ready_resp.contains_key(&msg.seq) {
                     // 若消息结果为ready态，则返回Sucessful
-                    return HandleResult::Successful(Message::Http(HttpMessage::Response(
-                        self.ready_resp.remove(&msg.seq).unwrap(),
-                    )));
+                    return self.ready_resp.remove(&msg.seq).unwrap();
                 }
 
                 if msg.is_pending {

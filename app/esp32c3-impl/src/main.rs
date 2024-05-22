@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc, time::Duration};
 
-use app_core::get_scheduler;
+use app_core::{get_scheduler, proto::*};
 use button_driver::Button;
 use display_interface_spi::SPIInterface;
 use embedded_hal::spi::MODE_3;
@@ -14,7 +14,6 @@ use esp_idf_hal::{
 use esp_idf_sys as _;
 use log::info;
 use mipidsi::{Builder, ColorInversion, Orientation};
-use proto::{Context, LifecycleMessage, Node};
 
 struct EspOneButton<'a, P: Pin> {
     button: Rc<RefCell<Button<PinDriver<'a, P, Input>, button_driver::DefaultPlatform>>>,
@@ -32,18 +31,18 @@ impl<'a, P: Pin> EspOneButton<'a, P> {
 }
 
 impl<'a: 'static, P: Pin> Node for EspOneButton<'a, P> {
-    fn node_name(&self) -> proto::NodeName {
-        proto::NodeName::Other("EspOneButton")
+    fn node_name(&self) -> NodeName {
+        NodeName::Other("EspOneButton")
     }
 
     fn handle_message(
         &mut self,
         ctx: Rc<dyn Context>,
-        _from: proto::NodeName,
-        _to: proto::MessageTo,
-        msg: proto::Message,
-    ) -> proto::HandleResult {
-        if let proto::Message::Lifecycle(LifecycleMessage::Init) = msg {
+        _from: NodeName,
+        _to: MessageTo,
+        msg: MessageWithHeader,
+    ) -> HandleResult {
+        if let Message::Lifecycle(LifecycleMessage::Init) = msg.body {
             let button = self.button.clone();
             self.timer.start(
                 slint::TimerMode::Repeated,
@@ -56,47 +55,41 @@ impl<'a: 'static, P: Pin> Node for EspOneButton<'a, P> {
                         let clicks = button.clicks();
                         if clicks == 1 {
                             ctx.send_message(
-                                proto::MessageTo::Broadcast,
-                                proto::Message::OneButton(proto::OneButtonMessage::Click),
+                                MessageTo::Broadcast,
+                                Message::OneButton(OneButtonMessage::Click),
                             );
                         } else {
                             ctx.send_message(
-                                proto::MessageTo::Broadcast,
-                                proto::Message::OneButton(proto::OneButtonMessage::Clicks(
-                                    clicks,
-                                )),
+                                MessageTo::Broadcast,
+                                Message::OneButton(OneButtonMessage::Clicks(clicks)),
                             );
                         }
                     } else if let Some(dur) = button.current_holding_time() {
                         info!("Held for {dur:?}");
                         ctx.send_message(
-                            proto::MessageTo::Broadcast,
-                            proto::Message::OneButton(
-                                proto::OneButtonMessage::LongPressHolding(dur),
-                            ),
+                            MessageTo::Broadcast,
+                            Message::OneButton(OneButtonMessage::LongPressHolding(dur)),
                         );
                     } else if let Some(dur) = button.held_time() {
                         info!("Total holding time {dur:?}");
                         ctx.send_message(
-                            proto::MessageTo::Broadcast,
-                            proto::Message::OneButton(proto::OneButtonMessage::LongPressHeld(
-                                dur,
-                            )),
+                            MessageTo::Broadcast,
+                            Message::OneButton(OneButtonMessage::LongPressHeld(dur)),
                         );
                     }
                     button.reset();
                 },
             );
         }
-        proto::HandleResult::Discard
+        HandleResult::Discard
     }
 }
 
 fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
-    esp_idf_svc::log::set_target_level("esp32c3_impl_v2", log::LevelFilter::Debug)?;
-    esp_idf_svc::log::set_target_level("slint_app_v2", log::LevelFilter::Debug)?;
+    esp_idf_svc::log::set_target_level("esp32c3_impl", log::LevelFilter::Debug)?;
+    esp_idf_svc::log::set_target_level("app_core", log::LevelFilter::Debug)?;
 
     let peripherals = Peripherals::take().unwrap();
     // 所有引脚定义

@@ -2,7 +2,7 @@ use node::{
     BootPage, HomePage, MenuPage, RouterService, TimestampClientService,
     TouchOneButtonAdapterService, WeatherClient, WeatherPage,
 };
-pub use scheduler::{Platform, Scheduler};
+pub use scheduler::Scheduler;
 
 mod adapter;
 mod node;

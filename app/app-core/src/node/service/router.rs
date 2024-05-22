@@ -63,7 +63,7 @@ impl Node for RouterService {
                     Message::Lifecycle(LifecycleMessage::Show),
                     Box::new(move |_, _msg| Self::goto_page(app, r)),
                 );
-                return HandleResult::Successful(Message::Empty);
+                return HandleResult::Finish(Message::Empty);
             }
             _ => {}
         }

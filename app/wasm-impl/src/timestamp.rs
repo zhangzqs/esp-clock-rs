@@ -19,7 +19,7 @@ impl Node for TimestampClientService {
     ) -> HandleResult {
         if let Message::DateTime(TimeMessage::GetTimestampNanosRequest) = msg.body {
             let t = web_sys::js_sys::Date::now();
-            return HandleResult::Successful(Message::DateTime(
+            return HandleResult::Finish(Message::DateTime(
                 TimeMessage::GetTimestampNanosResponse(t as i128 * 1_000_000),
             ));
         }

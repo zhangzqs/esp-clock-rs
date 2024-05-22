@@ -50,8 +50,7 @@ embedded-hal = "1.0.0-alpha"
 
 slint = { version = "1.3.0", default-features = false }
 embedded-software-slint-backend = { path = "../../libs/embedded-software-slint-backend" }
-app-core = { path = "../app-core", features = ["software-renderer"] }
-proto = { path = "../proto" }
+app-core = { path = "../app-core", default-features = false, features = ["software-renderer"] }
 button-driver = { path = "../../libs/button-driver", features = ["esp", "std"] }
 
 [build-dependencies]

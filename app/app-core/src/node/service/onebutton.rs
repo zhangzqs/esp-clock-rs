@@ -22,7 +22,7 @@ impl PinWrapper for MyButtonPin {
 }
 
 struct MyButtonPlatform {
-    t: slint::Timer,
+    _t: slint::Timer,
     dur: Rc<RefCell<Duration>>,
 }
 
@@ -36,7 +36,7 @@ impl MyButtonPlatform {
             Duration::from_millis(20),
             move || *dur1.borrow_mut() += Duration::from_millis(20),
         );
-        Self { t, dur }
+        Self { _t: t, dur }
     }
 }
 
@@ -134,7 +134,7 @@ impl Node for TouchOneButtonAdapterService {
                             *button_state_ref.borrow_mut() = false;
                         });
                     }
-                    return HandleResult::Successful(Message::Empty);
+                    return HandleResult::Finish(Message::Empty);
                 }
                 _ => {}
             },

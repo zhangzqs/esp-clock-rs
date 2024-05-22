@@ -5,10 +5,10 @@ use std::{
     thread,
 };
 
-use log::{error, info};
+use log::error;
 use slint::{
     platform::{
-        software_renderer::{LineBufferProvider, MinimalSoftwareWindow, RepaintBufferType},
+        software_renderer::{LineBufferProvider, MinimalSoftwareWindow},
         EventLoopProxy, Platform, WindowAdapter,
     },
     EventLoopError, PlatformError, Rgb8Pixel,

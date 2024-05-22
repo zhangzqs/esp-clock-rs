@@ -2,6 +2,7 @@ pub mod ipc;
 mod message;
 mod node;
 use std::{rc::Rc, time::Duration};
+
 pub use {message::*, node::NodeName};
 
 #[derive(Debug, Clone, Copy)]
@@ -11,7 +12,6 @@ pub enum MessageTo {
 }
 
 pub type MessageCallbackOnce = Box<dyn FnOnce(NodeName, HandleResult)>;
-pub type MessageCallback = Box<dyn Fn(NodeName, HandleResult)>;
 
 pub trait Context {
     // 发送一条消息，无反馈
@@ -34,9 +34,6 @@ pub trait Context {
     ) {
         self.send_message_with_timeout_and_reply_once(to, msg, None, callback);
     }
-
-    // 发送可能会反馈多次的消息
-    fn send_message_with_reply(&self, to: MessageTo, msg: Message, callback: MessageCallback);
 }
 
 #[derive(Debug, Clone)]
@@ -53,12 +50,30 @@ pub enum HandleResult {
     Timeout,
 }
 
+impl HandleResult {
+    pub fn map<T, E>(
+        self,
+        value_mapper: impl FnOnce(Message) -> T,
+        error_mapper: impl FnOnce(Message) -> E,
+    ) -> Result<T, E> {
+        match self {
+            HandleResult::Successful(e) => Ok(value_mapper(e)),
+            HandleResult::Error(e) => Err(error_mapper(e)),
+            _ => {
+                panic!("cannot map HandleResult {:?} into Result", self)
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct MessageWithHeader {
     /// 消息帧ID
     pub seq: u32,
     /// 消息超时时间点，相对于调度器首次调度的时间点
     pub timeout: Option<Duration>,
+    /// 消息是否处于pending态
+    pub is_pending: bool,
     /// 消息体
     pub body: Message,
 }

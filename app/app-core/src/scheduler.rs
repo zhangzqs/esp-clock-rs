@@ -1,16 +1,19 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc, time::{Duration, Instant}};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    rc::Rc,
+    time::{Duration, Instant},
+};
 
 use log::debug;
 
-use proto::*;
+use crate::proto::*;
 
 struct MessageQueueItem {
     from: NodeName,
     to: MessageTo,
     message: MessageWithHeader,
     callback_once: Option<MessageCallbackOnce>,
-    callback: Option<MessageCallback>,
-    is_pending: bool,
 }
 
 pub trait Platform {
@@ -35,10 +38,9 @@ impl Context for ContextImpl {
                 seq: *self.msg_seq_inc.borrow(),
                 body: msg,
                 timeout: None,
+                is_pending: false,
             },
             callback_once: None,
-            callback: None,
-            is_pending: false,
         })
     }
 
@@ -57,26 +59,9 @@ impl Context for ContextImpl {
                 seq: *self.msg_seq_inc.borrow(),
                 body: msg,
                 timeout: timeout.map(|x| self.platform.duration_since_init() + x),
+                is_pending: false,
             },
             callback_once: Some(callback),
-            callback: None,
-            is_pending: false,
-        })
-    }
-
-    fn send_message_with_reply(&self, to: MessageTo, msg: Message, callback: MessageCallback) {
-        *self.msg_seq_inc.borrow_mut() += 1;
-        self.mq_buffer.borrow_mut().push(MessageQueueItem {
-            from: self.node_name,
-            to,
-            message: MessageWithHeader {
-                seq: *self.msg_seq_inc.borrow(),
-                body: msg,
-                timeout: None,
-            },
-            callback_once: None,
-            callback: Some(callback),
-            is_pending: false,
         })
     }
 }
@@ -122,10 +107,9 @@ impl Scheduler {
                     seq: 0,
                     body: Message::Lifecycle(LifecycleMessage::Init),
                     timeout: None,
+                    is_pending: false,
                 },
-                callback: None,
                 callback_once: None,
-                is_pending: false,
             }]),
             mq_buffer2: Rc::new(RefCell::new(Vec::new())),
             msg_seq_inc: Rc::new(RefCell::new(0)),
@@ -153,6 +137,7 @@ impl Scheduler {
                     seq: 0,
                     body: Message::Schedule,
                     timeout: None,
+                    is_pending: false,
                 },
             );
         }
@@ -163,11 +148,9 @@ impl Scheduler {
             to,
             message,
             mut callback_once,
-            callback,
-            is_pending,
         } in self.mq_buffer1.borrow_mut().drain(..)
         {
-            if !is_pending {
+            if !message.is_pending {
                 debug!(
                     "dispatch message from: {:?}, to: {:?}, msg: {:?}",
                     from, to, message
@@ -193,20 +176,14 @@ impl Scheduler {
                         );
                         debug!("handle message result: {ret:?}");
                         match ret {
-                            HandleResult::Successful(e) => {
-                                if let Some(cb) = callback_once.take() {
-                                    cb(*node_name, HandleResult::Successful(e.clone()));
-                                }
-                                if let Some(ref cb) = callback {
-                                    cb(*node_name, HandleResult::Successful(e));
+                            HandleResult::Successful(_) => {
+                                if let Some(_) = callback_once.take() {
+                                    unimplemented!("broadcast is unsupported for callback")
                                 }
                             }
-                            HandleResult::Error(e) => {
-                                if let Some(cb) = callback_once.take() {
-                                    cb(*node_name, HandleResult::Error(e.clone()));
-                                }
-                                if let Some(ref cb) = callback {
-                                    cb(*node_name, HandleResult::Error(e));
+                            HandleResult::Error(_) => {
+                                if let Some(_) = callback_once.take() {
+                                    unimplemented!("broadcast is unsupported for callback")
                                 }
                             }
                             HandleResult::Pending => {
@@ -223,7 +200,7 @@ impl Scheduler {
                     self.nodes
                         .entry(node_name)
                         .and_modify(|x| {
-                            if !is_pending {
+                            if !message.is_pending {
                                 debug!("handle message from node: {from:?}, to node: {node_name:?}, msg: {}", message.body.debug_msg());
                             }
                             let ret = x.handle_message(
@@ -237,7 +214,7 @@ impl Scheduler {
                                 to,
                                 message.clone(),
                             );
-                            if !is_pending {
+                            if !message.is_pending {
                                 debug!("handle message result: {ret:?}");
                             }
 
@@ -246,19 +223,15 @@ impl Scheduler {
                                     if let Some(cb) = callback_once.take() {
                                         cb(node_name, HandleResult::Successful(e.clone()));
                                     }
-                                    if let Some(ref cb) = callback {
-                                        cb(node_name, HandleResult::Successful(e));
-                                    }
                                 }
                                 HandleResult::Error(e) => {
                                     if let Some(cb) = callback_once.take() {
                                         cb(node_name, HandleResult::Error(e.clone()));
                                     }
-                                    if let Some(ref cb) = callback {
-                                        cb(node_name, HandleResult::Error(e));
-                                    }
                                 }
                                 HandleResult::Pending => { // 复制一份消息，下一轮pending将继续传递
+                                    let mut message = message;
+                                    message.is_pending = true;
                                     if let Some(dur) = message.timeout {
                                         if dur < self.platform.duration_since_init() {
                                             // 没有超时
@@ -267,9 +240,7 @@ impl Scheduler {
                                                 to,
                                                 message,
                                                 callback_once,
-                                                callback,
-                                                is_pending: true,
-                                            })
+                                            });
                                         } else {
                                             // 超时了
                                             if let Some(cb) = callback_once.take() {
@@ -283,11 +254,8 @@ impl Scheduler {
                                             to,
                                             message,
                                             callback_once,
-                                            callback,
-                                            is_pending: true,
-                                        })
+                                        });
                                     }
-                                    
                                 }
                                 HandleResult::Timeout => {
                                     if let Some(cb) = callback_once.take() {

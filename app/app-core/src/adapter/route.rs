@@ -1,19 +1,19 @@
-use crate::ui;
+use crate::{proto::RoutePage, ui::PageRouteTable};
 
-pub fn proto_route_table_to_slint_route_table(r: proto::RoutePage) -> ui::PageRouteTable {
+pub fn proto_route_table_to_slint_route_table(r: RoutePage) -> PageRouteTable {
     match r {
-        proto::RoutePage::Boot => ui::PageRouteTable::Boot,
-        proto::RoutePage::Home => ui::PageRouteTable::Home,
-        proto::RoutePage::Menu => ui::PageRouteTable::Menu,
-        proto::RoutePage::Weather => ui::PageRouteTable::Weather,
+        RoutePage::Boot => PageRouteTable::Boot,
+        RoutePage::Home => PageRouteTable::Home,
+        RoutePage::Menu => PageRouteTable::Menu,
+        RoutePage::Weather => PageRouteTable::Weather,
     }
 }
 
-pub fn slint_route_table_to_proto_route_table(r: ui::PageRouteTable) -> proto::RoutePage {
+pub fn slint_route_table_to_proto_route_table(r: PageRouteTable) -> RoutePage {
     match r {
-        ui::PageRouteTable::Boot => proto::RoutePage::Boot,
-        ui::PageRouteTable::Home => proto::RoutePage::Home,
-        ui::PageRouteTable::Menu => proto::RoutePage::Menu,
-        ui::PageRouteTable::Weather => proto::RoutePage::Weather,
+        PageRouteTable::Boot => RoutePage::Boot,
+        PageRouteTable::Home => RoutePage::Home,
+        PageRouteTable::Menu => RoutePage::Menu,
+        PageRouteTable::Weather => RoutePage::Weather,
     }
 }

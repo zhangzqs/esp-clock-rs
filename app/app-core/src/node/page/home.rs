@@ -1,8 +1,8 @@
-use crate::ui::{AppWindow, HomeViewModel, TimeData, WeatherData};
-use proto::{
-    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName,
-    OneButtonMessage, RoutePage, RouterMessage,
+use crate::proto::{
+    ipc, Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node,
+    NodeName, OneButtonMessage, RoutePage, RouterMessage,
 };
+use crate::ui::{AppWindow, HomeViewModel, TimeData, WeatherData};
 use slint::{ComponentHandle, Weak};
 use std::{rc::Rc, time::Duration};
 use time::{OffsetDateTime, UtcOffset};
@@ -27,26 +27,23 @@ impl HomePage {
 
 impl HomePage {
     fn update_time(app: Weak<AppWindow>, ctx: Rc<dyn Context>) {
-        proto::ipc::get_timestamp_nanos(
-            ctx,
-            Box::new(move |t| {
-                let t = OffsetDateTime::from_unix_timestamp_nanos(t)
-                    .unwrap()
-                    .to_offset(UtcOffset::from_hms(8, 0, 0).unwrap());
-                if let Some(ui) = app.upgrade() {
-                    let home_app = ui.global::<HomeViewModel>();
-                    home_app.set_time(TimeData {
-                        day: t.day() as _,
-                        hour: t.hour() as _,
-                        minute: t.minute() as _,
-                        month: t.month() as _,
-                        second: t.second() as _,
-                        week: t.weekday().number_days_from_sunday() as _,
-                        year: t.year(),
-                    })
-                }
-            }),
-        )
+        ipc::TimestampClient(ctx).get_timestamp_nanos(Box::new(move |t| {
+            let t = OffsetDateTime::from_unix_timestamp_nanos(t)
+                .unwrap()
+                .to_offset(UtcOffset::from_hms(8, 0, 0).unwrap());
+            if let Some(ui) = app.upgrade() {
+                let home_app = ui.global::<HomeViewModel>();
+                home_app.set_time(TimeData {
+                    day: t.day() as _,
+                    hour: t.hour() as _,
+                    minute: t.minute() as _,
+                    month: t.month() as _,
+                    second: t.second() as _,
+                    week: t.weekday().number_days_from_sunday() as _,
+                    year: t.year(),
+                })
+            }
+        }))
     }
 
     fn on_show(&mut self, ctx: Rc<dyn Context>) {

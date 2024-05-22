@@ -7,7 +7,7 @@ use std::{
     sync::Arc,
 };
 
-use proto::*;
+use crate::proto::*;
 use serde::{Deserialize, Serialize};
 use time_macros::format_description;
 
@@ -61,7 +61,7 @@ impl Date {
 }
 
 #[derive(Deserialize)]
-struct OneDayWeather {
+struct YikeOneDayWeather {
     date: Date,
     wea: String,
     wea_img: String,
@@ -72,9 +72,9 @@ struct OneDayWeather {
     air: Number<u16>,
 }
 
-impl Into<proto::OneDayWeather> for OneDayWeather {
-    fn into(self) -> proto::OneDayWeather {
-        proto::OneDayWeather {
+impl Into<OneDayWeather> for YikeOneDayWeather {
+    fn into(self) -> OneDayWeather {
+        OneDayWeather {
             date: self.date.take(),
             now_temperature: self.tem.take(),
             max_temperature: self.tem1.take(),
@@ -99,29 +99,27 @@ impl Into<proto::OneDayWeather> for OneDayWeather {
 }
 
 #[derive(Deserialize)]
-struct WeatherResponse {
+struct YikeWeatherResponse {
     city: String,
-    data: Vec<OneDayWeather>,
+    data: Vec<YikeOneDayWeather>,
 }
 
-impl Into<proto::NextSevenDaysWeather> for WeatherResponse {
-    fn into(self) -> proto::NextSevenDaysWeather {
-        proto::NextSevenDaysWeather {
+impl Into<NextSevenDaysWeather> for YikeWeatherResponse {
+    fn into(self) -> NextSevenDaysWeather {
+        NextSevenDaysWeather {
             city: self.city,
-            data: self.data.into_iter().map(OneDayWeather::into).collect(),
+            data: self.data.into_iter().map(Into::into).collect(),
         }
     }
 }
 
 pub struct WeatherClient {
-    running_req: Rc<RefCell<HashSet<u32>>>,
     ready_resp: Rc<RefCell<HashMap<u32, NextSevenDaysWeather>>>,
 }
 
 impl WeatherClient {
     pub fn new() -> Self {
         Self {
-            running_req: Rc::new(RefCell::new(HashSet::new())),
             ready_resp: Rc::new(RefCell::new(HashMap::new())),
         }
     }
@@ -141,40 +139,42 @@ impl Node for WeatherClient {
     ) -> HandleResult {
         match msg.body {
             Message::Weather(WeatherMessage::GetNextSevenDaysWeatherRequest) => {
-                if self.running_req.borrow().contains(&msg.seq) {
-                    return HandleResult::Pending;
-                } else if self.ready_resp.borrow().contains_key(&msg.seq) {
+                // 出结果了
+                if self.ready_resp.borrow().contains_key(&msg.seq) {
                     return HandleResult::Successful(Message::Weather(
                         WeatherMessage::GetNextSevenDaysWeatherResponse(
                             self.ready_resp.borrow_mut().remove(&msg.seq).unwrap(),
                         ),
                     ));
-                } else {
-                    let running_req = self.running_req.clone();
-                    let ready_resp = self.ready_resp.clone();
-                    ctx.send_message_with_reply_once(
-                        MessageTo::Point(NodeName::HttpClient),
-                        Message::Http(HttpMessage::Request(Arc::new(HttpRequest {
-                            method: HttpRequestMethod::Get,
-                            url: "http://v1.yiketianqi.com/api?unescape=1&version=v91&appid=&appsecret=".into(),
-                        }))),
-                        Box::new(move |_, r| match r {
-                            HandleResult::Successful(Message::Http(HttpMessage::Response(
-                                resp,
-                            ))) => {
-                                if let HttpBody::Bytes(bs) = &resp.body {
-                                    let resp =
-                                        serde_json::from_slice::<WeatherResponse>(bs).unwrap();
-                                    running_req.borrow_mut().remove(&msg.seq);
-                                    ready_resp.borrow_mut().insert(msg.seq, resp.into());
-                                }
-                            }
-                            _ => {}
-                        }),
-                    );
-                    self.running_req.borrow_mut().insert(msg.seq);
+                }
+
+                // 仍然需要pending
+                if msg.is_pending {
                     return HandleResult::Pending;
                 }
+
+                // 首次消息，进入pending状态
+                let ready_resp = self.ready_resp.clone();
+                ctx.send_message_with_reply_once(
+                    MessageTo::Point(NodeName::HttpClient),
+                    Message::Http(HttpMessage::Request(Arc::new(HttpRequest {
+                        method: HttpRequestMethod::Get,
+                        url:
+                            "http://v1.yiketianqi.com/api?unescape=1&version=v91&appid=&appsecret="
+                                .into(),
+                    }))),
+                    Box::new(move |_, r| match r {
+                        HandleResult::Successful(Message::Http(HttpMessage::Response(resp))) => {
+                            if let HttpBody::Bytes(bs) = &resp.body {
+                                let resp =
+                                    serde_json::from_slice::<YikeWeatherResponse>(bs).unwrap();
+                                ready_resp.borrow_mut().insert(msg.seq, resp.into());
+                            }
+                        }
+                        _ => {}
+                    }),
+                );
+                return HandleResult::Pending;
             }
             _ => {}
         }

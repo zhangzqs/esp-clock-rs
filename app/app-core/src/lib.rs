@@ -6,10 +6,10 @@ pub use scheduler::{Platform, Scheduler};
 
 mod adapter;
 mod node;
+pub mod proto;
 mod scheduler;
 mod ui;
 
-use slint::ComponentHandle;
 pub use ui::get_app_window;
 
 pub fn get_scheduler() -> Scheduler {

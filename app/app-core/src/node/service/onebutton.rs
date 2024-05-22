@@ -6,11 +6,11 @@ use button_driver::{Button, ButtonConfig, PinWrapper, Platform};
 
 use slint::{ComponentHandle, Weak};
 
-use crate::ui::{AppWindow, OneButtenAdapter};
-use proto::{
+use crate::proto::{
     Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName,
     OneButtonMessage,
 };
+use crate::ui::{AppWindow, OneButtenAdapter};
 
 #[derive(Clone)]
 struct MyButtonPin(Rc<RefCell<bool>>);

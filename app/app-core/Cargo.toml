@@ -9,7 +9,6 @@ edition = "2021"
 anyhow = "1.0.83"
 log = "0.4.21"
 slint = { version = "1.3.0", default-features = false }
-proto = { path = "../proto" }
 time = { version = "0.3.36", features = ["parsing"] }
 button-driver = { path = "../../libs/button-driver" }
 serde = { version = "1.0.202", features = ["derive"] }

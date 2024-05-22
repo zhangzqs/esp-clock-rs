@@ -12,6 +12,8 @@ pub enum NodeName {
     OneButton,
     // 页面ui路由器
     Router,
+    // 本地存储
+    Storage,
     // 启动页ui与逻辑
     BootPage,
     // 首页ui与逻辑

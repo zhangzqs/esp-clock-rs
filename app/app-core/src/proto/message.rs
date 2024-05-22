@@ -16,24 +16,29 @@ pub use lifecycle::LifecycleMessage;
 mod weather;
 pub use weather::*;
 
+mod storage;
+pub use storage::*;
+
 #[derive(Debug, Clone)]
 pub enum Message {
-    // 空消息
+    /// 空消息
     Empty,
-    // 调度器调度消息，每一轮调度都会额外发一次该消息
+    /// 调度器调度消息，每一轮调度都会额外发一次该消息
     Schedule,
-    // App生命周期消息
+    /// App生命周期消息
     Lifecycle(LifecycleMessage),
-    // 单按键消息
+    /// 单按键消息
     OneButton(OneButtonMessage),
-    // 路由消息
+    /// 路由消息
     Router(RouterMessage),
-    // 天气页相关消息
+    /// 天气页相关消息
     Weather(WeatherMessage),
-    // Http消息
+    /// Http消息
     Http(HttpMessage),
-    // 时间日期相关消息
+    /// 时间日期相关消息
     DateTime(TimeMessage),
+    /// 本地存储相关消息
+    Storage(StorageMessage),
 }
 
 impl Message {
@@ -66,6 +71,7 @@ impl Message {
             },
             Message::DateTime(_) => "datetime/*",
             Message::Schedule => "schedule",
+            Message::Storage(_) => "storage"
         }
     }
 }

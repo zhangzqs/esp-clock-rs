@@ -2,13 +2,14 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Weak};
 
-use crate::{
-    adapter::{self},
-    ui::{AppWindow, PageRouter},
-};
-use proto::{
+use crate::proto::{
     Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName,
     RouterMessage,
+};
+use crate::{
+    adapter,
+    proto::RoutePage,
+    ui::{AppWindow, PageRouter},
 };
 
 pub struct RouterService {
@@ -19,7 +20,7 @@ impl RouterService {
     pub fn new(app: Weak<AppWindow>) -> Self {
         Self { app }
     }
-    fn goto_page(app: Weak<AppWindow>, r: proto::RoutePage) {
+    fn goto_page(app: Weak<AppWindow>, r: RoutePage) {
         if let Some(ui) = app.upgrade() {
             let slint_route = adapter::proto_route_table_to_slint_route_table(r);
             let router = ui.global::<PageRouter>();
@@ -27,7 +28,7 @@ impl RouterService {
         }
     }
 
-    fn get_current_page(&self) -> proto::RoutePage {
+    fn get_current_page(&self) -> RoutePage {
         let slint_route = self
             .app
             .upgrade()

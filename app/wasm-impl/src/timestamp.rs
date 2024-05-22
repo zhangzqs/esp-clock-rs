@@ -1,13 +1,10 @@
 use std::rc::Rc;
 
-use time::OffsetDateTime;
-
-use crate::proto::{
+use app_core::proto::{
     Context, HandleResult, Message, MessageTo, MessageWithHeader, Node, NodeName, TimeMessage,
 };
 
 pub struct TimestampClientService {}
-
 impl Node for TimestampClientService {
     fn node_name(&self) -> NodeName {
         NodeName::TimestampClient
@@ -21,10 +18,9 @@ impl Node for TimestampClientService {
         msg: MessageWithHeader,
     ) -> HandleResult {
         if let Message::DateTime(TimeMessage::GetTimestampNanosRequest) = msg.body {
+            let t = web_sys::js_sys::Date::now();
             return HandleResult::Successful(Message::DateTime(
-                TimeMessage::GetTimestampNanosResponse(
-                    OffsetDateTime::now_utc().unix_timestamp_nanos(),
-                ),
+                TimeMessage::GetTimestampNanosResponse(t as i128 * 1_000_000),
             ));
         }
         HandleResult::Discard

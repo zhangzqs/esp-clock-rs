@@ -2,11 +2,11 @@ use std::{rc::Rc, time::Duration};
 
 use slint::Weak;
 
-use crate::ui::AppWindow;
-use proto::{
+use crate::proto::{
     Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName,
     RoutePage, RouterMessage,
 };
+use crate::ui::AppWindow;
 
 pub struct BootPage {
     app: Weak<AppWindow>,

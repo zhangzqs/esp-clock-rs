@@ -2,13 +2,13 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Model, Weak};
 
+use crate::proto::{
+    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName,
+    OneButtonMessage, RouterMessage,
+};
 use crate::{
     adapter,
     ui::{AppWindow, MenuViewModel},
-};
-use proto::{
-    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName,
-    OneButtonMessage, RouterMessage,
 };
 
 pub struct MenuPage {

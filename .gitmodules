@@ -1,0 +1,4 @@
+[submodule "libs/button-driver"]
+	path = libs/button-driver
+	url = https://github.com/zhangzqs/button-driver
+	branch = platform-interface

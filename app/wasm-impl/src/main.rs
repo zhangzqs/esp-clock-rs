@@ -1,8 +1,6 @@
+use app_core::{get_app_window, register_default_nodes, Scheduler};
 use slint::ComponentHandle;
 use std::time::Duration;
-use time::OffsetDateTime;
-
-use app_core::{get_app_window, register_default_nodes, Scheduler};
 
 mod http;
 mod timestamp;

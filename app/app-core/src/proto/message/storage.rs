@@ -1,4 +1,7 @@
-pub type StorageError = String;
+#[derive(Debug, Clone)]
+pub enum StorageError {
+    Other(String),
+}
 
 #[derive(Debug, Clone)]
 pub enum StorageMessage {
@@ -11,6 +14,7 @@ pub enum StorageMessage {
 
     /// 设置，设置为None表示删除
     SetRequest(String, Option<String>),
+    SetResponse,
 
     /// 列举出所有的keys
     ListKeysRequest,

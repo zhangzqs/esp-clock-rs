@@ -57,22 +57,40 @@ impl StorageClient {
         self.0.send_message_with_reply_once(
             MessageTo::Point(NodeName::Storage),
             Message::Storage(StorageMessage::SetRequest(key, value)),
-            Box::new(|_, r| {}),
+            Box::new(|_, r| {
+                callback(match r.unwrap() {
+                    Message::Storage(StorageMessage::SetResponse) => Ok(()),
+                    Message::Storage(StorageMessage::Error(e)) => Err(e),
+                    m => panic!("unexpected message {:?}", m),
+                });
+            }),
         )
     }
     pub fn get_storage(&self, key: String, callback: ResultCallback<Option<String>, StorageError>) {
         self.0.send_message_with_reply_once(
             MessageTo::Point(NodeName::Storage),
             Message::Storage(StorageMessage::GetRequest(key)),
-            Box::new(|_, r| {}),
+            Box::new(|_, r| {
+                callback(match r.unwrap() {
+                    Message::Storage(StorageMessage::GetResponse(r)) => Ok(r),
+                    Message::Storage(StorageMessage::Error(e)) => Err(e),
+                    m => panic!("unexpected message {:?}", m),
+                });
+            }),
         );
     }
 
-    pub fn list_keys(&self, callback: ResultCallback<(), StorageError>) {
+    pub fn list_keys(&self, callback: ResultCallback<Vec<String>, StorageError>) {
         self.0.send_message_with_reply_once(
             MessageTo::Point(NodeName::Storage),
             Message::Storage(StorageMessage::ListKeysRequest),
-            Box::new(|_, r| {}),
+            Box::new(|_, r| {
+                callback(match r.unwrap() {
+                    Message::Storage(StorageMessage::ListKeysResponse(r)) => Ok(r),
+                    Message::Storage(StorageMessage::Error(e)) => Err(e),
+                    m => panic!("unexpected message {:?}", m),
+                });
+            }),
         );
     }
 }

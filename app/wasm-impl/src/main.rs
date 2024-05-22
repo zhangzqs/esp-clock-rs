@@ -3,6 +3,7 @@ use slint::ComponentHandle;
 use std::time::Duration;
 
 mod http;
+mod storage;
 mod timestamp;
 
 #[wasm_bindgen::prelude::wasm_bindgen(start)]
@@ -13,6 +14,7 @@ pub fn main() {
     register_default_nodes(&mut sche);
     sche.register_node(http::HttpClient::new());
     sche.register_node(timestamp::TimestampClientService {});
+    sche.register_node(storage::LocalStorageService {});
     let sche_timer = slint::Timer::default();
     sche_timer.start(
         slint::TimerMode::Repeated,

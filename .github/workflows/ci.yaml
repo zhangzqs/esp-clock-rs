@@ -32,4 +32,3 @@ jobs:
           git submodule update --init
           cd app/desktop-impl && cargo build && cd -
           cd app/esp32c3-impl && cargo build && cd -
-          cd server && cargo build && cd -

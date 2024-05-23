@@ -20,30 +20,12 @@ struct MessageQueueItem {
     callback_once: Option<MessageCallbackOnce>,
 }
 
-struct FutureImpl {
-    result: Rc<RefCell<Option<HandleResult>>>,
-}
-
-impl Future for FutureImpl {
-    type Output = HandleResult;
-
-    fn poll(
-        self: std::pin::Pin<&mut Self>,
-        _cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Self::Output> {
-        if let Some(x) = self.result.borrow_mut().take() {
-            std::task::Poll::Ready(x)
-        } else {
-            std::task::Poll::Pending
-        }
-    }
-}
-
 struct ContextImpl {
     node_name: NodeName,
     mq_buffer: Rc<RefCell<Vec<MessageQueueItem>>>,
     msg_seq_inc: AtomicU32,
     nodes: Rc<RefCell<HashMap<NodeName, Box<dyn Node>>>>,
+    ready_result: Rc<RefCell<HashMap<u32, Message>>>,
 }
 
 impl Context for ContextImpl {
@@ -57,6 +39,7 @@ impl Context for ContextImpl {
                 seq: self.msg_seq_inc.load(Ordering::SeqCst),
                 body: msg,
                 is_pending: false,
+                ready_result: None,
             },
             callback_once: None,
         })
@@ -71,6 +54,7 @@ impl Context for ContextImpl {
             message: MessageWithHeader {
                 seq: self.msg_seq_inc.load(Ordering::SeqCst),
                 body: msg,
+                ready_result: None,
                 is_pending: false,
             },
             callback_once: Some(callback),
@@ -86,15 +70,21 @@ impl Context for ContextImpl {
                 mq_buffer: self.mq_buffer.clone(),
                 nodes: self.nodes.clone(),
                 msg_seq_inc: AtomicU32::new(self.msg_seq_inc.load(Ordering::SeqCst)),
+                ready_result: self.ready_result.clone(),
             }),
             self.node_name,
             MessageTo::Point(node),
             MessageWithHeader {
                 seq: self.msg_seq_inc.load(Ordering::SeqCst),
                 is_pending: false,
+                ready_result: None,
                 body: msg,
             },
         )
+    }
+
+    fn async_ready(&self, seq: u32, result: Message) {
+        self.ready_result.borrow_mut().insert(seq, result);
     }
 }
 
@@ -103,6 +93,7 @@ pub struct Scheduler {
     mq_buffer1: RefCell<Vec<MessageQueueItem>>,
     mq_buffer2: Rc<RefCell<Vec<MessageQueueItem>>>,
     msg_seq_inc: AtomicU32,
+    ready_result: Rc<RefCell<HashMap<u32, Message>>>,
 }
 
 impl Default for Scheduler {
@@ -121,12 +112,14 @@ impl Scheduler {
                 message: MessageWithHeader {
                     seq: 0,
                     body: Message::Lifecycle(LifecycleMessage::Init),
+                    ready_result: None,
                     is_pending: false,
                 },
                 callback_once: None,
             }]),
             mq_buffer2: Rc::new(RefCell::new(Vec::new())),
             msg_seq_inc: AtomicU32::new(0),
+            ready_result: Rc::new(RefCell::new(HashMap::new())),
         }
     }
 
@@ -166,6 +159,7 @@ impl Scheduler {
                                     self.msg_seq_inc.load(Ordering::SeqCst),
                                 ),
                                 nodes: self.nodes.clone(),
+                                ready_result: self.ready_result.clone(),
                             }),
                             from,
                             to,
@@ -201,6 +195,7 @@ impl Scheduler {
                             mq_buffer: self.mq_buffer2.clone(),
                             msg_seq_inc: AtomicU32::new(self.msg_seq_inc.load(Ordering::SeqCst)),
                             nodes: self.nodes.clone(),
+                            ready_result: self.ready_result.clone(),
                         }),
                         from,
                         to,
@@ -217,13 +212,21 @@ impl Scheduler {
                             }
                         }
                         HandleResult::Pending => {
-                            // 复制一份消息，下一轮pending将继续传递
-                            let mut message = message;
-                            message.is_pending = true;
+                            let res = self
+                                .ready_result
+                                .borrow_mut()
+                                .remove(&message.seq)
+                                .map(Box::new);
+
                             self.mq_buffer2.borrow_mut().push(MessageQueueItem {
                                 from,
                                 to,
-                                message,
+                                message: MessageWithHeader {
+                                    seq: message.seq,
+                                    is_pending: res.is_none(),
+                                    ready_result: res,
+                                    body: message.body,
+                                },
                                 callback_once,
                             });
                         }

@@ -26,23 +26,22 @@ impl HomePage {
 
 impl HomePage {
     fn update_time(app: Weak<AppWindow>, ctx: Rc<dyn Context>) {
-        ipc::TimestampClient(ctx).get_timestamp_nanos(Box::new(move |t| {
-            let t = OffsetDateTime::from_unix_timestamp_nanos(t)
-                .unwrap()
-                .to_offset(UtcOffset::from_hms(8, 0, 0).unwrap());
-            if let Some(ui) = app.upgrade() {
-                let home_app = ui.global::<HomeViewModel>();
-                home_app.set_time(TimeData {
-                    day: t.day() as _,
-                    hour: t.hour() as _,
-                    minute: t.minute() as _,
-                    month: t.month() as _,
-                    second: t.second() as _,
-                    week: t.weekday().number_days_from_sunday() as _,
-                    year: t.year(),
-                })
-            }
-        }))
+        let t = ipc::TimestampClient(ctx).get_timestamp_nanos();
+        let t = OffsetDateTime::from_unix_timestamp_nanos(t)
+            .unwrap()
+            .to_offset(UtcOffset::from_hms(8, 0, 0).unwrap());
+        if let Some(ui) = app.upgrade() {
+            let home_app = ui.global::<HomeViewModel>();
+            home_app.set_time(TimeData {
+                day: t.day() as _,
+                hour: t.hour() as _,
+                minute: t.minute() as _,
+                month: t.month() as _,
+                second: t.second() as _,
+                week: t.weekday().number_days_from_sunday() as _,
+                year: t.year(),
+            })
+        }
     }
 
     fn on_show(&self, ctx: Rc<dyn Context>) {

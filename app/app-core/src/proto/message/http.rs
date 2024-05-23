@@ -39,6 +39,7 @@ pub struct HttpResponse {
 #[derive(Debug, Clone)]
 pub enum HttpError {
     Timeout,
+    Other(String),
 }
 
 #[derive(Debug, Clone)]

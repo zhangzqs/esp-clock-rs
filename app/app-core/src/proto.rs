@@ -24,6 +24,9 @@ pub trait Context {
 
     // 发送同步消息
     fn sync_call(&self, node: NodeName, msg: Message) -> HandleResult;
+
+    // 消息就绪，并传递值
+    fn async_ready(&self, seq: u32, result: Message);
 }
 
 #[derive(Debug, Clone)]
@@ -49,8 +52,10 @@ impl HandleResult {
 pub struct MessageWithHeader {
     /// 消息帧ID
     pub seq: u32,
-    /// 消息是否处于pending态
+    /// 异步消息是否处于pending态
     pub is_pending: bool,
+    /// 异步消息是否已经就绪响应结果
+    pub ready_result: Option<Box<Message>>,
     /// 消息体
     pub body: Message,
 }

@@ -1,10 +1,10 @@
-use std::rc::Rc;
+use std::{collections::HashSet, rc::Rc};
 
 use crate::proto::{Context, Message, MessageTo, NodeName, TimeMessage};
 
 use super::{
-    HttpError, HttpMessage, HttpRequest, HttpResponse, NextSevenDaysWeather, StorageError,
-    StorageMessage, WeatherError, WeatherMessage,
+    HttpError, HttpMessage, HttpRequest, HttpResponse, NextSevenDaysWeather, PerformanceMessage,
+    StorageError, StorageMessage, WeatherError, WeatherMessage,
 };
 
 type Callback<T> = Box<dyn FnOnce(T)>;
@@ -48,7 +48,7 @@ impl TimestampClient {
 pub struct StorageClient(pub Rc<dyn Context>);
 
 impl StorageClient {
-    pub fn set_storage(
+    pub fn set(
         &self,
         key: String,
         value: Option<String>,
@@ -66,7 +66,7 @@ impl StorageClient {
             }),
         )
     }
-    pub fn get_storage(&self, key: String, callback: ResultCallback<Option<String>, StorageError>) {
+    pub fn get(&self, key: String, callback: ResultCallback<Option<String>, StorageError>) {
         self.0.send_message_with_reply_once(
             MessageTo::Point(NodeName::Storage),
             Message::Storage(StorageMessage::GetRequest(key)),
@@ -80,7 +80,7 @@ impl StorageClient {
         );
     }
 
-    pub fn list_keys(&self, callback: ResultCallback<Vec<String>, StorageError>) {
+    pub fn list(&self, callback: ResultCallback<HashSet<String>, StorageError>) {
         self.0.send_message_with_reply_once(
             MessageTo::Point(NodeName::Storage),
             Message::Storage(StorageMessage::ListKeysRequest),
@@ -113,5 +113,48 @@ impl WeatherClient {
                 });
             }),
         );
+    }
+}
+
+pub struct PerformanceClient(pub Rc<dyn Context>);
+
+impl PerformanceClient {
+    pub fn get_free_heap_size(&self, callback: Callback<usize>) {
+        self.0.send_message_with_reply_once(
+            MessageTo::Point(NodeName::Performance),
+            Message::Performance(PerformanceMessage::GetFreeHeapSizeRequest),
+            Box::new(|_, r| {
+                callback(match r.unwrap() {
+                    Message::Performance(PerformanceMessage::GetFreeHeapSizeResponse(s)) => s,
+                    m => panic!("unexpected response, {:?}", m),
+                })
+            }),
+        )
+    }
+
+    pub fn get_largeest_free_block(&self, callback: Callback<usize>) {
+        self.0.send_message_with_reply_once(
+            MessageTo::Point(NodeName::Performance),
+            Message::Performance(PerformanceMessage::GetLargestFreeBlock),
+            Box::new(|_, r| {
+                callback(match r.unwrap() {
+                    Message::Performance(PerformanceMessage::GetLargestFreeBlockResponse(s)) => s,
+                    m => panic!("unexpected response, {:?}", m),
+                })
+            }),
+        )
+    }
+
+    pub fn get_fps(&self, callback: Callback<usize>) {
+        self.0.send_message_with_reply_once(
+            MessageTo::Point(NodeName::Performance),
+            Message::Performance(PerformanceMessage::GetFpsRequest),
+            Box::new(|_, r| {
+                callback(match r.unwrap() {
+                    Message::Performance(PerformanceMessage::GetFpsResponse(s)) => s,
+                    m => panic!("unexpected response, {:?}", m),
+                })
+            }),
+        )
     }
 }

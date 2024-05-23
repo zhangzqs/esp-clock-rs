@@ -19,6 +19,9 @@ pub use weather::*;
 mod storage;
 pub use storage::*;
 
+mod performance;
+pub use performance::*;
+
 #[derive(Debug, Clone)]
 pub enum Message {
     /// 空消息
@@ -39,6 +42,8 @@ pub enum Message {
     DateTime(TimeMessage),
     /// 本地存储相关消息
     Storage(StorageMessage),
+    /// 性能相关消息
+    Performance(PerformanceMessage),
 }
 
 impl Message {
@@ -73,6 +78,7 @@ impl Message {
             Message::DateTime(_) => "datetime/*",
             Message::Schedule => "schedule",
             Message::Storage(_) => "storage",
+            Message::Performance(_) => "performance",
         }
     }
 }

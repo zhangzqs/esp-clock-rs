@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 #[derive(Debug, Clone)]
 pub enum StorageError {
     Other(String),
@@ -18,5 +20,5 @@ pub enum StorageMessage {
 
     /// 列举出所有的keys
     ListKeysRequest,
-    ListKeysResponse(Vec<String>),
+    ListKeysResponse(HashSet<String>),
 }

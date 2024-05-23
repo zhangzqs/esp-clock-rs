@@ -1,10 +1,63 @@
-use std::rc::Rc;
+use std::{collections::HashSet, fmt::format, rc::Rc};
 
 use app_core::proto::{
-    Context, HandleResult, Message, MessageTo, MessageWithHeader, Node, NodeName, StorageMessage,
+    Context, HandleResult, Message, MessageTo, MessageWithHeader, Node, NodeName, StorageError,
+    StorageMessage,
 };
+use wasm_bindgen::JsValue;
 
-pub struct LocalStorageService {}
+pub struct LocalStorageService {
+    stg: web_sys::Storage,
+}
+
+impl LocalStorageService {
+    pub fn new() -> Self {
+        let stg = web_sys::window().unwrap().local_storage().unwrap().unwrap();
+        Self { stg }
+    }
+
+    pub fn get(&self, key: &str) -> Result<Option<String>, JsValue> {
+        let k = format!("data/{key}");
+        Ok(self.stg.get(&k)?)
+    }
+
+    pub fn set(&self, key: &str, value: Option<&str>) -> Result<(), JsValue> {
+        let k = format!("data/{key}");
+        if let Some(value) = value {
+            self.stg.set(&k, &value)?;
+            self.add_list(key)?;
+        } else {
+            self.stg.remove_item(&k)?;
+            self.remove_list(key)?;
+        }
+        Ok(())
+    }
+
+    pub fn list(&self) -> Result<HashSet<String>, JsValue> {
+        Ok(self
+            .stg
+            .get("list_meta")?
+            .map(|s| serde_json::from_str::<HashSet<String>>(&s).unwrap())
+            .unwrap_or_default())
+    }
+
+    pub fn add_list(&self, key: &str) -> Result<(), JsValue> {
+        let mut list = self.list()?;
+        list.insert(key.into());
+        self.stg
+            .set("list_meta", &serde_json::to_string(&list).unwrap())?;
+        Ok(())
+    }
+
+    pub fn remove_list(&self, key: &str) -> Result<(), JsValue> {
+        let mut list = self.list()?;
+        if list.remove(key.into()) {
+            self.stg
+                .set("list_meta", &serde_json::to_string(&list).unwrap())?;
+        }
+        Ok(())
+    }
+}
 
 impl Node for LocalStorageService {
     fn node_name(&self) -> NodeName {
@@ -19,34 +72,26 @@ impl Node for LocalStorageService {
         msg: MessageWithHeader,
     ) -> HandleResult {
         if let Message::Storage(sm) = msg.body {
-            let stg = web_sys::window().unwrap().local_storage().unwrap().unwrap();
-
             let resp = match sm {
-                StorageMessage::GetRequest(key) => {
-                    let ret = stg.get(&key).unwrap();
-                    StorageMessage::GetResponse(ret)
-                }
-
-                StorageMessage::SetRequest(key, value) => {
-                    if let Some(value) = value {
-                        stg.set(&key, &value).unwrap();
-                    } else {
-                        stg.remove_item(&key).unwrap();
-                    }
-                    StorageMessage::SetResponse
-                }
-
+                StorageMessage::GetRequest(key) => self.get(&key).map(StorageMessage::GetResponse),
+                StorageMessage::SetRequest(key, value) => self
+                    .set(&key, value.as_ref().map(|x| x.as_str()))
+                    .map(|_| StorageMessage::SetResponse),
                 StorageMessage::ListKeysRequest => {
-                    let ret = stg
-                        .get("meta")
-                        .unwrap()
-                        .map(|s| serde_json::from_str::<Vec<String>>(&s).unwrap())
-                        .unwrap_or_default();
-                    StorageMessage::ListKeysResponse(ret)
+                    self.list().map(StorageMessage::ListKeysResponse)
                 }
                 m => panic!("unexpected message {:?}", m),
             };
-            return HandleResult::Finish(Message::Storage(resp));
+            match resp {
+                Ok(v) => {
+                    return HandleResult::Finish(Message::Storage(v));
+                }
+                Err(e) => {
+                    return HandleResult::Finish(Message::Storage(StorageMessage::Error(
+                        StorageError::Other(format!("{:?}", e)),
+                    )));
+                }
+            }
         }
         HandleResult::Discard
     }

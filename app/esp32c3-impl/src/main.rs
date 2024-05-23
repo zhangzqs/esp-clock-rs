@@ -85,6 +85,48 @@ impl<'a: 'static, P: Pin> Node for EspOneButton<'a, P> {
     }
 }
 
+struct PerformanceNode {}
+
+impl Node for PerformanceNode {
+    fn node_name(&self) -> NodeName {
+        NodeName::Performance
+    }
+
+    fn handle_message(
+        &mut self,
+        _ctx: Rc<dyn Context>,
+        _from: NodeName,
+        _to: MessageTo,
+        msg: MessageWithHeader,
+    ) -> HandleResult {
+        if let Message::Performance(pm) = msg.body {
+            return HandleResult::Finish(Message::Performance(match pm {
+                PerformanceMessage::GetFreeHeapSizeRequest => {
+                    PerformanceMessage::GetFreeHeapSizeResponse(unsafe {
+                        esp_idf_sys::esp_get_free_heap_size() as usize
+                    })
+                }
+                PerformanceMessage::GetLargestFreeBlock => {
+                    PerformanceMessage::GetLargestFreeBlockResponse(unsafe {
+                        esp_idf_sys::heap_caps_get_largest_free_block(esp_idf_sys::MALLOC_CAP_8BIT)
+                    })
+                }
+                PerformanceMessage::GetFpsRequest => PerformanceMessage::GetFpsResponse(60),
+                m => panic!("unexpected message {m:?}"),
+            }));
+        }
+        HandleResult::Discard
+    }
+}
+
+struct StorageNode {}
+
+impl Node for StorageNode {
+    fn node_name(&self) -> NodeName {
+        NodeName::Storage
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
@@ -156,6 +198,8 @@ fn main() -> anyhow::Result<()> {
     let one_butten_node = EspOneButton::new(btn_pin);
     let mut sche = get_scheduler();
     sche.register_node(one_butten_node);
+    sche.register_node(PerformanceNode {});
+    sche.register_node(StorageNode {});
     let sche_timer = slint::Timer::default();
     sche_timer.start(
         slint::TimerMode::Repeated,

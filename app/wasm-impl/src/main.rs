@@ -14,7 +14,7 @@ pub fn main() {
     register_default_nodes(&mut sche);
     sche.register_node(http::HttpClient::new());
     sche.register_node(timestamp::TimestampClientService {});
-    sche.register_node(storage::LocalStorageService {});
+    sche.register_node(storage::LocalStorageService::new());
     let sche_timer = slint::Timer::default();
     sche_timer.start(
         slint::TimerMode::Repeated,

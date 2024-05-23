@@ -8,6 +8,51 @@ export global OneButtenAdapter {
     callback release();
 }
 
+export global PerformanceViewModel {
+    in property <bool> is-show: true;
+    in property <int> fps;
+    in property <int> memory;
+    in property <int> largest-free-block;
+    in property <int> cpu;
+}
+
+component PerformanceView inherits Rectangle {
+    visible: PerformanceViewModel.is-show;
+    in property <int> fps <=> PerformanceViewModel.fps;
+    in property <int> memory <=> PerformanceViewModel.memory;
+    in property <int> largest-free-block <=> PerformanceViewModel.largest-free-block;
+    in property <int> cpu <=> PerformanceViewModel.cpu;
+
+    VerticalLayout {
+        alignment: start;
+        HorizontalLayout {
+            HorizontalLayout {
+                alignment: start;
+                Rectangle {
+                    background: gray.with-alpha(0.5);
+                    Text {
+                        color: #ff2a00;
+                        font-size: 20px;
+                        text: "memory: \{memory}\n" + "free block: \{largest-free-block}";
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                alignment: end;
+                Rectangle {
+                    background: gray.with-alpha(0.5);
+                    Text {
+                        color: #ff2a00;
+                        font-size: 20px;
+                        text: "fps: \{fps}\n" + "cpu: \{cpu}";
+                    }
+                }
+            }
+        }
+    }
+}
+
 export component AppWindow inherits Window {
     default-font-family: "Microsoft YaHei";
     width: Env.screen-width;
@@ -38,7 +83,13 @@ export component AppWindow inherits Window {
         }
     }
 
-    RouteView { }
+    PerformanceView {
+        z: 1;
+    }
+
+    RouteView {
+        z: 0;
+    }
 }
 
 export { 

@@ -1,6 +1,9 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use futures_util::{future::BoxFuture, Future, FutureExt};
+use futures_util::{
+    future::{BoxFuture, LocalBoxFuture},
+    Future, FutureExt,
+};
 use log::debug;
 
 use crate::proto::*;
@@ -13,8 +16,7 @@ struct MessageQueueItem {
 }
 
 struct FutureImpl {
-    to: MessageTo,
-    msg: Message,
+    result: Rc<RefCell<Option<HandleResult>>>,
 }
 
 impl Future for FutureImpl {
@@ -22,9 +24,13 @@ impl Future for FutureImpl {
 
     fn poll(
         self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
+        _cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
-        todo!()
+        if let Some(x) = self.result.borrow_mut().take() {
+            std::task::Poll::Ready(x)
+        } else {
+            std::task::Poll::Pending
+        }
     }
 }
 
@@ -73,13 +79,20 @@ impl Context for ContextImpl {
         &self,
         to: MessageTo,
         msg: Message,
-    ) -> BoxFuture<HandleResult> {
-        Box::pin(FutureImpl { to, msg })
+    ) -> LocalBoxFuture<HandleResult> {
+        let result = Rc::new(RefCell::new(None));
+        let result_ref = result.clone();
+        self.send_message_with_reply_once(
+            to,
+            msg,
+            Box::new(move |r| {
+                *result_ref.borrow_mut() = Some(r);
+            }),
+        );
+        LocalBoxFuture::boxed_local(Box::pin(FutureImpl { result }))
     }
 
-    fn async_spawn_local(&self, future: BoxFuture<HandleResult>, callback: MessageCallbackOnce) {
-        todo!()
-    }
+    fn async_spawn_local(&self, future: LocalBoxFuture<()>) {}
 }
 
 pub struct Scheduler {

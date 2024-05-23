@@ -1,11 +1,12 @@
 use std::{rc::Rc, time::Duration};
 
+use log::info;
 use slint::{ComponentHandle, Weak};
 use time::OffsetDateTime;
 
 use crate::proto::{
     ipc, Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node,
-    NodeName, RoutePage, RouterMessage,
+    NodeName, RoutePage, RouterMessage, TimerMessage,
 };
 use crate::ui::{self, AppWindow};
 
@@ -54,6 +55,19 @@ impl Node for BootPage {
                             Some(t.to_string()),
                             Box::new(|_| {}),
                         );
+                    }));
+
+                    let ctx_ref = ctx.clone();
+                    ctx.async_spawn_local(Box::pin(async move {
+                        loop {
+                            let r = ctx_ref
+                                .async_send_message_with_reply(
+                                    MessageTo::Point(NodeName::Timer),
+                                    Message::Timer(TimerMessage::Request(Duration::from_secs(1))),
+                                )
+                                .await;
+                            info!("timer {r:?}!!!");
+                        }
                     }));
 
                     let ctx_ref = ctx.clone();

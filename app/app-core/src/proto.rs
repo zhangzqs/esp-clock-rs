@@ -27,10 +27,13 @@ pub trait Context {
         callback: MessageCallbackOnce,
     );
 
-    fn async_send_message_with_reply(&self, to: MessageTo, msg: Message)
-        -> BoxFuture<HandleResult>;
+    fn async_send_message_with_reply(
+        &self,
+        to: MessageTo,
+        msg: Message,
+    ) -> LocalBoxFuture<HandleResult>;
 
-    fn async_spawn_local(&self, future: BoxFuture<HandleResult>, callback: MessageCallbackOnce);
+    fn async_spawn_local(&self, future: LocalBoxFuture<()>);
 }
 
 #[derive(Debug, Clone)]

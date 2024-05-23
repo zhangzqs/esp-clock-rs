@@ -8,6 +8,8 @@ pub enum NodeName {
     WeatherClient,
     // 获取时间的客户端
     TimestampClient,
+    // 定时器服务
+    Timer,
     // 单个操作按钮事件产生器，可产生一些按键事件
     OneButton,
     // 页面ui路由器

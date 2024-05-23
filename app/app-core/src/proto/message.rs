@@ -1,4 +1,6 @@
 mod time;
+use std::time::Duration;
+
 pub use time::TimeMessage;
 
 mod http;
@@ -44,6 +46,13 @@ pub enum Message {
     Storage(StorageMessage),
     /// 性能相关消息
     Performance(PerformanceMessage),
+    Timer(TimerMessage),
+}
+
+#[derive(Debug, Clone)]
+pub enum TimerMessage {
+    Request(Duration),
+    Response,
 }
 
 impl Message {
@@ -79,6 +88,7 @@ impl Message {
             Message::Schedule => "schedule",
             Message::Storage(_) => "storage",
             Message::Performance(_) => "performance",
+            _ => "unknown",
         }
     }
 }

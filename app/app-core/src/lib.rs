@@ -28,4 +28,5 @@ pub fn register_default_nodes(sche: &mut Scheduler) {
     sche.register_node(WeatherService::new());
     sche.register_node(MockStorageService::new());
     sche.register_node(MockPerformanceService {});
+    sche.register_node(TimerService::new());
 }

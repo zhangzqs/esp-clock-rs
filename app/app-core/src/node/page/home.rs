@@ -4,21 +4,22 @@ use crate::proto::{
 };
 use crate::ui::{AppWindow, HomeViewModel, TimeData};
 use slint::{ComponentHandle, Weak};
+use std::cell::RefCell;
 use std::{rc::Rc, time::Duration};
 use time::{OffsetDateTime, UtcOffset};
 
 pub struct HomePage {
     app: Weak<AppWindow>,
-    time_update_timer: Option<slint::Timer>,
-    is_show: bool,
+    time_update_timer: RefCell<Option<slint::Timer>>,
+    is_show: RefCell<bool>,
 }
 
 impl HomePage {
     pub fn new(app: Weak<AppWindow>) -> Self {
         Self {
             app,
-            time_update_timer: None,
-            is_show: false,
+            time_update_timer: RefCell::new(None),
+            is_show: RefCell::new(false),
         }
     }
 }
@@ -44,12 +45,13 @@ impl HomePage {
         }))
     }
 
-    fn on_show(&mut self, ctx: Rc<dyn Context>) {
+    fn on_show(&self, ctx: Rc<dyn Context>) {
         let app = self.app.clone();
         Self::update_time(app.clone(), ctx.clone());
 
         let ctx_ref = ctx.clone();
         self.time_update_timer
+            .borrow_mut()
             .get_or_insert(slint::Timer::default())
             .start(
                 slint::TimerMode::Repeated,
@@ -60,8 +62,8 @@ impl HomePage {
             );
     }
 
-    fn on_hide(&mut self) {
-        self.time_update_timer.take();
+    fn on_hide(&self) {
+        self.time_update_timer.borrow_mut().take();
     }
 }
 
@@ -71,7 +73,7 @@ impl Node for HomePage {
     }
 
     fn handle_message(
-        &mut self,
+        &self,
         ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
@@ -80,23 +82,23 @@ impl Node for HomePage {
         match msg.body {
             Message::Lifecycle(msg) => match msg {
                 LifecycleMessage::Show => {
-                    self.is_show = true;
+                    *self.is_show.borrow_mut() = true;
                     self.on_show(ctx);
                     return HandleResult::Finish(Message::Empty);
                 }
                 LifecycleMessage::Hide => {
-                    self.is_show = false;
+                    *self.is_show.borrow_mut() = false;
                     self.on_hide();
                     return HandleResult::Finish(Message::Empty);
                 }
                 _ => {}
             },
             Message::OneButton(msg) => {
-                if self.is_show {
+                if *self.is_show.borrow() {
                     match msg {
                         OneButtonMessage::Click => {
-                            ctx.send_message(
-                                MessageTo::Point(NodeName::Router),
+                            ctx.sync_call(
+                                NodeName::Router,
                                 Message::Router(RouterMessage::GotoPage(RoutePage::Menu)),
                             );
                             return HandleResult::Finish(Message::Empty);

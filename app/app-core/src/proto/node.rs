@@ -16,6 +16,8 @@ pub enum NodeName {
     Router,
     // 本地存储
     Storage,
+    // WiFi
+    WiFi,
     // 性能监视
     Performance,
     // 启动页ui与逻辑

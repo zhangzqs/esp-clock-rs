@@ -1,4 +1,9 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    rc::Rc,
+    sync::atomic::{AtomicU32, Ordering},
+};
 
 use futures_util::{
     future::{BoxFuture, LocalBoxFuture},
@@ -37,18 +42,19 @@ impl Future for FutureImpl {
 struct ContextImpl {
     node_name: NodeName,
     mq_buffer: Rc<RefCell<Vec<MessageQueueItem>>>,
-    msg_seq_inc: Rc<RefCell<u32>>,
+    msg_seq_inc: AtomicU32,
+    nodes: Rc<RefCell<HashMap<NodeName, Box<dyn Node>>>>,
 }
 
 impl Context for ContextImpl {
-    // 发送消息
-    fn send_message(&self, to: MessageTo, msg: Message) {
-        *self.msg_seq_inc.borrow_mut() += 1;
+    // 发送广播消息
+    fn boardcast(&self, msg: Message) {
+        self.msg_seq_inc.fetch_add(1, Ordering::SeqCst);
         self.mq_buffer.borrow_mut().push(MessageQueueItem {
             from: self.node_name,
-            to,
+            to: MessageTo::Broadcast,
             message: MessageWithHeader {
-                seq: *self.msg_seq_inc.borrow(),
+                seq: self.msg_seq_inc.load(Ordering::SeqCst),
                 body: msg,
                 is_pending: false,
             },
@@ -56,18 +62,14 @@ impl Context for ContextImpl {
         })
     }
 
-    fn send_message_with_reply_once(
-        &self,
-        to: MessageTo,
-        msg: Message,
-        callback: MessageCallbackOnce,
-    ) {
-        *self.msg_seq_inc.borrow_mut() += 1;
+    // 异步调用
+    fn async_call(&self, node: NodeName, msg: Message, callback: MessageCallbackOnce) {
+        self.msg_seq_inc.fetch_add(1, Ordering::SeqCst);
         self.mq_buffer.borrow_mut().push(MessageQueueItem {
             from: self.node_name,
-            to,
+            to: MessageTo::Point(node),
             message: MessageWithHeader {
-                seq: *self.msg_seq_inc.borrow(),
+                seq: self.msg_seq_inc.load(Ordering::SeqCst),
                 body: msg,
                 is_pending: false,
             },
@@ -75,31 +77,32 @@ impl Context for ContextImpl {
         })
     }
 
-    fn async_send_message_with_reply(
-        &self,
-        to: MessageTo,
-        msg: Message,
-    ) -> LocalBoxFuture<HandleResult> {
-        let result = Rc::new(RefCell::new(None));
-        let result_ref = result.clone();
-        self.send_message_with_reply_once(
-            to,
-            msg,
-            Box::new(move |r| {
-                *result_ref.borrow_mut() = Some(r);
+    // 同步调用
+    fn sync_call(&self, node: NodeName, msg: Message) -> HandleResult {
+        self.msg_seq_inc.fetch_add(1, Ordering::SeqCst);
+        self.nodes.borrow()[&node].handle_message(
+            Rc::new(ContextImpl {
+                node_name: self.node_name,
+                mq_buffer: self.mq_buffer.clone(),
+                nodes: self.nodes.clone(),
+                msg_seq_inc: AtomicU32::new(self.msg_seq_inc.load(Ordering::SeqCst)),
             }),
-        );
-        LocalBoxFuture::boxed_local(Box::pin(FutureImpl { result }))
+            self.node_name,
+            MessageTo::Point(node),
+            MessageWithHeader {
+                seq: self.msg_seq_inc.load(Ordering::SeqCst),
+                is_pending: false,
+                body: msg,
+            },
+        )
     }
-
-    fn async_spawn_local(&self, future: LocalBoxFuture<()>) {}
 }
 
 pub struct Scheduler {
-    nodes: HashMap<NodeName, Box<dyn Node>>,
+    nodes: Rc<RefCell<HashMap<NodeName, Box<dyn Node>>>>,
     mq_buffer1: RefCell<Vec<MessageQueueItem>>,
     mq_buffer2: Rc<RefCell<Vec<MessageQueueItem>>>,
-    msg_seq_inc: Rc<RefCell<u32>>,
+    msg_seq_inc: AtomicU32,
 }
 
 impl Default for Scheduler {
@@ -111,7 +114,7 @@ impl Default for Scheduler {
 impl Scheduler {
     pub fn new() -> Self {
         Self {
-            nodes: HashMap::new(),
+            nodes: Rc::new(RefCell::new(HashMap::new())),
             mq_buffer1: RefCell::new(vec![MessageQueueItem {
                 from: NodeName::Scheduler,
                 to: MessageTo::Broadcast,
@@ -123,33 +126,17 @@ impl Scheduler {
                 callback_once: None,
             }]),
             mq_buffer2: Rc::new(RefCell::new(Vec::new())),
-            msg_seq_inc: Rc::new(RefCell::new(0)),
+            msg_seq_inc: AtomicU32::new(0),
         }
     }
 
-    pub fn register_node<A: Node + 'static>(&mut self, app: A) {
-        self.nodes.insert(app.node_name(), Box::new(app));
+    pub fn register_node<A: Node + 'static>(&self, app: A) {
+        self.nodes
+            .borrow_mut()
+            .insert(app.node_name(), Box::new(app));
     }
 
-    pub fn schedule_once(&mut self) {
-        // 心跳消息
-        for (node_name, node) in self.nodes.iter_mut() {
-            node.handle_message(
-                Rc::new(ContextImpl {
-                    node_name: *node_name,
-                    mq_buffer: self.mq_buffer2.clone(),
-                    msg_seq_inc: self.msg_seq_inc.clone(),
-                }),
-                NodeName::Scheduler,
-                MessageTo::Broadcast,
-                MessageWithHeader {
-                    seq: 0,
-                    body: Message::Schedule,
-                    is_pending: false,
-                },
-            );
-        }
-
+    pub fn schedule_once(&self) {
         // 消费消息
         for MessageQueueItem {
             from,
@@ -166,7 +153,7 @@ impl Scheduler {
             }
             match to {
                 MessageTo::Broadcast => {
-                    for (node_name, node) in self.nodes.iter_mut() {
+                    for (node_name, node) in self.nodes.borrow().iter() {
                         debug!(
                             "handle message from node: {from:?}, to node: {node_name:?}, msg: {}",
                             message.body.debug_msg()
@@ -175,7 +162,10 @@ impl Scheduler {
                             Rc::new(ContextImpl {
                                 node_name: *node_name,
                                 mq_buffer: self.mq_buffer2.clone(),
-                                msg_seq_inc: self.msg_seq_inc.clone(),
+                                msg_seq_inc: AtomicU32::new(
+                                    self.msg_seq_inc.load(Ordering::SeqCst),
+                                ),
+                                nodes: self.nodes.clone(),
                             }),
                             from,
                             to,
@@ -196,49 +186,49 @@ impl Scheduler {
                     }
                 }
                 MessageTo::Point(node_name) => {
-                    self.nodes
-                        .entry(node_name)
-                        .and_modify(|x| {
-                            if !message.is_pending {
-                                debug!("handle message from node: {from:?}, to node: {node_name:?}, msg: {}", message.body.debug_msg());
+                    if !self.nodes.borrow().contains_key(&node_name) {
+                        panic!("not found node {:?}", node_name);
+                    }
+                    if !message.is_pending {
+                        debug!(
+                            "handle message from node: {from:?}, to node: {node_name:?}, msg: {}",
+                            message.body.debug_msg()
+                        );
+                    }
+                    let ret = self.nodes.borrow()[&node_name].handle_message(
+                        Rc::new(ContextImpl {
+                            node_name,
+                            mq_buffer: self.mq_buffer2.clone(),
+                            msg_seq_inc: AtomicU32::new(self.msg_seq_inc.load(Ordering::SeqCst)),
+                            nodes: self.nodes.clone(),
+                        }),
+                        from,
+                        to,
+                        message.clone(),
+                    );
+                    if !message.is_pending {
+                        debug!("handle message result: {ret:?}");
+                    }
+
+                    match ret {
+                        HandleResult::Finish(e) => {
+                            if let Some(cb) = callback_once.take() {
+                                cb(HandleResult::Finish(e.clone()));
                             }
-                            let ret = x.handle_message(
-                                Rc::new(ContextImpl {
-                                    node_name,
-                                    mq_buffer: self.mq_buffer2.clone(),
-                                    msg_seq_inc: self.msg_seq_inc.clone(),
-                                }),
+                        }
+                        HandleResult::Pending => {
+                            // 复制一份消息，下一轮pending将继续传递
+                            let mut message = message;
+                            message.is_pending = true;
+                            self.mq_buffer2.borrow_mut().push(MessageQueueItem {
                                 from,
                                 to,
-                                message.clone(),
-                            );
-                            if !message.is_pending {
-                                debug!("handle message result: {ret:?}");
-                            }
-
-                            match ret {
-                                HandleResult::Finish(e) => {
-                                    if let Some(cb) = callback_once.take() {
-                                        cb(HandleResult::Finish(e.clone()));
-                                    }
-                                }
-                                HandleResult::Pending => { // 复制一份消息，下一轮pending将继续传递
-                                    let mut message = message;
-                                    message.is_pending = true;
-                                        self.mq_buffer2.borrow_mut().push(MessageQueueItem {
-                                            from,
-                                            to,
-                                            message,
-                                            callback_once,
-                                        });
-                                }
-                                HandleResult::Discard => {}
-                            }
-                        })
-                        .or_insert_with(|| {
-                            // 如果不存在，则panic
-                            panic!("not found node {:?}", node_name);
-                        });
+                                message,
+                                callback_once,
+                            });
+                        }
+                        HandleResult::Discard => {}
+                    }
                 }
             }
         }

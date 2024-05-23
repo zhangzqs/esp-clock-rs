@@ -16,24 +16,14 @@ pub enum MessageTo {
 pub type MessageCallbackOnce = Box<dyn FnOnce(HandleResult)>;
 
 pub trait Context {
-    // 发送一条消息，无反馈
-    fn send_message(&self, to: MessageTo, msg: Message);
+    // 发送广播消息
+    fn boardcast(&self, msg: Message);
 
     // 发送只会反馈一次的消息
-    fn send_message_with_reply_once(
-        &self,
-        to: MessageTo,
-        msg: Message,
-        callback: MessageCallbackOnce,
-    );
+    fn async_call(&self, node: NodeName, msg: Message, callback: MessageCallbackOnce);
 
-    fn async_send_message_with_reply(
-        &self,
-        to: MessageTo,
-        msg: Message,
-    ) -> LocalBoxFuture<HandleResult>;
-
-    fn async_spawn_local(&self, future: LocalBoxFuture<()>);
+    // 发送同步消息
+    fn sync_call(&self, node: NodeName, msg: Message) -> HandleResult;
 }
 
 #[derive(Debug, Clone)]
@@ -71,7 +61,7 @@ pub trait Node {
 
     // 当节点收到消息时
     fn handle_message(
-        &mut self,
+        &self,
         _ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,

@@ -65,7 +65,7 @@ impl Node for LocalStorageService {
     }
 
     fn handle_message(
-        &mut self,
+        &self,
         _ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,

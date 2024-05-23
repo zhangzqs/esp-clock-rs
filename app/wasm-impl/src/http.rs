@@ -31,7 +31,7 @@ impl Node for HttpClient {
     }
 
     fn handle_message(
-        &mut self,
+        &self,
         _ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,

@@ -1,4 +1,4 @@
-use std::{rc::Rc, time::Duration};
+use std::{cell::RefCell, rc::Rc, time::Duration};
 
 use crate::proto::{
     Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName,
@@ -7,15 +7,15 @@ use crate::proto::{
 use log::info;
 
 pub struct WeatherPage {
-    is_show: bool,
-    hold_close_once_flag: bool,
+    is_show: RefCell<bool>,
+    hold_close_once_flag: RefCell<bool>,
 }
 
 impl WeatherPage {
     pub fn new() -> Self {
         Self {
-            is_show: false,
-            hold_close_once_flag: false,
+            is_show: RefCell::new(false),
+            hold_close_once_flag: RefCell::new(false),
         }
     }
 }
@@ -26,7 +26,7 @@ impl Node for WeatherPage {
     }
 
     fn handle_message(
-        &mut self,
+        &self,
         ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
@@ -35,9 +35,9 @@ impl Node for WeatherPage {
         match msg.body {
             Message::OneButton(msg) => match msg {
                 OneButtonMessage::Click => {
-                    if self.is_show {
-                        ctx.send_message_with_reply_once(
-                            MessageTo::Point(NodeName::WeatherClient),
+                    if *self.is_show.borrow() {
+                        ctx.async_call(
+                            NodeName::WeatherClient,
                             Message::Weather(WeatherMessage::GetNextSevenDaysWeatherRequest),
                             Box::new(|r| match r {
                                 HandleResult::Finish(msg) => {
@@ -54,21 +54,26 @@ impl Node for WeatherPage {
                     }
                 }
                 OneButtonMessage::LongPressHolding(dur) => {
-                    if !self.hold_close_once_flag && dur > Duration::from_secs(1) && self.is_show {
-                        self.hold_close_once_flag = true;
-                        ctx.send_message(
-                            MessageTo::Point(NodeName::Router),
+                    if !*self.hold_close_once_flag.borrow()
+                        && dur > Duration::from_secs(1)
+                        && *self.is_show.borrow()
+                    {
+                        *self.hold_close_once_flag.borrow_mut() = true;
+                        ctx.sync_call(
+                            NodeName::Router,
                             Message::Router(RouterMessage::GotoPage(RoutePage::Home)),
                         );
                         return HandleResult::Finish(Message::Empty);
                     }
                 }
-                OneButtonMessage::LongPressHeld(_) => self.hold_close_once_flag = false,
+                OneButtonMessage::LongPressHeld(_) => {
+                    *self.hold_close_once_flag.borrow_mut() = false
+                }
                 _ => {}
             },
             Message::Lifecycle(msg) => match msg {
-                LifecycleMessage::Hide => self.is_show = false,
-                LifecycleMessage::Show => self.is_show = true,
+                LifecycleMessage::Hide => *self.is_show.borrow_mut() = false,
+                LifecycleMessage::Show => *self.is_show.borrow_mut() = true,
                 _ => {}
             },
             _ => {}

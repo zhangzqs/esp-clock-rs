@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use slint::{ComponentHandle, Model, Weak};
@@ -13,14 +14,14 @@ use crate::{
 
 pub struct MenuPage {
     app: Weak<AppWindow>,
-    is_show: bool,
+    is_show: RefCell<bool>,
 }
 
 impl MenuPage {
     pub fn new(app: Weak<AppWindow>) -> Self {
         Self {
             app,
-            is_show: false,
+            is_show: RefCell::new(false),
         }
     }
 
@@ -39,12 +40,12 @@ impl MenuPage {
                 .get_entry_list()
                 .row_data(menu.get_current_id() as usize)
             {
-                ctx.send_message(
-                    MessageTo::Point(NodeName::Router),
+                ctx.sync_call(
+                    NodeName::Router,
                     Message::Router(RouterMessage::GotoPage(
                         adapter::slint_route_table_to_proto_route_table(x.page),
                     )),
-                )
+                );
             }
         }
     }
@@ -56,7 +57,7 @@ impl Node for MenuPage {
     }
 
     fn handle_message(
-        &mut self,
+        &self,
         ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
@@ -65,17 +66,17 @@ impl Node for MenuPage {
         match msg.body {
             Message::Lifecycle(msg) => match msg {
                 LifecycleMessage::Show => {
-                    self.is_show = true;
+                    *self.is_show.borrow_mut() = true;
                     return HandleResult::Finish(Message::Empty);
                 }
                 LifecycleMessage::Hide => {
-                    self.is_show = false;
+                    *self.is_show.borrow_mut() = false;
                     return HandleResult::Finish(Message::Empty);
                 }
                 _ => {}
             },
             Message::OneButton(msg) => {
-                if self.is_show {
+                if *self.is_show.borrow() {
                     match msg {
                         OneButtonMessage::Click => {
                             self.next_page();

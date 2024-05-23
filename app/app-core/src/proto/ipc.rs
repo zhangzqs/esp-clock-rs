@@ -14,8 +14,8 @@ pub struct HttpClient(pub Rc<dyn Context>);
 
 impl HttpClient {
     pub fn request(&self, request: HttpRequest, callback: ResultCallback<HttpResponse, HttpError>) {
-        self.0.send_message_with_reply_once(
-            MessageTo::Point(NodeName::HttpClient),
+        self.0.async_call(
+            NodeName::HttpClient,
             Message::Http(HttpMessage::Request(request)),
             Box::new(|r| {
                 callback(match r.unwrap() {
@@ -32,8 +32,8 @@ pub struct TimestampClient(pub Rc<dyn Context>);
 
 impl TimestampClient {
     pub fn get_timestamp_nanos(&self, callback: Callback<i128>) {
-        self.0.send_message_with_reply_once(
-            MessageTo::Point(NodeName::TimestampClient),
+        self.0.async_call(
+            NodeName::TimestampClient,
             Message::DateTime(TimeMessage::GetTimestampNanosRequest),
             Box::new(|r| {
                 callback(match r.unwrap() {
@@ -54,8 +54,8 @@ impl StorageClient {
         value: Option<String>,
         callback: ResultCallback<(), StorageError>,
     ) {
-        self.0.send_message_with_reply_once(
-            MessageTo::Point(NodeName::Storage),
+        self.0.async_call(
+            NodeName::Storage,
             Message::Storage(StorageMessage::SetRequest(key, value)),
             Box::new(|r| {
                 callback(match r.unwrap() {
@@ -67,8 +67,8 @@ impl StorageClient {
         )
     }
     pub fn get(&self, key: String, callback: ResultCallback<Option<String>, StorageError>) {
-        self.0.send_message_with_reply_once(
-            MessageTo::Point(NodeName::Storage),
+        self.0.async_call(
+            NodeName::Storage,
             Message::Storage(StorageMessage::GetRequest(key)),
             Box::new(|r| {
                 callback(match r.unwrap() {
@@ -81,8 +81,8 @@ impl StorageClient {
     }
 
     pub fn list(&self, callback: ResultCallback<HashSet<String>, StorageError>) {
-        self.0.send_message_with_reply_once(
-            MessageTo::Point(NodeName::Storage),
+        self.0.async_call(
+            NodeName::Storage,
             Message::Storage(StorageMessage::ListKeysRequest),
             Box::new(|r| {
                 callback(match r.unwrap() {
@@ -102,8 +102,8 @@ impl WeatherClient {
         &self,
         callback: ResultCallback<NextSevenDaysWeather, WeatherError>,
     ) {
-        self.0.send_message_with_reply_once(
-            MessageTo::Point(NodeName::HttpClient),
+        self.0.async_call(
+            NodeName::HttpClient,
             Message::Weather(WeatherMessage::GetNextSevenDaysWeatherRequest),
             Box::new(|r| {
                 callback(match r.unwrap() {
@@ -120,8 +120,8 @@ pub struct PerformanceClient(pub Rc<dyn Context>);
 
 impl PerformanceClient {
     pub fn get_free_heap_size(&self, callback: Callback<usize>) {
-        self.0.send_message_with_reply_once(
-            MessageTo::Point(NodeName::Performance),
+        self.0.async_call(
+            NodeName::Performance,
             Message::Performance(PerformanceMessage::GetFreeHeapSizeRequest),
             Box::new(|r| {
                 callback(match r.unwrap() {
@@ -133,8 +133,8 @@ impl PerformanceClient {
     }
 
     pub fn get_largeest_free_block(&self, callback: Callback<usize>) {
-        self.0.send_message_with_reply_once(
-            MessageTo::Point(NodeName::Performance),
+        self.0.async_call(
+            NodeName::Performance,
             Message::Performance(PerformanceMessage::GetLargestFreeBlock),
             Box::new(|r| {
                 callback(match r.unwrap() {
@@ -146,8 +146,8 @@ impl PerformanceClient {
     }
 
     pub fn get_fps(&self, callback: Callback<usize>) {
-        self.0.send_message_with_reply_once(
-            MessageTo::Point(NodeName::Performance),
+        self.0.async_call(
+            NodeName::Performance,
             Message::Performance(PerformanceMessage::GetFpsRequest),
             Box::new(|r| {
                 callback(match r.unwrap() {

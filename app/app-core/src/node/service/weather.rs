@@ -126,7 +126,7 @@ impl Node for WeatherService {
     }
 
     fn handle_message(
-        &mut self,
+        &self,
         ctx: std::rc::Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,

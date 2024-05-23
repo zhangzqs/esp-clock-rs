@@ -45,7 +45,7 @@ impl Node for RouterService {
     }
 
     fn handle_message(
-        &mut self,
+        &self,
         ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
@@ -53,16 +53,15 @@ impl Node for RouterService {
     ) -> HandleResult {
         match msg.body {
             Message::Router(RouterMessage::GotoPage(r)) => {
-                ctx.send_message(
-                    MessageTo::Point(self.get_current_page().map_to_node_name()),
+                ctx.sync_call(
+                    self.get_current_page().map_to_node_name(),
                     Message::Lifecycle(LifecycleMessage::Hide),
                 );
-                let app = self.app.clone();
-                ctx.send_message_with_reply_once(
-                    MessageTo::Point(r.map_to_node_name()),
+                ctx.sync_call(
+                    r.map_to_node_name(),
                     Message::Lifecycle(LifecycleMessage::Show),
-                    Box::new(move |_msg| Self::goto_page(app, r)),
                 );
+                Self::goto_page(self.app.clone(), r);
                 return HandleResult::Finish(Message::Empty);
             }
             _ => {}

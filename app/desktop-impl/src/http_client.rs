@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     collections::HashMap,
     rc::Rc,
     sync::{mpsc, Arc, Mutex},
@@ -19,13 +20,17 @@ fn convert(method: HttpRequestMethod) -> reqwest::Method {
     }
 }
 
+struct State {
+    // 已经就绪的响应
+    ready_resp: HashMap<u32, HandleResult>,
+}
+
 pub struct HttpClient {
     // 发送一个请求
     req_tx: mpsc::Sender<(u32, HttpRequest)>,
     // 收到一个响应
     resp_rx: mpsc::Receiver<(u32, HandleResult)>,
-    // 已经就绪的响应
-    ready_resp: HashMap<u32, HandleResult>,
+    state: RefCell<State>,
 }
 
 impl HttpClient {
@@ -76,7 +81,9 @@ impl HttpClient {
         Self {
             req_tx,
             resp_rx,
-            ready_resp: HashMap::new(),
+            state: RefCell::new(State {
+                ready_resp: HashMap::new(),
+            }),
         }
     }
 }
@@ -87,7 +94,7 @@ impl Node for HttpClient {
     }
 
     fn handle_message(
-        &mut self,
+        &self,
         _ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
@@ -95,9 +102,10 @@ impl Node for HttpClient {
     ) -> HandleResult {
         match msg.body {
             Message::Http(HttpMessage::Request(req)) => {
-                if self.ready_resp.contains_key(&msg.seq) {
+                let mut state = self.state.borrow_mut();
+                if state.ready_resp.contains_key(&msg.seq) {
                     // 若消息结果为ready态，则返回Sucessful
-                    return self.ready_resp.remove(&msg.seq).unwrap();
+                    return state.ready_resp.remove(&msg.seq).unwrap();
                 }
 
                 if msg.is_pending {
@@ -105,7 +113,7 @@ impl Node for HttpClient {
                     match self.resp_rx.try_recv() {
                         Ok((seq, resp)) => {
                             // 当消息执行完成后，消息转换为ready态
-                            self.ready_resp.insert(seq, resp);
+                            state.ready_resp.insert(seq, resp);
                             return HandleResult::Pending;
                         }
                         _ => {}

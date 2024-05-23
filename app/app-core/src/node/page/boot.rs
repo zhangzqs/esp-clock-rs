@@ -30,7 +30,7 @@ impl Node for BootPage {
     }
 
     fn handle_message(
-        &mut self,
+        &self,
         ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
@@ -41,8 +41,8 @@ impl Node for BootPage {
                 LifecycleMessage::Init => {
                     let ctx_ref = ctx.clone();
                     slint::Timer::single_shot(Duration::from_secs(1), move || {
-                        ctx_ref.clone().send_message(
-                            MessageTo::Point(NodeName::Router),
+                        ctx_ref.clone().sync_call(
+                            NodeName::Router,
                             Message::Router(RouterMessage::GotoPage(RoutePage::Home)),
                         );
                     });
@@ -55,19 +55,6 @@ impl Node for BootPage {
                             Some(t.to_string()),
                             Box::new(|_| {}),
                         );
-                    }));
-
-                    let ctx_ref = ctx.clone();
-                    ctx.async_spawn_local(Box::pin(async move {
-                        loop {
-                            let r = ctx_ref
-                                .async_send_message_with_reply(
-                                    MessageTo::Point(NodeName::Timer),
-                                    Message::Timer(TimerMessage::Request(Duration::from_secs(1))),
-                                )
-                                .await;
-                            info!("timer {r:?}!!!");
-                        }
                     }));
 
                     let ctx_ref = ctx.clone();

@@ -11,7 +11,7 @@ impl Node for TimestampClientService {
     }
 
     fn handle_message(
-        &mut self,
+        &self,
         _ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,

@@ -24,12 +24,16 @@ pub use storage::*;
 mod performance;
 pub use performance::*;
 
+mod wifi;
+pub use wifi::*;
+
+mod buzzer;
+pub use buzzer::*;
+
 #[derive(Debug, Clone)]
 pub enum Message {
     /// 空消息
     Empty,
-    /// 调度器调度消息，每一轮调度都会额外发一次该消息
-    Schedule,
     /// App生命周期消息
     Lifecycle(LifecycleMessage),
     /// 单按键消息
@@ -47,6 +51,7 @@ pub enum Message {
     /// 性能相关消息
     Performance(PerformanceMessage),
     Timer(TimerMessage),
+    WiFi(WiFiMessage),
 }
 
 #[derive(Debug, Clone)]
@@ -85,7 +90,6 @@ impl Message {
                 HttpMessage::Response(_) => "http/response",
             },
             Message::DateTime(_) => "datetime/*",
-            Message::Schedule => "schedule",
             Message::Storage(_) => "storage",
             Message::Performance(_) => "performance",
             _ => "unknown",

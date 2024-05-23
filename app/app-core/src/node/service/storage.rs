@@ -1,15 +1,15 @@
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap};
 
 use crate::proto::*;
 
 pub struct MockStorageService {
-    data: HashMap<String, String>,
+    data: RefCell<HashMap<String, String>>,
 }
 
 impl MockStorageService {
     pub fn new() -> Self {
         Self {
-            data: HashMap::new(),
+            data: RefCell::new(HashMap::new()),
         }
     }
 }
@@ -20,27 +20,28 @@ impl Node for MockStorageService {
     }
 
     fn handle_message(
-        &mut self,
+        &self,
         _ctx: std::rc::Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
         msg: MessageWithHeader,
     ) -> HandleResult {
         if let Message::Storage(sm) = msg.body {
+            let mut data = self.data.borrow_mut();
             return HandleResult::Finish(Message::Storage(match sm {
                 StorageMessage::GetRequest(k) => {
-                    StorageMessage::GetResponse(self.data.get(&k).map(|x| x.into()))
+                    StorageMessage::GetResponse(data.get(&k).map(|x| x.into()))
                 }
                 StorageMessage::SetRequest(k, v) => {
                     if let Some(v) = v {
-                        self.data.insert(k, v);
+                        data.insert(k, v);
                     } else {
-                        self.data.remove(&k);
+                        data.remove(&k);
                     }
                     StorageMessage::SetResponse
                 }
                 StorageMessage::ListKeysRequest => {
-                    StorageMessage::ListKeysResponse(self.data.keys().map(|x| x.into()).collect())
+                    StorageMessage::ListKeysResponse(data.keys().map(|x| x.into()).collect())
                 }
                 m => panic!("unexcepted message {m:?}"),
             }));

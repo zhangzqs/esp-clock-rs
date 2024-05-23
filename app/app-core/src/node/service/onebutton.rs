@@ -49,7 +49,7 @@ impl Platform for MyButtonPlatform {
 // 基于触摸事件模拟的单按钮事件的适配器服务
 pub struct TouchOneButtonAdapterService {
     app: Weak<AppWindow>,
-    button_event_timer: Option<slint::Timer>,
+    button_event_timer: slint::Timer,
     button_state: Rc<RefCell<bool>>,
 }
 
@@ -57,7 +57,7 @@ impl TouchOneButtonAdapterService {
     pub fn new(app: Weak<AppWindow>) -> Self {
         Self {
             app,
-            button_event_timer: None,
+            button_event_timer: slint::Timer::default(),
             button_state: Rc::new(RefCell::new(false)),
         }
     }
@@ -69,7 +69,7 @@ impl Node for TouchOneButtonAdapterService {
     }
 
     fn handle_message(
-        &mut self,
+        &self,
         ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
@@ -86,43 +86,35 @@ impl Node for TouchOneButtonAdapterService {
                             ..Default::default()
                         },
                     );
-                    self.button_event_timer
-                        .get_or_insert(slint::Timer::default())
-                        .start(
-                            slint::TimerMode::Repeated,
-                            Duration::from_millis(20),
-                            move || {
-                                button.tick();
-                                if button.clicks() > 0 {
-                                    let clicks = button.clicks();
-                                    println!("Clicks: {}", clicks);
-                                    if clicks == 1 {
-                                        ctx.send_message(
-                                            MessageTo::Broadcast,
-                                            Message::OneButton(OneButtonMessage::Click),
-                                        );
-                                    } else {
-                                        ctx.send_message(
-                                            MessageTo::Broadcast,
-                                            Message::OneButton(OneButtonMessage::Clicks(clicks)),
-                                        );
-                                    }
-                                } else if let Some(dur) = button.current_holding_time() {
-                                    println!("Held for {dur:?}");
-                                    ctx.send_message(
-                                        MessageTo::Broadcast,
-                                        Message::OneButton(OneButtonMessage::LongPressHolding(dur)),
-                                    );
-                                } else if let Some(dur) = button.held_time() {
-                                    println!("Total holding time {dur:?}");
-                                    ctx.send_message(
-                                        MessageTo::Broadcast,
-                                        Message::OneButton(OneButtonMessage::LongPressHeld(dur)),
-                                    );
+                    self.button_event_timer.start(
+                        slint::TimerMode::Repeated,
+                        Duration::from_millis(20),
+                        move || {
+                            button.tick();
+                            if button.clicks() > 0 {
+                                let clicks = button.clicks();
+                                println!("Clicks: {}", clicks);
+                                if clicks == 1 {
+                                    ctx.boardcast(Message::OneButton(OneButtonMessage::Click));
+                                } else {
+                                    ctx.boardcast(Message::OneButton(OneButtonMessage::Clicks(
+                                        clicks,
+                                    )));
                                 }
-                                button.reset();
-                            },
-                        );
+                            } else if let Some(dur) = button.current_holding_time() {
+                                println!("Held for {dur:?}");
+                                ctx.boardcast(Message::OneButton(
+                                    OneButtonMessage::LongPressHolding(dur),
+                                ));
+                            } else if let Some(dur) = button.held_time() {
+                                println!("Total holding time {dur:?}");
+                                ctx.boardcast(Message::OneButton(OneButtonMessage::LongPressHeld(
+                                    dur,
+                                )));
+                            }
+                            button.reset();
+                        },
+                    );
                     if let Some(ui) = self.app.upgrade() {
                         let button_state_ref = self.button_state.clone();
                         let t = ui.global::<OneButtenAdapter>();

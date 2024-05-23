@@ -55,7 +55,7 @@ pub struct MessageWithHeader {
     /// 异步消息是否处于pending态
     pub is_pending: bool,
     /// 异步消息是否已经就绪响应结果
-    pub ready_result: Option<Box<Message>>,
+    pub ready_result: Option<Message>,
     /// 消息体
     pub body: Message,
 }

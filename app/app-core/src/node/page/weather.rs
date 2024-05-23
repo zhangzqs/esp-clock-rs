@@ -4,7 +4,7 @@ use crate::proto::{
     Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName,
     OneButtonMessage, RoutePage, RouterMessage, WeatherMessage,
 };
-use log::info;
+use log::{error, info};
 
 pub struct WeatherPage {
     is_show: RefCell<bool>,
@@ -46,6 +46,8 @@ impl Node for WeatherPage {
                                     ) = msg
                                     {
                                         info!("weather: {:?}", resp);
+                                    } else {
+                                        error!("weather: {:?}", msg);
                                     }
                                 }
                                 _ => {}

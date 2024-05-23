@@ -36,7 +36,7 @@ impl Node for HttpClient {
         match msg.body {
             Message::Http(HttpMessage::Request(req)) => {
                 if let Some(x) = msg.ready_result {
-                    return HandleResult::Finish(*x);
+                    return HandleResult::Finish(x);
                 }
                 if msg.is_pending {
                     // 若消息仍处于running态，继续返回 Pending，调度器后续继续轮询

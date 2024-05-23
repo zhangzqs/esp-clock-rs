@@ -212,11 +212,7 @@ impl Scheduler {
                             }
                         }
                         HandleResult::Pending => {
-                            let res = self
-                                .ready_result
-                                .borrow_mut()
-                                .remove(&message.seq)
-                                .map(Box::new);
+                            let res = self.ready_result.borrow_mut().remove(&message.seq);
 
                             self.mq_buffer2.borrow_mut().push(MessageQueueItem {
                                 from,

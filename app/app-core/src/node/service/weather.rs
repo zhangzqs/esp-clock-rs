@@ -108,15 +108,11 @@ impl From<YikeWeatherResponse> for NextSevenDaysWeather {
     }
 }
 
-pub struct WeatherService {
-    ready_resp: Rc<RefCell<HashMap<u32, HandleResult>>>,
-}
+pub struct WeatherService {}
 
 impl WeatherService {
     pub fn new() -> Self {
-        Self {
-            ready_resp: Rc::new(RefCell::new(HashMap::new())),
-        }
+        Self {}
     }
 }
 
@@ -135,8 +131,8 @@ impl Node for WeatherService {
         match msg.body {
             Message::Weather(WeatherMessage::GetNextSevenDaysWeatherRequest) => {
                 // 出结果了
-                if self.ready_resp.borrow().contains_key(&msg.seq) {
-                    return self.ready_resp.borrow_mut().remove(&msg.seq).unwrap();
+                if let Some(x) = msg.ready_result {
+                    return HandleResult::Finish(x);
                 }
 
                 // 仍然需要pending
@@ -145,8 +141,7 @@ impl Node for WeatherService {
                 }
 
                 // 首次消息，进入pending状态
-                let ready_resp = self.ready_resp.clone();
-                HttpClient(ctx).request(
+                HttpClient(ctx.clone()).request(
                     HttpRequest {
                         method: HttpRequestMethod::Get,
                         url:
@@ -163,9 +158,7 @@ impl Node for WeatherService {
                             },
                             Err(e) => WeatherMessage::Error(WeatherError::HttpError(e)),
                         };
-                        ready_resp
-                            .borrow_mut()
-                            .insert(msg.seq, HandleResult::Finish(Message::Weather(x)));
+                        ctx.async_ready(msg.seq, Message::Weather(x));
                     }),
                 );
                 return HandleResult::Pending;

@@ -1,7 +1,9 @@
 pub mod ipc;
 mod message;
 mod node;
-use std::{rc::Rc};
+use std::{future::Future, rc::Rc};
+
+use futures_util::future::{BoxFuture, LocalBoxFuture};
 
 pub use {message::*, node::NodeName};
 
@@ -24,6 +26,11 @@ pub trait Context {
         msg: Message,
         callback: MessageCallbackOnce,
     );
+
+    fn async_send_message_with_reply(&self, to: MessageTo, msg: Message)
+        -> BoxFuture<HandleResult>;
+
+    fn async_spawn_local(&self, future: BoxFuture<HandleResult>, callback: MessageCallbackOnce);
 }
 
 #[derive(Debug, Clone)]

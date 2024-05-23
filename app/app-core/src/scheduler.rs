@@ -1,5 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
+use futures_util::{future::BoxFuture, Future, FutureExt};
 use log::debug;
 
 use crate::proto::*;
@@ -9,6 +10,22 @@ struct MessageQueueItem {
     to: MessageTo,
     message: MessageWithHeader,
     callback_once: Option<MessageCallbackOnce>,
+}
+
+struct FutureImpl {
+    to: MessageTo,
+    msg: Message,
+}
+
+impl Future for FutureImpl {
+    type Output = HandleResult;
+
+    fn poll(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        todo!()
+    }
 }
 
 struct ContextImpl {
@@ -50,6 +67,18 @@ impl Context for ContextImpl {
             },
             callback_once: Some(callback),
         })
+    }
+
+    fn async_send_message_with_reply(
+        &self,
+        to: MessageTo,
+        msg: Message,
+    ) -> BoxFuture<HandleResult> {
+        Box::pin(FutureImpl { to, msg })
+    }
+
+    fn async_spawn_local(&self, future: BoxFuture<HandleResult>, callback: MessageCallbackOnce) {
+        todo!()
     }
 }
 

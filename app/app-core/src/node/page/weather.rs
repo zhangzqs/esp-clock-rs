@@ -39,7 +39,7 @@ impl Node for WeatherPage {
                         ctx.send_message_with_reply_once(
                             MessageTo::Point(NodeName::WeatherClient),
                             Message::Weather(WeatherMessage::GetNextSevenDaysWeatherRequest),
-                            Box::new(|_, r| match r {
+                            Box::new(|r| match r {
                                 HandleResult::Finish(msg) => {
                                     if let Message::Weather(
                                         WeatherMessage::GetNextSevenDaysWeatherResponse(resp),

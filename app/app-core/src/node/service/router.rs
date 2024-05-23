@@ -61,7 +61,7 @@ impl Node for RouterService {
                 ctx.send_message_with_reply_once(
                     MessageTo::Point(r.map_to_node_name()),
                     Message::Lifecycle(LifecycleMessage::Show),
-                    Box::new(move |_, _msg| Self::goto_page(app, r)),
+                    Box::new(move |_msg| Self::goto_page(app, r)),
                 );
                 return HandleResult::Finish(Message::Empty);
             }

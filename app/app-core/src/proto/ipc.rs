@@ -17,7 +17,7 @@ impl HttpClient {
         self.0.send_message_with_reply_once(
             MessageTo::Point(NodeName::HttpClient),
             Message::Http(HttpMessage::Request(request)),
-            Box::new(|_, r| {
+            Box::new(|r| {
                 callback(match r.unwrap() {
                     Message::Http(HttpMessage::Response(resp)) => Ok(resp),
                     Message::Http(HttpMessage::Error(e)) => Err(e),
@@ -35,7 +35,7 @@ impl TimestampClient {
         self.0.send_message_with_reply_once(
             MessageTo::Point(NodeName::TimestampClient),
             Message::DateTime(TimeMessage::GetTimestampNanosRequest),
-            Box::new(|_, r| {
+            Box::new(|r| {
                 callback(match r.unwrap() {
                     Message::DateTime(TimeMessage::GetTimestampNanosResponse(ts)) => ts,
                     m => panic!("unexpected response, {:?}", m),
@@ -57,7 +57,7 @@ impl StorageClient {
         self.0.send_message_with_reply_once(
             MessageTo::Point(NodeName::Storage),
             Message::Storage(StorageMessage::SetRequest(key, value)),
-            Box::new(|_, r| {
+            Box::new(|r| {
                 callback(match r.unwrap() {
                     Message::Storage(StorageMessage::SetResponse) => Ok(()),
                     Message::Storage(StorageMessage::Error(e)) => Err(e),
@@ -70,7 +70,7 @@ impl StorageClient {
         self.0.send_message_with_reply_once(
             MessageTo::Point(NodeName::Storage),
             Message::Storage(StorageMessage::GetRequest(key)),
-            Box::new(|_, r| {
+            Box::new(|r| {
                 callback(match r.unwrap() {
                     Message::Storage(StorageMessage::GetResponse(r)) => Ok(r),
                     Message::Storage(StorageMessage::Error(e)) => Err(e),
@@ -84,7 +84,7 @@ impl StorageClient {
         self.0.send_message_with_reply_once(
             MessageTo::Point(NodeName::Storage),
             Message::Storage(StorageMessage::ListKeysRequest),
-            Box::new(|_, r| {
+            Box::new(|r| {
                 callback(match r.unwrap() {
                     Message::Storage(StorageMessage::ListKeysResponse(r)) => Ok(r),
                     Message::Storage(StorageMessage::Error(e)) => Err(e),
@@ -105,7 +105,7 @@ impl WeatherClient {
         self.0.send_message_with_reply_once(
             MessageTo::Point(NodeName::HttpClient),
             Message::Weather(WeatherMessage::GetNextSevenDaysWeatherRequest),
-            Box::new(|_, r| {
+            Box::new(|r| {
                 callback(match r.unwrap() {
                     Message::Weather(WeatherMessage::GetNextSevenDaysWeatherResponse(r)) => Ok(r),
                     Message::Weather(WeatherMessage::Error(e)) => Err(e),
@@ -123,7 +123,7 @@ impl PerformanceClient {
         self.0.send_message_with_reply_once(
             MessageTo::Point(NodeName::Performance),
             Message::Performance(PerformanceMessage::GetFreeHeapSizeRequest),
-            Box::new(|_, r| {
+            Box::new(|r| {
                 callback(match r.unwrap() {
                     Message::Performance(PerformanceMessage::GetFreeHeapSizeResponse(s)) => s,
                     m => panic!("unexpected response, {:?}", m),
@@ -136,7 +136,7 @@ impl PerformanceClient {
         self.0.send_message_with_reply_once(
             MessageTo::Point(NodeName::Performance),
             Message::Performance(PerformanceMessage::GetLargestFreeBlock),
-            Box::new(|_, r| {
+            Box::new(|r| {
                 callback(match r.unwrap() {
                     Message::Performance(PerformanceMessage::GetLargestFreeBlockResponse(s)) => s,
                     m => panic!("unexpected response, {:?}", m),
@@ -149,7 +149,7 @@ impl PerformanceClient {
         self.0.send_message_with_reply_once(
             MessageTo::Point(NodeName::Performance),
             Message::Performance(PerformanceMessage::GetFpsRequest),
-            Box::new(|_, r| {
+            Box::new(|r| {
                 callback(match r.unwrap() {
                     Message::Performance(PerformanceMessage::GetFpsResponse(s)) => s,
                     m => panic!("unexpected response, {:?}", m),

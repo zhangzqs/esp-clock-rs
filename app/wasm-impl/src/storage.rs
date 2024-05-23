@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt::format, rc::Rc};
+use std::{collections::HashSet, rc::Rc};
 
 use app_core::proto::{
     Context, HandleResult, Message, MessageTo, MessageWithHeader, Node, NodeName, StorageError,
@@ -18,13 +18,13 @@ impl LocalStorageService {
 
     pub fn get(&self, key: &str) -> Result<Option<String>, JsValue> {
         let k = format!("data/{key}");
-        Ok(self.stg.get(&k)?)
+        self.stg.get(&k)
     }
 
     pub fn set(&self, key: &str, value: Option<&str>) -> Result<(), JsValue> {
         let k = format!("data/{key}");
         if let Some(value) = value {
-            self.stg.set(&k, &value)?;
+            self.stg.set(&k, value)?;
             self.add_list(key)?;
         } else {
             self.stg.remove_item(&k)?;
@@ -51,7 +51,7 @@ impl LocalStorageService {
 
     pub fn remove_list(&self, key: &str) -> Result<(), JsValue> {
         let mut list = self.list()?;
-        if list.remove(key.into()) {
+        if list.remove(key) {
             self.stg
                 .set("list_meta", &serde_json::to_string(&list).unwrap())?;
         }
@@ -75,7 +75,7 @@ impl Node for LocalStorageService {
             let resp = match sm {
                 StorageMessage::GetRequest(key) => self.get(&key).map(StorageMessage::GetResponse),
                 StorageMessage::SetRequest(key, value) => self
-                    .set(&key, value.as_ref().map(|x| x.as_str()))
+                    .set(&key, value.as_deref())
                     .map(|_| StorageMessage::SetResponse),
                 StorageMessage::ListKeysRequest => {
                     self.list().map(StorageMessage::ListKeysResponse)

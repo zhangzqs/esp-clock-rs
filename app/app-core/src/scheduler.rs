@@ -177,7 +177,7 @@ impl Scheduler {
                             match ret {
                                 HandleResult::Finish(e) => {
                                     if let Some(cb) = callback_once.take() {
-                                        cb(node_name, HandleResult::Finish(e.clone()));
+                                        cb(HandleResult::Finish(e.clone()));
                                     }
                                 }
                                 HandleResult::Pending => { // 复制一份消息，下一轮pending将继续传递

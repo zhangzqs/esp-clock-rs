@@ -1,7 +1,7 @@
 pub mod ipc;
 mod message;
 mod node;
-use std::rc::Rc;
+use std::{rc::Rc};
 
 pub use {message::*, node::NodeName};
 
@@ -11,7 +11,7 @@ pub enum MessageTo {
     Point(NodeName),
 }
 
-pub type MessageCallbackOnce = Box<dyn FnOnce(NodeName, HandleResult)>;
+pub type MessageCallbackOnce = Box<dyn FnOnce(HandleResult)>;
 
 pub trait Context {
     // 发送一条消息，无反馈

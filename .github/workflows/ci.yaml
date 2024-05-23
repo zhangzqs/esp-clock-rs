@@ -28,6 +28,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install libudev-dev libasound2-dev libsdl2-dev
+          cargo install ldproxy
           git submodule update --init
           cd app/desktop-impl && cargo build && cd -
           cd app/esp32c3-impl && cargo build && cd -

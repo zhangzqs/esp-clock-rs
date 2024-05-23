@@ -119,14 +119,6 @@ impl Node for PerformanceNode {
     }
 }
 
-struct StorageNode {}
-
-impl Node for StorageNode {
-    fn node_name(&self) -> NodeName {
-        NodeName::Storage
-    }
-}
-
 fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
@@ -199,7 +191,6 @@ fn main() -> anyhow::Result<()> {
     let mut sche = get_scheduler();
     sche.register_node(one_butten_node);
     sche.register_node(PerformanceNode {});
-    sche.register_node(StorageNode {});
     let sche_timer = slint::Timer::default();
     sche_timer.start(
         slint::TimerMode::Repeated,

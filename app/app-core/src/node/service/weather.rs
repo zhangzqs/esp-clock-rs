@@ -108,11 +108,11 @@ impl From<YikeWeatherResponse> for NextSevenDaysWeather {
     }
 }
 
-pub struct WeatherClient {
+pub struct WeatherService {
     ready_resp: Rc<RefCell<HashMap<u32, HandleResult>>>,
 }
 
-impl WeatherClient {
+impl WeatherService {
     pub fn new() -> Self {
         Self {
             ready_resp: Rc::new(RefCell::new(HashMap::new())),
@@ -120,7 +120,7 @@ impl WeatherClient {
     }
 }
 
-impl Node for WeatherClient {
+impl Node for WeatherService {
     fn node_name(&self) -> NodeName {
         NodeName::WeatherClient
     }

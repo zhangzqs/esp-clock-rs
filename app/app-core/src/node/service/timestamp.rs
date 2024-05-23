@@ -6,9 +6,9 @@ use crate::proto::{
     Context, HandleResult, Message, MessageTo, MessageWithHeader, Node, NodeName, TimeMessage,
 };
 
-pub struct TimestampClientService {}
+pub struct DefaultTimestampService {}
 
-impl Node for TimestampClientService {
+impl Node for DefaultTimestampService {
     fn node_name(&self) -> NodeName {
         NodeName::TimestampClient
     }

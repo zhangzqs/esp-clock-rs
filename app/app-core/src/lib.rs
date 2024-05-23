@@ -1,7 +1,4 @@
-use node::{
-    BootPage, HomePage, MenuPage, RouterService, TimestampClientService,
-    TouchOneButtonAdapterService, WeatherClient, WeatherPage,
-};
+use node::*;
 pub use scheduler::Scheduler;
 
 mod adapter;
@@ -27,6 +24,8 @@ pub fn register_default_nodes(sche: &mut Scheduler) {
 
     sche.register_node(RouterService::new(app.clone()));
     sche.register_node(TouchOneButtonAdapterService::new(app.clone()));
-    sche.register_node(TimestampClientService {});
-    sche.register_node(WeatherClient::new());
+    sche.register_node(DefaultTimestampService {});
+    sche.register_node(WeatherService::new());
+    sche.register_node(MockStorageService::new());
+    sche.register_node(MockPerformanceService {});
 }

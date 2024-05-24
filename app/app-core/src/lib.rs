@@ -39,7 +39,8 @@ fn register_default_nodes(sche: &Scheduler) {
     sche.register_node(MockStorageService::new());
     sche.register_node(MockPerformanceService {});
     sche.register_node(TimerService::new());
-    sche.register_node(DevConfigSetter {})
+    sche.register_node(DevConfigSetter {});
+    sche.register_node(MockWiFiService::new());
 }
 
 mod dev {
@@ -51,14 +52,12 @@ mod dev {
 
     impl Node for DevConfigSetter {
         fn node_name(&self) -> NodeName {
-            NodeName::Other("DevConfigSetter")
+            NodeName::Other("DevConfigSetter".into())
         }
 
         fn handle_message(
             &self,
             ctx: std::rc::Rc<dyn Context>,
-            _from: NodeName,
-            _to: MessageTo,
             msg: MessageWithHeader,
         ) -> HandleResult {
             match msg.body {

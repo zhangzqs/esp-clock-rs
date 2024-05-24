@@ -7,10 +7,22 @@ use serde::{Deserialize, Serialize};
 
 pub use {message::*, node::NodeName};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MessageTo {
     Broadcast,
     Point(NodeName),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MessageWithHeader {
+    /// 消息来源
+    pub from: NodeName,
+    /// 消息发送目标
+    pub to: MessageTo,
+    /// 消息帧ID
+    pub seq: usize,
+    /// 消息体
+    pub body: Message,
 }
 
 pub type MessageCallbackOnce = Box<dyn FnOnce(HandleResult)>;
@@ -26,7 +38,7 @@ pub trait Context {
     fn sync_call(&self, node: NodeName, msg: Message) -> HandleResult;
 
     // 消息就绪，并传递值
-    fn async_ready(&self, seq: u32, result: Message);
+    fn async_ready(&self, seq: usize, result: Message);
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -48,30 +60,15 @@ impl HandleResult {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MessageWithHeader {
-    /// 消息帧ID
-    pub seq: u32,
-    /// 异步消息是否处于pending态
-    pub is_pending: bool,
-    /// 异步消息是否有已经就绪响应结果
-    pub ready_result: Option<Message>,
-    /// 消息体
-    pub body: Message,
-}
-
 pub trait Node {
     // 节点名称
     fn node_name(&self) -> NodeName;
 
     // 当节点收到消息时
-    fn handle_message(
-        &self,
-        _ctx: Rc<dyn Context>,
-        _from: NodeName,
-        _to: MessageTo,
-        _msg: MessageWithHeader,
-    ) -> HandleResult {
+    fn handle_message(&self, _ctx: Rc<dyn Context>, _msg: MessageWithHeader) -> HandleResult {
         HandleResult::Discard
     }
+
+    // 不断轮询消息是否就绪
+    fn poll(&self, _ctx: Rc<dyn Context>, _seq: usize) {}
 }

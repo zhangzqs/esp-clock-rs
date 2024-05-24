@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use app_core::proto::{
-    Context, HandleResult, Message, MessageTo, MessageWithHeader, Node, NodeName, TimeMessage,
+    Context, HandleResult, Message, MessageWithHeader, Node, NodeName, TimeMessage,
 };
 
 pub struct TimestampClientService {}
@@ -10,13 +10,7 @@ impl Node for TimestampClientService {
         NodeName::TimestampClient
     }
 
-    fn handle_message(
-        &self,
-        _ctx: Rc<dyn Context>,
-        _from: NodeName,
-        _to: MessageTo,
-        msg: MessageWithHeader,
-    ) -> HandleResult {
+    fn handle_message(&self, _ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
         if let Message::DateTime(TimeMessage::GetTimestampNanosRequest) = msg.body {
             let t = web_sys::js_sys::Date::now();
             return HandleResult::Finish(Message::DateTime(

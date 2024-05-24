@@ -4,7 +4,7 @@ use slint::ComponentHandle;
 
 use crate::get_app_window;
 use crate::proto::{
-    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName,
+    Context, HandleResult, LifecycleMessage, Message, MessageWithHeader, Node, NodeName,
     RouterMessage,
 };
 use crate::{adapter, proto::RoutePage, ui::PageRouter};
@@ -38,13 +38,7 @@ impl Node for RouterService {
         NodeName::Router
     }
 
-    fn handle_message(
-        &self,
-        ctx: Rc<dyn Context>,
-        _from: NodeName,
-        _to: MessageTo,
-        msg: MessageWithHeader,
-    ) -> HandleResult {
+    fn handle_message(&self, ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
         match msg.body {
             Message::Router(RouterMessage::GotoPage(r)) => {
                 ctx.sync_call(

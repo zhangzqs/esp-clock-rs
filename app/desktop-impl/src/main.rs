@@ -6,12 +6,16 @@ use slint::ComponentHandle;
 mod http_client;
 use http_client::HttpClient;
 
+mod http_server;
+use http_server::HttpServer;
+
 fn main() {
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
     let app = get_app_window();
     let sche = get_scheduler();
     sche.register_node(HttpClient::new(4));
+    sche.register_node(HttpServer::new());
 
     let sche_timer = slint::Timer::default();
     sche_timer.start(

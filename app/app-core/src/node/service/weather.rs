@@ -124,22 +124,10 @@ impl Node for WeatherService {
     fn handle_message(
         &self,
         ctx: std::rc::Rc<dyn Context>,
-        _from: NodeName,
-        _to: MessageTo,
         msg: MessageWithHeader,
     ) -> HandleResult {
         match msg.body {
             Message::Weather(WeatherMessage::GetNextSevenDaysWeatherRequest) => {
-                // 出结果了
-                if let Some(x) = msg.ready_result {
-                    return HandleResult::Finish(x);
-                }
-
-                // 仍然需要pending
-                if msg.is_pending {
-                    return HandleResult::Pending;
-                }
-
                 // 首次消息，进入pending状态
                 let stg = ipc::StorageClient(ctx.clone());
                 let appid = stg.get("weather/appid".into()).unwrap().unwrap_or_default();

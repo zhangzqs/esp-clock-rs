@@ -1,8 +1,7 @@
 use std::{collections::HashSet, rc::Rc};
 
 use app_core::proto::{
-    Context, HandleResult, Message, MessageTo, MessageWithHeader, Node, NodeName, StorageError,
-    StorageMessage,
+    Context, HandleResult, Message, MessageWithHeader, Node, NodeName, StorageError, StorageMessage,
 };
 use wasm_bindgen::JsValue;
 
@@ -64,13 +63,7 @@ impl Node for LocalStorageService {
         NodeName::Storage
     }
 
-    fn handle_message(
-        &self,
-        _ctx: Rc<dyn Context>,
-        _from: NodeName,
-        _to: MessageTo,
-        msg: MessageWithHeader,
-    ) -> HandleResult {
+    fn handle_message(&self, _ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
         if let Message::Storage(sm) = msg.body {
             let resp = match sm {
                 StorageMessage::GetRequest(key) => self.get(&key).map(StorageMessage::GetResponse),

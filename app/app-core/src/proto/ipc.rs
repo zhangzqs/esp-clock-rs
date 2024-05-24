@@ -7,7 +7,6 @@ use super::{
     StorageError, StorageMessage, WeatherError, WeatherMessage,
 };
 
-type AsyncCallback<T> = Box<dyn FnOnce(T)>;
 type AsyncResultCallback<T, E> = Box<dyn FnOnce(Result<T, E>)>;
 
 pub struct HttpClient(pub Rc<dyn Context>);

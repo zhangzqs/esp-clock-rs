@@ -32,16 +32,10 @@ impl<'a, P: Pin> EspOneButton<'a, P> {
 
 impl<'a: 'static, P: Pin> Node for EspOneButton<'a, P> {
     fn node_name(&self) -> NodeName {
-        NodeName::Other("EspOneButton")
+        NodeName::Other("EspOneButton".into())
     }
 
-    fn handle_message(
-        &self,
-        ctx: Rc<dyn Context>,
-        _from: NodeName,
-        _to: MessageTo,
-        msg: MessageWithHeader,
-    ) -> HandleResult {
+    fn handle_message(&self, ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
         if let Message::Lifecycle(LifecycleMessage::Init) = msg.body {
             let button = self.button.clone();
             self.timer.start(
@@ -80,13 +74,7 @@ impl Node for PerformanceNode {
         NodeName::Performance
     }
 
-    fn handle_message(
-        &self,
-        _ctx: Rc<dyn Context>,
-        _from: NodeName,
-        _to: MessageTo,
-        msg: MessageWithHeader,
-    ) -> HandleResult {
+    fn handle_message(&self, _ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
         if let Message::Performance(pm) = msg.body {
             return HandleResult::Finish(Message::Performance(match pm {
                 PerformanceMessage::GetFreeHeapSizeRequest => {

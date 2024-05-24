@@ -1,7 +1,7 @@
 use crate::get_app_window;
 use crate::proto::{
-    ipc, Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node,
-    NodeName, OneButtonMessage, RoutePage, RouterMessage,
+    ipc, Context, HandleResult, LifecycleMessage, Message, MessageWithHeader, Node, NodeName,
+    OneButtonMessage, RoutePage, RouterMessage,
 };
 use crate::ui::{AppWindow, HomeViewModel, TimeData};
 use slint::{ComponentHandle, Weak};
@@ -70,13 +70,7 @@ impl Node for HomePage {
         NodeName::HomePage
     }
 
-    fn handle_message(
-        &self,
-        ctx: Rc<dyn Context>,
-        _from: NodeName,
-        _to: MessageTo,
-        msg: MessageWithHeader,
-    ) -> HandleResult {
+    fn handle_message(&self, ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
         match msg.body {
             Message::Lifecycle(msg) => match msg {
                 LifecycleMessage::Show => {

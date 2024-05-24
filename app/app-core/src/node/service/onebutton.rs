@@ -8,7 +8,7 @@ use slint::ComponentHandle;
 
 use crate::get_app_window;
 use crate::proto::{
-    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName,
+    Context, HandleResult, LifecycleMessage, Message, MessageWithHeader, Node, NodeName,
     OneButtonMessage,
 };
 use crate::ui::OneButtenAdapter;
@@ -67,13 +67,7 @@ impl Node for TouchOneButtonAdapterService {
         NodeName::OneButton
     }
 
-    fn handle_message(
-        &self,
-        ctx: Rc<dyn Context>,
-        _from: NodeName,
-        _to: MessageTo,
-        msg: MessageWithHeader,
-    ) -> HandleResult {
+    fn handle_message(&self, ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
         match msg.body {
             Message::Lifecycle(msg) => match msg {
                 LifecycleMessage::Init => {

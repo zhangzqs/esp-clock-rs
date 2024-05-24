@@ -2,9 +2,7 @@ use std::rc::Rc;
 
 use time::OffsetDateTime;
 
-use crate::proto::{
-    Context, HandleResult, Message, MessageTo, MessageWithHeader, Node, NodeName, TimeMessage,
-};
+use crate::proto::*;
 
 pub struct DefaultTimestampService {}
 
@@ -13,13 +11,7 @@ impl Node for DefaultTimestampService {
         NodeName::TimestampClient
     }
 
-    fn handle_message(
-        &self,
-        _ctx: Rc<dyn Context>,
-        _from: NodeName,
-        _to: MessageTo,
-        msg: MessageWithHeader,
-    ) -> HandleResult {
+    fn handle_message(&self, _ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
         if let Message::DateTime(TimeMessage::GetTimestampNanosRequest) = msg.body {
             return HandleResult::Finish(Message::DateTime(
                 TimeMessage::GetTimestampNanosResponse(

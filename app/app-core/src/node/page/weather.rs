@@ -3,8 +3,8 @@ use std::{cell::RefCell, rc::Rc, time::Duration};
 use crate::{
     get_app_window,
     proto::{
-        Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node,
-        NodeName, OneButtonMessage, RoutePage, RouterMessage, WeatherMessage,
+        Context, HandleResult, LifecycleMessage, Message, MessageWithHeader, Node, NodeName,
+        OneButtonMessage, RoutePage, RouterMessage, WeatherMessage,
     },
     ui,
 };
@@ -30,13 +30,7 @@ impl Node for WeatherPage {
         NodeName::WeatherPage
     }
 
-    fn handle_message(
-        &self,
-        ctx: Rc<dyn Context>,
-        _from: NodeName,
-        _to: MessageTo,
-        msg: MessageWithHeader,
-    ) -> HandleResult {
+    fn handle_message(&self, ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
         match msg.body {
             Message::OneButton(msg) => match msg {
                 OneButtonMessage::Click => {

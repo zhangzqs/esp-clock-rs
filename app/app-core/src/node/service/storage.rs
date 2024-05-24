@@ -22,8 +22,6 @@ impl Node for MockStorageService {
     fn handle_message(
         &self,
         _ctx: std::rc::Rc<dyn Context>,
-        _from: NodeName,
-        _to: MessageTo,
         msg: MessageWithHeader,
     ) -> HandleResult {
         if let Message::Storage(sm) = msg.body {

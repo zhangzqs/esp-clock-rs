@@ -2,7 +2,7 @@ use std::{
     cell::RefCell,
     collections::HashMap,
     rc::Rc,
-    sync::atomic::{AtomicU32, Ordering},
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
 use log::debug;
@@ -10,18 +10,18 @@ use log::debug;
 use crate::proto::*;
 
 struct MessageQueueItem {
-    from: NodeName,
-    to: MessageTo,
     message: MessageWithHeader,
+    /// 异步消息是否处于pending态
+    is_pending: bool,
     callback_once: Option<MessageCallbackOnce>,
 }
 
 struct ContextImpl {
     node_name: NodeName,
     mq_buffer: Rc<RefCell<Vec<MessageQueueItem>>>,
-    msg_seq_inc: AtomicU32,
+    msg_seq_inc: AtomicUsize,
     nodes: Rc<RefCell<HashMap<NodeName, Box<dyn Node>>>>,
-    ready_result: Rc<RefCell<HashMap<u32, Message>>>,
+    ready_result: Rc<RefCell<HashMap<usize, Message>>>,
 }
 
 impl Context for ContextImpl {
@@ -29,14 +29,13 @@ impl Context for ContextImpl {
     fn boardcast(&self, msg: Message) {
         self.msg_seq_inc.fetch_add(1, Ordering::SeqCst);
         self.mq_buffer.borrow_mut().push(MessageQueueItem {
-            from: self.node_name,
-            to: MessageTo::Broadcast,
             message: MessageWithHeader {
+                from: self.node_name.clone(),
+                to: MessageTo::Broadcast,
                 seq: self.msg_seq_inc.load(Ordering::SeqCst),
                 body: msg,
-                is_pending: false,
-                ready_result: None,
             },
+            is_pending: false,
             callback_once: None,
         })
     }
@@ -45,14 +44,13 @@ impl Context for ContextImpl {
     fn async_call(&self, node: NodeName, msg: Message, callback: MessageCallbackOnce) {
         self.msg_seq_inc.fetch_add(1, Ordering::SeqCst);
         self.mq_buffer.borrow_mut().push(MessageQueueItem {
-            from: self.node_name,
-            to: MessageTo::Point(node),
             message: MessageWithHeader {
+                from: self.node_name.clone(),
+                to: MessageTo::Point(node),
                 seq: self.msg_seq_inc.load(Ordering::SeqCst),
                 body: msg,
-                ready_result: None,
-                is_pending: false,
             },
+            is_pending: false,
             callback_once: Some(callback),
         })
     }
@@ -62,24 +60,23 @@ impl Context for ContextImpl {
         self.msg_seq_inc.fetch_add(1, Ordering::SeqCst);
         self.nodes.borrow()[&node].handle_message(
             Rc::new(ContextImpl {
-                node_name: self.node_name,
+                node_name: self.node_name.clone(),
                 mq_buffer: self.mq_buffer.clone(),
                 nodes: self.nodes.clone(),
-                msg_seq_inc: AtomicU32::new(self.msg_seq_inc.load(Ordering::SeqCst)),
+                msg_seq_inc: AtomicUsize::new(self.msg_seq_inc.load(Ordering::SeqCst)),
                 ready_result: self.ready_result.clone(),
             }),
-            self.node_name,
-            MessageTo::Point(node),
             MessageWithHeader {
-                seq: self.msg_seq_inc.load(Ordering::SeqCst),
-                is_pending: false,
-                ready_result: None,
+                from: self.node_name.clone(),
+                to: MessageTo::Point(node),
                 body: msg,
+                seq: self.msg_seq_inc.load(Ordering::SeqCst),
             },
         )
     }
 
-    fn async_ready(&self, seq: u32, result: Message) {
+    // 异步结果就绪
+    fn async_ready(&self, seq: usize, result: Message) {
         self.ready_result.borrow_mut().insert(seq, result);
     }
 }
@@ -88,8 +85,8 @@ pub struct Scheduler {
     nodes: Rc<RefCell<HashMap<NodeName, Box<dyn Node>>>>,
     mq_buffer1: RefCell<Vec<MessageQueueItem>>,
     mq_buffer2: Rc<RefCell<Vec<MessageQueueItem>>>,
-    msg_seq_inc: AtomicU32,
-    ready_result: Rc<RefCell<HashMap<u32, Message>>>,
+    msg_seq_inc: AtomicUsize,
+    ready_result: Rc<RefCell<HashMap<usize, Message>>>,
 }
 
 impl Default for Scheduler {
@@ -103,18 +100,17 @@ impl Scheduler {
         Self {
             nodes: Rc::new(RefCell::new(HashMap::new())),
             mq_buffer1: RefCell::new(vec![MessageQueueItem {
-                from: NodeName::Scheduler,
-                to: MessageTo::Broadcast,
                 message: MessageWithHeader {
+                    from: NodeName::Scheduler,
+                    to: MessageTo::Broadcast,
                     seq: 0,
                     body: Message::Lifecycle(LifecycleMessage::Init),
-                    ready_result: None,
-                    is_pending: false,
                 },
+                is_pending: false,
                 callback_once: None,
             }]),
             mq_buffer2: Rc::new(RefCell::new(Vec::new())),
-            msg_seq_inc: AtomicU32::new(0),
+            msg_seq_inc: AtomicUsize::new(0),
             ready_result: Rc::new(RefCell::new(HashMap::new())),
         }
     }
@@ -125,32 +121,39 @@ impl Scheduler {
             .insert(app.node_name(), Box::new(app));
     }
 
+    fn gen_ctx(&self, node_name: &NodeName) -> Rc<dyn Context> {
+        Rc::new(ContextImpl {
+            node_name: node_name.clone(),
+            mq_buffer: self.mq_buffer2.clone(),
+            msg_seq_inc: AtomicUsize::new(self.msg_seq_inc.load(Ordering::SeqCst)),
+            nodes: self.nodes.clone(),
+            ready_result: self.ready_result.clone(),
+        })
+    }
+
     pub fn schedule_once(&self) {
+        for (node_name, node) in self.nodes.borrow().iter() {
+            node.handle_message(
+                self.gen_ctx(node_name),
+                MessageWithHeader {
+                    from: NodeName::Scheduler,
+                    to: MessageTo::Broadcast,
+                    seq: 0,
+                    body: Message::Empty,
+                },
+            );
+        }
         // 消费消息
         for MessageQueueItem {
-            from,
-            to,
             message,
             mut callback_once,
+            is_pending,
         } in self.mq_buffer1.borrow_mut().drain(..)
         {
-            match to {
+            match message.to.clone() {
                 MessageTo::Broadcast => {
                     for (node_name, node) in self.nodes.borrow().iter() {
-                        let ret = node.handle_message(
-                            Rc::new(ContextImpl {
-                                node_name: *node_name,
-                                mq_buffer: self.mq_buffer2.clone(),
-                                msg_seq_inc: AtomicU32::new(
-                                    self.msg_seq_inc.load(Ordering::SeqCst),
-                                ),
-                                nodes: self.nodes.clone(),
-                                ready_result: self.ready_result.clone(),
-                            }),
-                            from,
-                            to,
-                            message.clone(),
-                        );
+                        let ret = node.handle_message(self.gen_ctx(node_name), message.clone());
                         match ret {
                             HandleResult::Finish(_) => {
                                 if callback_once.take().is_some() {
@@ -165,56 +168,49 @@ impl Scheduler {
                     }
                 }
                 MessageTo::Point(node_name) => {
+                    // 目标不存在
                     if !self.nodes.borrow().contains_key(&node_name) {
                         panic!("not found node {:?}", node_name);
                     }
-                    if !message.is_pending {
-                        debug!(
-                            "handle message from node: {from:?}, to node: {node_name:?}, msg: {}",
-                            serde_json::to_string(&message).unwrap(),
-                        );
-                    }
-                    let ret = self.nodes.borrow()[&node_name].handle_message(
-                        Rc::new(ContextImpl {
-                            node_name,
-                            mq_buffer: self.mq_buffer2.clone(),
-                            msg_seq_inc: AtomicU32::new(self.msg_seq_inc.load(Ordering::SeqCst)),
-                            nodes: self.nodes.clone(),
-                            ready_result: self.ready_result.clone(),
-                        }),
-                        from,
-                        to,
-                        message.clone(),
-                    );
-                    if !message.is_pending {
-                        debug!(
-                            "handle message result: {}",
-                            serde_json::to_string(&ret).unwrap()
-                        );
-                    }
-
-                    match ret {
-                        HandleResult::Finish(e) => {
+                    if is_pending {
+                        // 轮询消息结果
+                        self.nodes.borrow()[&node_name].poll(self.gen_ctx(&node_name), message.seq);
+                        // 若轮询到了结果
+                        if let Some(m) = self.ready_result.borrow_mut().remove(&message.seq) {
+                            debug!("async message seq {} is ready: {:?}", message.seq, m);
+                            // 如果消息已经就绪，则触发回调
                             if let Some(cb) = callback_once.take() {
-                                cb(HandleResult::Finish(e.clone()));
+                                cb(HandleResult::Finish(m));
                             }
-                        }
-                        HandleResult::Pending => {
-                            let res = self.ready_result.borrow_mut().remove(&message.seq);
-
+                        } else {
+                            // 若仍无结果，则继续排队
                             self.mq_buffer2.borrow_mut().push(MessageQueueItem {
-                                from,
-                                to,
-                                message: MessageWithHeader {
-                                    seq: message.seq,
-                                    is_pending: res.is_none(),
-                                    ready_result: res,
-                                    body: message.body,
-                                },
+                                message,
+                                is_pending: true,
                                 callback_once,
                             });
                         }
-                        HandleResult::Discard => {}
+                    } else {
+                        debug!("dispatch p2p message {:?}", message);
+                        let ret = self.nodes.borrow()[&node_name]
+                            .handle_message(self.gen_ctx(&node_name), message.clone());
+                        debug!("handle p2p message result: {:?}", ret);
+                        match ret {
+                            HandleResult::Finish(e) => {
+                                if let Some(cb) = callback_once.take() {
+                                    cb(HandleResult::Finish(e));
+                                }
+                            }
+                            HandleResult::Pending => {
+                                // 消息没有就绪结果，标记is_pending后，继续排队到异步队列
+                                self.mq_buffer2.borrow_mut().push(MessageQueueItem {
+                                    message,
+                                    is_pending: true,
+                                    callback_once,
+                                });
+                            }
+                            HandleResult::Discard => {}
+                        }
                     }
                 }
             }

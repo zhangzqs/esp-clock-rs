@@ -1,4 +1,6 @@
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum NodeName {
     // App框架调度器
     Scheduler,
@@ -29,5 +31,5 @@ pub enum NodeName {
     // 天气页ui与逻辑
     WeatherPage,
     // 其他扩展节点
-    Other(&'static str),
+    Other(String),
 }

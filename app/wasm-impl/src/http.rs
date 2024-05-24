@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use app_core::proto::{
     Context, HandleResult, HttpBody, HttpError, HttpMessage, HttpRequestMethod, HttpResponse,
-    Message, MessageTo, MessageWithHeader, Node, NodeName,
+    Message, MessageWithHeader, Node, NodeName,
 };
 
 fn convert(method: HttpRequestMethod) -> reqwest::Method {
@@ -25,22 +25,9 @@ impl Node for HttpClient {
         NodeName::HttpClient
     }
 
-    fn handle_message(
-        &self,
-        ctx: Rc<dyn Context>,
-        _from: NodeName,
-        _to: MessageTo,
-        msg: MessageWithHeader,
-    ) -> HandleResult {
+    fn handle_message(&self, ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
         match msg.body {
             Message::Http(HttpMessage::Request(req)) => {
-                if let Some(x) = msg.ready_result {
-                    return HandleResult::Finish(x);
-                }
-                if msg.is_pending {
-                    // 若消息仍处于running态，继续返回 Pending，调度器后续继续轮询
-                    return HandleResult::Pending;
-                }
                 // 否则为新消息
                 let req = req.clone();
                 wasm_bindgen_futures::spawn_local(async move {

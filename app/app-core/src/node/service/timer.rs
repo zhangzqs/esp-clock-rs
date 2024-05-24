@@ -1,8 +1,6 @@
 use std::rc::Rc;
 
-use crate::proto::{
-    Context, HandleResult, Message, MessageTo, MessageWithHeader, Node, NodeName, TimerMessage,
-};
+use crate::proto::*;
 
 pub struct TimerService {}
 
@@ -17,21 +15,7 @@ impl Node for TimerService {
         NodeName::Timer
     }
 
-    fn handle_message(
-        &self,
-        ctx: Rc<dyn Context>,
-        _from: NodeName,
-        _to: MessageTo,
-        msg: MessageWithHeader,
-    ) -> HandleResult {
-        if let Some(x) = msg.ready_result {
-            return HandleResult::Finish(x);
-        }
-
-        if msg.is_pending {
-            return HandleResult::Pending;
-        }
-
+    fn handle_message(&self, ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
         if let Message::Timer(TimerMessage::Request(x)) = msg.body {
             slint::Timer::single_shot(x, move || {
                 ctx.async_ready(msg.seq, Message::Timer(TimerMessage::Response));

@@ -9,7 +9,7 @@ use std::{
 
 use app_core::proto::{
     Context, HandleResult, HttpBody, HttpMessage, HttpRequest, HttpRequestMethod, HttpResponse,
-    Message, MessageTo, MessageWithHeader, Node, NodeName,
+    Message, MessageWithHeader, Node, NodeName,
 };
 use reqwest::blocking::ClientBuilder;
 
@@ -22,20 +22,20 @@ fn convert(method: HttpRequestMethod) -> reqwest::Method {
 
 struct State {
     // 已经就绪的响应
-    ready_resp: HashMap<u32, HandleResult>,
+    ready_resp: HashMap<usize, Message>,
 }
 
 pub struct HttpClient {
     // 发送一个请求
-    req_tx: mpsc::Sender<(u32, HttpRequest)>,
+    req_tx: mpsc::Sender<(usize, HttpRequest)>,
     // 收到一个响应
-    resp_rx: mpsc::Receiver<(u32, HandleResult)>,
+    resp_rx: mpsc::Receiver<(usize, Message)>,
     state: RefCell<State>,
 }
 
 impl HttpClient {
     pub fn new(threads: usize) -> Self {
-        let (req_tx, req_rx) = mpsc::channel::<(u32, HttpRequest)>();
+        let (req_tx, req_rx) = mpsc::channel::<(usize, HttpRequest)>();
         let (resp_tx, resp_rx) = mpsc::channel();
         let client = ClientBuilder::new().build().unwrap();
 
@@ -59,11 +59,9 @@ impl HttpClient {
                         resp_tx
                             .send((
                                 seq,
-                                HandleResult::Finish(Message::Http(HttpMessage::Response(
-                                    HttpResponse {
-                                        body: HttpBody::Bytes(content),
-                                    },
-                                ))),
+                                Message::Http(HttpMessage::Response(HttpResponse {
+                                    body: HttpBody::Bytes(content),
+                                })),
                             ))
                             .unwrap();
                     }
@@ -93,35 +91,26 @@ impl Node for HttpClient {
         NodeName::HttpClient
     }
 
-    fn handle_message(
-        &self,
-        _ctx: Rc<dyn Context>,
-        _from: NodeName,
-        _to: MessageTo,
-        msg: MessageWithHeader,
-    ) -> HandleResult {
+    fn poll(&self, ctx: Rc<dyn Context>, seq: usize) {
+        let mut state = self.state.borrow_mut();
+        match self.resp_rx.try_recv() {
+            Ok((seq, resp)) => {
+                // 当消息执行完成后，消息转换为ready态
+                state.ready_resp.insert(seq, resp);
+            }
+            _ => {}
+        }
+        if state.ready_resp.contains_key(&seq) {
+            // 若消息结果为ready态，则返回Sucessful
+            let ret = state.ready_resp.remove(&seq).unwrap();
+            ctx.async_ready(seq, ret);
+        }
+    }
+
+    fn handle_message(&self, _ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
         match msg.body {
             Message::Http(HttpMessage::Request(req)) => {
-                let mut state = self.state.borrow_mut();
-                if state.ready_resp.contains_key(&msg.seq) {
-                    // 若消息结果为ready态，则返回Sucessful
-                    return state.ready_resp.remove(&msg.seq).unwrap();
-                }
-
-                if msg.is_pending {
-                    // 若消息仍处于pending态，且无返回结果，继续返回 Pending，调度器后续继续轮询
-                    match self.resp_rx.try_recv() {
-                        Ok((seq, resp)) => {
-                            // 当消息执行完成后，消息转换为ready态
-                            state.ready_resp.insert(seq, resp);
-                            return HandleResult::Pending;
-                        }
-                        _ => {}
-                    }
-                    return HandleResult::Pending;
-                }
-
-                // 否则为新消息
+                // 传送消息
                 self.req_tx.send((msg.seq, req)).unwrap();
                 return HandleResult::Pending;
             }

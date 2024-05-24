@@ -13,14 +13,20 @@ export component RouteView inherits Rectangle {
 
     home-page := HomePage {
         visible: PageRouter.current-page == PageRouteTable.home;
+        width: 100%;
+        height: 100%;
     }
 
     menu-page := MenuPage {
         visible: PageRouter.current-page == PageRouteTable.menu;
+        width: 100%;
+        height: 100%;
     }
 
     weather-page := WeatherPage {
         visible: PageRouter.current-page == PageRouteTable.weather;
+        width: 100%;
+        height: 100%;
     }
 }
 

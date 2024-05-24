@@ -1,17 +1,13 @@
-use std::sync::Once;
-
 use slint::ComponentHandle;
 use slint::Weak;
 
 slint::include_modules!();
 
-static mut APP: Option<AppWindow> = None;
-static APP_ONCE: Once = Once::new();
+static mut APP: Option<Weak<AppWindow>> = None;
 
 pub fn get_app_window() -> Weak<AppWindow> {
-    APP_ONCE.call_once(|| {
-        let app = AppWindow::new().unwrap();
-        unsafe { APP = Some(app) }
-    });
-    unsafe { APP.as_ref().unwrap().as_weak() }
+    unsafe {
+        APP.get_or_insert_with(|| AppWindow::new().unwrap().as_weak())
+            .clone()
+    }
 }

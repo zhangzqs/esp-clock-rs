@@ -231,3 +231,13 @@ impl Scheduler {
         self.mq_buffer2.swap(&self.mq_buffer1)
     }
 }
+
+static mut SCHEDULER: Option<Rc<Scheduler>> = None;
+
+pub fn get_scheduler() -> Rc<Scheduler> {
+    unsafe {
+        SCHEDULER
+            .get_or_insert_with(|| Rc::new(Scheduler::new()))
+            .clone()
+    }
+}

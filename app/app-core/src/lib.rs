@@ -8,15 +8,10 @@ pub mod proto;
 mod scheduler;
 mod ui;
 
+pub use scheduler::get_scheduler;
 pub use ui::get_app_window;
 
-pub fn get_scheduler() -> Scheduler {
-    let mut sche = Scheduler::new();
-    register_default_nodes(&mut sche);
-    sche
-}
-
-pub fn register_default_nodes(sche: &mut Scheduler) {
+pub fn register_default_nodes(sche: &Scheduler) {
     let app = get_app_window();
     sche.register_node(HomePage::new(app.clone()));
     sche.register_node(WeatherPage::new());

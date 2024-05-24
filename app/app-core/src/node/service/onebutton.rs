@@ -4,13 +4,14 @@ use std::time::Duration;
 
 use button_driver::{Button, ButtonConfig, PinWrapper, Platform};
 
-use slint::{ComponentHandle, Weak};
+use slint::ComponentHandle;
 
+use crate::get_app_window;
 use crate::proto::{
     Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName,
     OneButtonMessage,
 };
-use crate::ui::{AppWindow, OneButtenAdapter};
+use crate::ui::OneButtenAdapter;
 
 #[derive(Clone)]
 struct MyButtonPin(Rc<RefCell<bool>>);
@@ -48,15 +49,13 @@ impl Platform for MyButtonPlatform {
 
 // 基于触摸事件模拟的单按钮事件的适配器服务
 pub struct TouchOneButtonAdapterService {
-    app: Weak<AppWindow>,
     button_event_timer: slint::Timer,
     button_state: Rc<RefCell<bool>>,
 }
 
 impl TouchOneButtonAdapterService {
-    pub fn new(app: Weak<AppWindow>) -> Self {
+    pub fn new() -> Self {
         Self {
-            app,
             button_event_timer: slint::Timer::default(),
             button_state: Rc::new(RefCell::new(false)),
         }
@@ -115,7 +114,7 @@ impl Node for TouchOneButtonAdapterService {
                             button.reset();
                         },
                     );
-                    if let Some(ui) = self.app.upgrade() {
+                    if let Some(ui) = get_app_window().upgrade() {
                         let button_state_ref = self.button_state.clone();
                         let t = ui.global::<OneButtenAdapter>();
                         t.on_pressed(move || {

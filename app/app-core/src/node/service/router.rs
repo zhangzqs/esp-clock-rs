@@ -1,36 +1,30 @@
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Weak};
+use slint::ComponentHandle;
 
+use crate::get_app_window;
 use crate::proto::{
     Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName,
     RouterMessage,
 };
-use crate::{
-    adapter,
-    proto::RoutePage,
-    ui::{AppWindow, PageRouter},
-};
+use crate::{adapter, proto::RoutePage, ui::PageRouter};
 
-pub struct RouterService {
-    app: Weak<AppWindow>,
-}
+pub struct RouterService {}
 
 impl RouterService {
-    pub fn new(app: Weak<AppWindow>) -> Self {
-        Self { app }
+    pub fn new() -> Self {
+        Self {}
     }
-    fn goto_page(app: Weak<AppWindow>, r: RoutePage) {
-        if let Some(ui) = app.upgrade() {
+    fn goto_page(r: RoutePage) {
+        if let Some(ui) = get_app_window().upgrade() {
             let slint_route = adapter::proto_route_table_to_slint_route_table(r);
             let router = ui.global::<PageRouter>();
             router.set_current_page(slint_route);
         }
     }
 
-    fn get_current_page(&self) -> RoutePage {
-        let slint_route = self
-            .app
+    fn get_current_page() -> RoutePage {
+        let slint_route = get_app_window()
             .upgrade()
             .unwrap()
             .global::<PageRouter>()
@@ -54,14 +48,14 @@ impl Node for RouterService {
         match msg.body {
             Message::Router(RouterMessage::GotoPage(r)) => {
                 ctx.sync_call(
-                    self.get_current_page().map_to_node_name(),
+                    Self::get_current_page().map_to_node_name(),
                     Message::Lifecycle(LifecycleMessage::Hide),
                 );
                 ctx.sync_call(
                     r.map_to_node_name(),
                     Message::Lifecycle(LifecycleMessage::Show),
                 );
-                Self::goto_page(self.app.clone(), r);
+                Self::goto_page(r);
                 return HandleResult::Finish(Message::Empty);
             }
             _ => {}

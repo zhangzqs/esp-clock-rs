@@ -1,3 +1,4 @@
+use crate::get_app_window;
 use crate::proto::{
     ipc, Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node,
     NodeName, OneButtonMessage, RoutePage, RouterMessage,
@@ -9,15 +10,13 @@ use std::{rc::Rc, time::Duration};
 use time::{OffsetDateTime, UtcOffset};
 
 pub struct HomePage {
-    app: Weak<AppWindow>,
     time_update_timer: RefCell<Option<slint::Timer>>,
     is_show: RefCell<bool>,
 }
 
 impl HomePage {
-    pub fn new(app: Weak<AppWindow>) -> Self {
+    pub fn new() -> Self {
         Self {
-            app,
             time_update_timer: RefCell::new(None),
             is_show: RefCell::new(false),
         }
@@ -45,7 +44,7 @@ impl HomePage {
     }
 
     fn on_show(&self, ctx: Rc<dyn Context>) {
-        let app = self.app.clone();
+        let app = get_app_window();
         Self::update_time(app.clone(), ctx.clone());
 
         let ctx_ref = ctx.clone();

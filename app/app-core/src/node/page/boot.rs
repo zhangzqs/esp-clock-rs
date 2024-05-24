@@ -1,23 +1,21 @@
 use std::{rc::Rc, time::Duration};
 
-use slint::{ComponentHandle, Weak};
+use slint::ComponentHandle;
 use time::OffsetDateTime;
 
 use crate::proto::{
     ipc, Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node,
     NodeName, RoutePage, RouterMessage,
 };
-use crate::ui::{self, AppWindow};
+use crate::{get_app_window, ui};
 
 pub struct BootPage {
-    app: Weak<AppWindow>,
     t: slint::Timer,
 }
 
 impl BootPage {
-    pub fn new(app: Weak<AppWindow>) -> Self {
+    pub fn new() -> Self {
         Self {
-            app,
             t: slint::Timer::default(),
         }
     }
@@ -53,7 +51,6 @@ impl Node for BootPage {
                         .unwrap();
 
                     let ctx_ref = ctx.clone();
-                    let app = self.app.clone();
                     self.t.start(
                         slint::TimerMode::Repeated,
                         Duration::from_secs(1),
@@ -61,7 +58,7 @@ impl Node for BootPage {
                             let ctx_ref = ctx_ref.clone();
                             let p = ipc::PerformanceClient(ctx_ref);
 
-                            if let Some(ui) = app.upgrade() {
+                            if let Some(ui) = get_app_window().upgrade() {
                                 let vm = ui.global::<ui::PerformanceViewModel>();
                                 vm.set_largest_free_block(p.get_largeest_free_block() as i32);
                                 vm.set_memory(p.get_free_heap_size() as i32);

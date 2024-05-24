@@ -1,6 +1,7 @@
 use crate::proto::NodeName;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RoutePage {
     Boot,
     Home,
@@ -19,7 +20,7 @@ impl RoutePage {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RouterMessage {
     GotoPage(RoutePage),
 }

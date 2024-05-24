@@ -1,6 +1,7 @@
 mod time;
 use std::time::Duration;
 
+use serde::{Deserialize, Serialize};
 pub use time::TimeMessage;
 
 mod http;
@@ -30,7 +31,7 @@ pub use wifi::*;
 mod buzzer;
 pub use buzzer::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Message {
     /// 空消息
     Empty,
@@ -54,7 +55,7 @@ pub enum Message {
     WiFi(WiFiMessage),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TimerMessage {
     Request(Duration),
     Response,

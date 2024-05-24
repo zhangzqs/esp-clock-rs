@@ -1,13 +1,14 @@
-#[derive(Debug, Clone)]
+use serde::{Deserialize, Serialize};
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WiFiStorageConfiguration {
     pub ssid: String,
     pub password: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetIpInfo {}
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WiFiMessage {
     // 获取本地存储中的wifi链接配置
     GetStorageWiFiConfigurationRequest,

@@ -1,6 +1,7 @@
 use super::HttpError;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WeatherState {
     /// 雪
     Snow,
@@ -22,7 +23,7 @@ pub enum WeatherState {
     Sunny,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AirLevel {
     /// 优
     Good,
@@ -38,8 +39,33 @@ pub enum AirLevel {
     Hazardous,
 }
 
-#[derive(Debug, Clone)]
+mod date_serde {
+    use serde::{Deserialize, Serializer};
+    use time::macros::{format_description};
+
+    pub fn serialize<S>(t: &time::Date, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let fmt = format_description!("[year]-[month]-[day]");
+        let s = t.format(fmt).map_err(serde::ser::Error::custom)?;
+        serializer.serialize_str(&s)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<time::Date, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let format = format_description!("[year]-[month]-[day]");
+        let date = time::Date::parse(&s, &format).map_err(serde::de::Error::custom)?;
+        Ok(date)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OneDayWeather {
+    #[serde(with = "date_serde")]
     pub date: time::Date,
     pub now_temperature: i8,
     pub max_temperature: i8,
@@ -63,19 +89,19 @@ impl OneDayWeather {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NextSevenDaysWeather {
     pub city: String,
     pub data: Vec<OneDayWeather>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WeatherError {
     SerdeError(String),
     HttpError(HttpError),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WeatherMessage {
     Error(WeatherError),
     GetNextSevenDaysWeatherRequest,

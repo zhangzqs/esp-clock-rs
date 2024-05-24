@@ -2,7 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 use crate::proto::*;
 use serde::{Deserialize, Serialize};
-use time_macros::format_description;
+use time::macros::format_description;
 
 use self::ipc::HttpClient;
 

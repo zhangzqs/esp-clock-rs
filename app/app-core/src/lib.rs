@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use dev::DevConfigSetter;
 use node::*;
 pub use scheduler::Scheduler;
@@ -8,10 +10,23 @@ pub mod proto;
 mod scheduler;
 mod ui;
 
-pub use scheduler::get_scheduler;
 pub use ui::get_app_window;
 
-pub fn register_default_nodes(sche: &Scheduler) {
+static mut SCHEDULER: Option<Rc<Scheduler>> = None;
+
+pub fn get_scheduler() -> Rc<Scheduler> {
+    unsafe {
+        SCHEDULER
+            .get_or_insert_with(|| {
+                let s = Scheduler::new();
+                register_default_nodes(&s);
+                Rc::new(s)
+            })
+            .clone()
+    }
+}
+
+fn register_default_nodes(sche: &Scheduler) {
     sche.register_node(HomePage::new());
     sche.register_node(WeatherPage::new());
     sche.register_node(MenuPage::new());

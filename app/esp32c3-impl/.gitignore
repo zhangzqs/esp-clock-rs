@@ -3,3 +3,6 @@
 /target
 /Cargo.lock
 /cfg.toml
+
+output-debug.bin
+output-release.bin

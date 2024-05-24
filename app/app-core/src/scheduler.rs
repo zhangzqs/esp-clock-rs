@@ -137,10 +137,6 @@ impl Scheduler {
             match to {
                 MessageTo::Broadcast => {
                     for (node_name, node) in self.nodes.borrow().iter() {
-                        debug!(
-                            "handle message from node: {from:?}, to node: {node_name:?}, msg: {}",
-                            message.body.debug_msg()
-                        );
                         let ret = node.handle_message(
                             Rc::new(ContextImpl {
                                 node_name: *node_name,
@@ -155,7 +151,6 @@ impl Scheduler {
                             to,
                             message.clone(),
                         );
-                        debug!("handle message result: {ret:?}");
                         match ret {
                             HandleResult::Finish(_) => {
                                 if callback_once.take().is_some() {
@@ -176,7 +171,7 @@ impl Scheduler {
                     if !message.is_pending {
                         debug!(
                             "handle message from node: {from:?}, to node: {node_name:?}, msg: {}",
-                            message.body.debug_msg()
+                            serde_json::to_string(&message).unwrap(),
                         );
                     }
                     let ret = self.nodes.borrow()[&node_name].handle_message(
@@ -192,7 +187,10 @@ impl Scheduler {
                         message.clone(),
                     );
                     if !message.is_pending {
-                        debug!("handle message result: {ret:?}");
+                        debug!(
+                            "handle message result: {}",
+                            serde_json::to_string(&ret).unwrap()
+                        );
                     }
 
                     match ret {

@@ -3,6 +3,8 @@ mod message;
 mod node;
 use std::rc::Rc;
 
+use serde::{Deserialize, Serialize};
+
 pub use {message::*, node::NodeName};
 
 #[derive(Debug, Clone, Copy)]
@@ -27,7 +29,7 @@ pub trait Context {
     fn async_ready(&self, seq: u32, result: Message);
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum HandleResult {
     // 成功处理消息，发送方收到一个反馈响应回调消息
     Finish(Message),
@@ -46,7 +48,7 @@ impl HandleResult {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageWithHeader {
     /// 消息帧ID
     pub seq: u32,

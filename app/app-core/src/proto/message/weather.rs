@@ -41,7 +41,7 @@ pub enum AirLevel {
 
 mod date_serde {
     use serde::{Deserialize, Serializer};
-    use time::macros::{format_description};
+    use time::macros::format_description;
 
     pub fn serialize<S>(t: &time::Date, serializer: S) -> Result<S::Ok, S::Error>
     where

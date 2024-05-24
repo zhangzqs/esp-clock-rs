@@ -1,12 +1,11 @@
 use std::{rc::Rc, time::Duration};
 
-use log::info;
 use slint::{ComponentHandle, Weak};
 use time::OffsetDateTime;
 
 use crate::proto::{
     ipc, Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node,
-    NodeName, RoutePage, RouterMessage, TimerMessage,
+    NodeName, RoutePage, RouterMessage,
 };
 use crate::ui::{self, AppWindow};
 

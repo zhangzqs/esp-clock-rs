@@ -10,7 +10,7 @@ fn main() {
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
     let app = get_app_window();
-    let mut sche = get_scheduler();
+    let sche = get_scheduler();
     sche.register_node(HttpClient::new(4));
 
     let sche_timer = slint::Timer::default();

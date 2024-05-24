@@ -1,9 +1,7 @@
 pub mod ipc;
 mod message;
 mod node;
-use std::{future::Future, rc::Rc};
-
-use futures_util::future::{BoxFuture, LocalBoxFuture};
+use std::rc::Rc;
 
 pub use {message::*, node::NodeName};
 

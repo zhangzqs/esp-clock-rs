@@ -1,8 +1,7 @@
-use std::{cell::RefCell, collections::HashSet, rc::Rc};
+use std::rc::Rc;
 
 use crate::proto::{
-    Context, HandleResult, Message, MessageTo, MessageWithHeader, Node, NodeName, TimeMessage,
-    TimerMessage,
+    Context, HandleResult, Message, MessageTo, MessageWithHeader, Node, NodeName, TimerMessage,
 };
 
 pub struct TimerService {}

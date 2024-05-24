@@ -5,10 +5,6 @@ use std::{
     sync::atomic::{AtomicU32, Ordering},
 };
 
-use futures_util::{
-    future::{BoxFuture, LocalBoxFuture},
-    Future, FutureExt,
-};
 use log::debug;
 
 use crate::proto::*;

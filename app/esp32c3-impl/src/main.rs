@@ -36,7 +36,7 @@ impl<'a: 'static, P: Pin> Node for EspOneButton<'a, P> {
     }
 
     fn handle_message(
-        &mut self,
+        &self,
         ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
@@ -54,28 +54,16 @@ impl<'a: 'static, P: Pin> Node for EspOneButton<'a, P> {
                     if button.clicks() > 0 {
                         let clicks = button.clicks();
                         if clicks == 1 {
-                            ctx.send_message(
-                                MessageTo::Broadcast,
-                                Message::OneButton(OneButtonMessage::Click),
-                            );
+                            ctx.boardcast(Message::OneButton(OneButtonMessage::Click));
                         } else {
-                            ctx.send_message(
-                                MessageTo::Broadcast,
-                                Message::OneButton(OneButtonMessage::Clicks(clicks)),
-                            );
+                            ctx.boardcast(Message::OneButton(OneButtonMessage::Clicks(clicks)));
                         }
                     } else if let Some(dur) = button.current_holding_time() {
                         info!("Held for {dur:?}");
-                        ctx.send_message(
-                            MessageTo::Broadcast,
-                            Message::OneButton(OneButtonMessage::LongPressHolding(dur)),
-                        );
+                        ctx.boardcast(Message::OneButton(OneButtonMessage::LongPressHolding(dur)));
                     } else if let Some(dur) = button.held_time() {
                         info!("Total holding time {dur:?}");
-                        ctx.send_message(
-                            MessageTo::Broadcast,
-                            Message::OneButton(OneButtonMessage::LongPressHeld(dur)),
-                        );
+                        ctx.boardcast(Message::OneButton(OneButtonMessage::LongPressHeld(dur)));
                     }
                     button.reset();
                 },
@@ -93,7 +81,7 @@ impl Node for PerformanceNode {
     }
 
     fn handle_message(
-        &mut self,
+        &self,
         _ctx: Rc<dyn Context>,
         _from: NodeName,
         _to: MessageTo,
@@ -188,7 +176,7 @@ fn main() -> anyhow::Result<()> {
     let btn_pin = PinDriver::input(peripherals.pins.gpio9)?;
 
     let one_butten_node = EspOneButton::new(btn_pin);
-    let mut sche = get_scheduler();
+    let sche = get_scheduler();
     sche.register_node(one_butten_node);
     sche.register_node(PerformanceNode {});
     let sche_timer = slint::Timer::default();

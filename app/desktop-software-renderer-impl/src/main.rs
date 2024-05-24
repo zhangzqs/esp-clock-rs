@@ -82,7 +82,7 @@ fn main() {
         }
     });
 
-    let mut sche = get_scheduler();
+    let sche = get_scheduler();
     let sche_timer = slint::Timer::default();
     sche_timer.start(
         slint::TimerMode::Repeated,

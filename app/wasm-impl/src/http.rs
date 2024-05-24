@@ -1,10 +1,9 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::rc::Rc;
 
 use app_core::proto::{
     Context, HandleResult, HttpBody, HttpError, HttpMessage, HttpRequestMethod, HttpResponse,
-    Message, MessageTo, MessageWithHeader, Node, NodeName, WeatherError, WeatherMessage,
+    Message, MessageTo, MessageWithHeader, Node, NodeName,
 };
-use log::debug;
 
 fn convert(method: HttpRequestMethod) -> reqwest::Method {
     use reqwest::Method;

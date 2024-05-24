@@ -1,4 +1,4 @@
-use app_core::{get_app_window, get_scheduler, register_default_nodes, Scheduler};
+use app_core::{get_app_window, get_scheduler};
 use slint::ComponentHandle;
 use std::time::Duration;
 

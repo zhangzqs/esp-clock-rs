@@ -103,7 +103,7 @@ impl Default for Scheduler {
 }
 
 impl Scheduler {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             nodes: Rc::new(RefCell::new(HashMap::new())),
             mq_buffer1: RefCell::new(vec![MessageQueueItem {

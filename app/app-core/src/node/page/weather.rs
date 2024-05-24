@@ -1,10 +1,15 @@
 use std::{cell::RefCell, rc::Rc, time::Duration};
 
-use crate::proto::{
-    Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node, NodeName,
-    OneButtonMessage, RoutePage, RouterMessage, WeatherMessage,
+use crate::{
+    get_app_window,
+    proto::{
+        Context, HandleResult, LifecycleMessage, Message, MessageTo, MessageWithHeader, Node,
+        NodeName, OneButtonMessage, RoutePage, RouterMessage, WeatherMessage,
+    },
+    ui,
 };
 use log::{error, info};
+use slint::ComponentHandle;
 
 pub struct WeatherPage {
     is_show: RefCell<bool>,
@@ -46,6 +51,10 @@ impl Node for WeatherPage {
                                     ) = msg
                                     {
                                         info!("weather: {:?}", resp);
+                                        if let Some(ui) = get_app_window().upgrade() {
+                                            let vm = ui.global::<ui::WeatherViewModel>();
+                                            vm.set_text(format!("{resp:?}").into())
+                                        }
                                     } else {
                                         error!("weather: {:?}", msg);
                                     }

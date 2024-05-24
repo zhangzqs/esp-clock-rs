@@ -7,13 +7,17 @@ use super::{
     StorageError, StorageMessage, WeatherError, WeatherMessage,
 };
 
-type Callback<T> = Box<dyn FnOnce(T)>;
-type ResultCallback<T, E> = Box<dyn FnOnce(Result<T, E>)>;
+type AsyncCallback<T> = Box<dyn FnOnce(T)>;
+type AsyncResultCallback<T, E> = Box<dyn FnOnce(Result<T, E>)>;
 
 pub struct HttpClient(pub Rc<dyn Context>);
 
 impl HttpClient {
-    pub fn request(&self, request: HttpRequest, callback: ResultCallback<HttpResponse, HttpError>) {
+    pub fn request(
+        &self,
+        request: HttpRequest,
+        callback: AsyncResultCallback<HttpResponse, HttpError>,
+    ) {
         self.0.async_call(
             NodeName::HttpClient,
             Message::Http(HttpMessage::Request(request)),
@@ -87,7 +91,7 @@ pub struct WeatherClient(pub Rc<dyn Context>);
 impl WeatherClient {
     pub fn get_next_seven_days_weather(
         &self,
-        callback: ResultCallback<NextSevenDaysWeather, WeatherError>,
+        callback: AsyncResultCallback<NextSevenDaysWeather, WeatherError>,
     ) {
         self.0.async_call(
             NodeName::HttpClient,

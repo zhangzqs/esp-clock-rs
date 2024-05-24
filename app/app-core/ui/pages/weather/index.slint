@@ -1,0 +1,14 @@
+import { ScrollView } from "std-widgets.slint";
+
+export global WeatherViewModel {
+    in property <string> text: "点击获取天气";
+}
+export component WeatherPage inherits Rectangle {
+    ScrollView {
+        Text {
+            width: 240px;
+            text: WeatherViewModel.text;
+            wrap: word-wrap;
+        }
+    }
+}

@@ -141,12 +141,16 @@ impl Node for WeatherService {
                 }
 
                 // 首次消息，进入pending状态
+                let stg = ipc::StorageClient(ctx.clone());
+                let appid = stg.get("weather/appid".into()).unwrap().unwrap_or_default();
+                let appsecret = stg
+                    .get("weather/appsecret".into())
+                    .unwrap()
+                    .unwrap_or_default();
                 HttpClient(ctx.clone()).request(
                     HttpRequest {
                         method: HttpRequestMethod::Get,
-                        url:
-                            "http://v1.yiketianqi.com/api?unescape=1&version=v91&appid=&appsecret="
-                                .into(),
+                        url: format!("http://v1.yiketianqi.com/api?unescape=1&version=v91&appid={appid}&appsecret={appsecret}"),
                     },
                     Box::new(move |r| {
                         let x = match r {

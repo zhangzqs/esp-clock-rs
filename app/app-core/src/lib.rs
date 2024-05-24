@@ -1,3 +1,4 @@
+use dev::DevConfigSetter;
 use node::*;
 pub use scheduler::Scheduler;
 
@@ -29,4 +30,42 @@ pub fn register_default_nodes(sche: &mut Scheduler) {
     sche.register_node(MockStorageService::new());
     sche.register_node(MockPerformanceService {});
     sche.register_node(TimerService::new());
+    sche.register_node(DevConfigSetter {})
+}
+
+mod dev {
+    use std::collections::HashMap;
+
+    use super::proto::*;
+
+    pub struct DevConfigSetter {}
+
+    impl Node for DevConfigSetter {
+        fn node_name(&self) -> NodeName {
+            NodeName::Other("DevConfigSetter")
+        }
+
+        fn handle_message(
+            &self,
+            ctx: std::rc::Rc<dyn Context>,
+            _from: NodeName,
+            _to: MessageTo,
+            msg: MessageWithHeader,
+        ) -> HandleResult {
+            match msg.body {
+                Message::Lifecycle(LifecycleMessage::Init) => {
+                    let cfg = serde_json::from_slice::<HashMap<String, String>>(include_bytes!(
+                        "../config.json"
+                    ))
+                    .unwrap();
+                    let stg = ipc::StorageClient(ctx);
+                    for (k, v) in cfg.into_iter() {
+                        stg.set(k, Some(v)).unwrap();
+                    }
+                }
+                _ => {}
+            }
+            HandleResult::Discard
+        }
+    }
 }

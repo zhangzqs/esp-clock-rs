@@ -1,6 +1,6 @@
 import { Env } from "common/env.slint";
 import { PageRouteTable, PageRouter } from "common/route.slint";
-import { RouteView, HomeViewModel, MenuViewModel } from "pages/index.slint";
+import { RouteView, HomeViewModel, MenuViewModel, WeatherViewModel } from "pages/index.slint";
 import "fonts/microsoft-yahei.ttf";
 
 export global OneButtenAdapter {
@@ -95,5 +95,6 @@ export component AppWindow inherits Window {
 export { 
     HomeViewModel,
     MenuViewModel,
-    PageRouter
+    PageRouter,
+    WeatherViewModel
 }

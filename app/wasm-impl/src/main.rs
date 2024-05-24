@@ -1,4 +1,4 @@
-use app_core::{get_app_window, register_default_nodes, Scheduler};
+use app_core::{get_app_window, get_scheduler, register_default_nodes, Scheduler};
 use slint::ComponentHandle;
 use std::time::Duration;
 
@@ -10,8 +10,7 @@ mod timestamp;
 pub fn main() {
     wasm_logger::init(wasm_logger::Config::default());
     let app = get_app_window();
-    let mut sche = Scheduler::new();
-    register_default_nodes(&mut sche);
+    let sche = get_scheduler();
     sche.register_node(http::HttpClient::new());
     sche.register_node(timestamp::TimestampClientService {});
     sche.register_node(storage::LocalStorageService::new());

@@ -95,6 +95,14 @@ impl Node for PerformanceNode {
     }
 }
 
+struct WiFiNode {}
+
+impl Node for WiFiNode {
+    fn node_name(&self) -> NodeName {
+        NodeName::WiFi
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();

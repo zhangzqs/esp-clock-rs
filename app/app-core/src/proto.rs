@@ -61,6 +61,11 @@ impl HandleResult {
 }
 
 pub trait Node {
+    // 节点调度优先级，默认为0，越高越优先被调度
+    fn priority(&self) -> usize {
+        0
+    }
+
     // 节点名称
     fn node_name(&self) -> NodeName;
 

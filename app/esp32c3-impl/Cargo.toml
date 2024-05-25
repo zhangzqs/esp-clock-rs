@@ -53,6 +53,7 @@ embedded-software-slint-backend = { path = "../../libs/embedded-software-slint-b
 app-core = { path = "../app-core", default-features = false, features = ["software-renderer"] }
 button-driver = { path = "../../libs/button-driver", features = ["esp", "std"] }
 heapless = "0.7.17"
+embedded-io-adapters = { version = "0.6.1", features = ["std"] }
 
 [build-dependencies]
 embuild = "0.31.2"

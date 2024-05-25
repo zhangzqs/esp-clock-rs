@@ -17,4 +17,6 @@ pub enum WiFiMessage {
     // 获取ip信息
     GetIpInfoRequest,
     GetIpInfoResponse(NetIpInfo),
+
+    ConnectedBoardcast,
 }

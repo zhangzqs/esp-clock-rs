@@ -1,8 +1,9 @@
 use std::{
     cell::RefCell,
     collections::HashMap,
+    io::Read,
     rc::Rc,
-    sync::{Arc, Mutex},
+    sync::{mpsc, Arc, Mutex},
     thread,
     time::Duration,
 };
@@ -11,6 +12,8 @@ use app_core::{get_scheduler, proto::*};
 use button_driver::Button;
 use display_interface_spi::SPIInterface;
 use embedded_hal::spi::MODE_3;
+use embedded_io_adapters::std::ToStd;
+use embedded_svc::http::client::Client;
 use esp_idf_hal::{
     delay::FreeRtos,
     gpio::{AnyIOPin, Input, Pin, PinDriver},
@@ -21,7 +24,13 @@ use esp_idf_hal::{
 };
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
-    wifi::{AsyncWifi, AuthMethod, BlockingWifi, ClientConfiguration, Configuration, EspWifi},
+    http::client::{Configuration, EspHttpConnection},
+    nvs::EspDefaultNvsPartition,
+    sntp::{EspSntp, OperatingMode, SntpConf, SyncMode, SyncStatus},
+    wifi::{
+        AsyncWifi, AuthMethod, BlockingWifi, ClientConfiguration,
+        Configuration as WifiConfiguration, EspWifi,
+    },
 };
 use esp_idf_sys as _;
 use log::info;
@@ -111,11 +120,13 @@ struct WiFiNode<M> {
     sysloop: EspSystemEventLoop,
     modem: RefCell<Option<M>>,
     ready_resp: Arc<Mutex<HashMap<usize, Message>>>,
+    nvs: EspDefaultNvsPartition,
 }
 
 impl<M> WiFiNode<M> {
-    fn new(sysloop: EspSystemEventLoop, modem: M) -> Self {
+    fn new(nvs: EspDefaultNvsPartition, sysloop: EspSystemEventLoop, modem: M) -> Self {
         Self {
+            nvs,
             sysloop,
             modem: RefCell::new(Some(modem)),
             ready_resp: Arc::new(Mutex::new(HashMap::new())),
@@ -133,6 +144,7 @@ where
 
     fn poll(&self, ctx: Rc<dyn Context>, seq: usize) {
         if let Some(m) = self.ready_resp.lock().unwrap().remove(&seq) {
+            ctx.boardcast(Message::WiFi(WiFiMessage::ConnectedBoardcast));
             ctx.async_ready(seq, m);
         }
     }
@@ -145,8 +157,9 @@ where
                     let modem = self.modem.borrow_mut().take().unwrap();
                     let sysloop = self.sysloop.clone();
                     let ready_resp = self.ready_resp.clone();
+                    let nvs = self.nvs.clone();
                     thread::spawn(move || {
-                        let mut wifi = EspWifi::new(modem, sysloop.clone(), None).unwrap();
+                        let mut wifi = EspWifi::new(modem, sysloop.clone(), Some(nvs)).unwrap();
 
                         let mut wifi = BlockingWifi::wrap(&mut wifi, sysloop.clone()).unwrap();
                         wifi.start().unwrap();
@@ -167,7 +180,7 @@ where
                             }
                             w
                         };
-                        wifi.set_configuration(&Configuration::Client(ClientConfiguration {
+                        wifi.set_configuration(&WifiConfiguration::Client(ClientConfiguration {
                             ssid: cfg.ssid.as_str().into(),
                             password: cfg.password.map(|x| x.as_str().into()).unwrap_or_default(),
                             auth_method: w.auth_method,
@@ -187,10 +200,158 @@ where
                             .lock()
                             .unwrap()
                             .insert(seq, Message::WiFi(WiFiMessage::ConnectResponse));
+
+                        loop {
+                            thread::sleep(Duration::from_secs(1));
+                        }
                     });
+                    return HandleResult::Pending;
                 }
                 _ => {}
             },
+            _ => {}
+        }
+        HandleResult::Discard
+    }
+}
+
+struct TimeNode {
+    sntp: RefCell<Option<EspSntp<'static>>>,
+}
+
+impl TimeNode {
+    pub fn new() -> Self {
+        Self {
+            sntp: RefCell::new(None),
+        }
+    }
+}
+
+impl Node for TimeNode {
+    fn node_name(&self) -> NodeName {
+        NodeName::Other("NtpTime".into())
+    }
+
+    fn poll(&self, ctx: Rc<dyn Context>, seq: usize) {
+        let s = self.sntp.borrow();
+        let sntp = s.as_ref().unwrap();
+        match sntp.get_sync_status() {
+            SyncStatus::Reset => {}
+            SyncStatus::Completed => {
+                info!("时间同步完成");
+                ctx.async_ready(seq, Message::Empty);
+            }
+            SyncStatus::InProgress => {}
+        }
+    }
+
+    fn handle_message(&self, ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
+        match msg.body {
+            Message::WiFi(WiFiMessage::ConnectedBoardcast) => {
+                let ntp_server = ipc::StorageClient(ctx)
+                    .get("sntp/server".into())
+                    .unwrap()
+                    .unwrap_or("0.pool.ntp.org".into());
+                let sntp = EspSntp::new(&SntpConf {
+                    servers: [&ntp_server],
+                    sync_mode: SyncMode::Immediate,
+                    operating_mode: OperatingMode::Poll,
+                })
+                .unwrap();
+                *self.sntp.borrow_mut() = Some(sntp);
+                return HandleResult::Pending;
+            }
+            _ => {}
+        }
+        HandleResult::Discard
+    }
+}
+
+struct HttpClientNodeState {
+    // 已经就绪的响应
+    ready_resp: HashMap<usize, Message>,
+}
+
+pub struct HttpClientNode {
+    // 发送一个请求
+    req_tx: mpsc::Sender<(usize, HttpRequest)>,
+    // 收到一个响应
+    resp_rx: mpsc::Receiver<(usize, Message)>,
+    state: RefCell<HttpClientNodeState>,
+}
+
+impl HttpClientNode {
+    pub fn new() -> Self {
+        let (req_tx, req_rx) = mpsc::channel::<(usize, HttpRequest)>();
+        let (resp_tx, resp_rx) = mpsc::channel();
+
+        thread::spawn(move || {
+            let conn = EspHttpConnection::new(&Configuration::default()).unwrap();
+            let mut client = Client::wrap(conn);
+            loop {
+                match req_rx.try_recv() {
+                    Ok((seq, req)) => {
+                        let req = client.get(&req.url).unwrap().submit().unwrap();
+                        let resp_std = ToStd::new(req);
+                        let resp_body = resp_std.bytes().map(|x| x.unwrap()).collect::<Vec<_>>();
+                        resp_tx
+                            .send((
+                                seq,
+                                Message::Http(HttpMessage::Response(HttpResponse {
+                                    body: HttpBody::Bytes(resp_body),
+                                })),
+                            ))
+                            .unwrap();
+                    }
+                    Err(e) => match e {
+                        mpsc::TryRecvError::Empty => {
+                            thread::sleep(Duration::from_millis(10));
+                        }
+                        mpsc::TryRecvError::Disconnected => {
+                            return;
+                        }
+                    },
+                }
+            }
+        });
+        Self {
+            req_tx,
+            resp_rx,
+            state: RefCell::new(HttpClientNodeState {
+                ready_resp: HashMap::new(),
+            }),
+        }
+    }
+}
+
+impl Node for HttpClientNode {
+    fn node_name(&self) -> NodeName {
+        NodeName::HttpClient
+    }
+
+    fn poll(&self, ctx: Rc<dyn Context>, seq: usize) {
+        let mut state = self.state.borrow_mut();
+        match self.resp_rx.try_recv() {
+            Ok((seq, resp)) => {
+                // 当消息执行完成后，消息转换为ready态
+                state.ready_resp.insert(seq, resp);
+            }
+            _ => {}
+        }
+        if state.ready_resp.contains_key(&seq) {
+            // 若消息结果为ready态，则返回Sucessful
+            let ret = state.ready_resp.remove(&seq).unwrap();
+            ctx.async_ready(seq, ret);
+        }
+    }
+
+    fn handle_message(&self, _ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
+        match msg.body {
+            Message::Http(HttpMessage::Request(req)) => {
+                // 传送消息
+                self.req_tx.send((msg.seq, req)).unwrap();
+                return HandleResult::Pending;
+            }
             _ => {}
         }
         HandleResult::Discard
@@ -257,6 +418,8 @@ fn main() -> anyhow::Result<()> {
         .init(&mut FreeRtos, Some(rst))
         .unwrap();
 
+    let nvs = EspDefaultNvsPartition::take()?;
+
     let platform = embedded_software_slint_backend::MySoftwarePlatform::new(
         Rc::new(RefCell::new(display)),
         Some(|_| Ok(())),
@@ -269,6 +432,13 @@ fn main() -> anyhow::Result<()> {
     let sche = get_scheduler();
     sche.register_node(one_butten_node);
     sche.register_node(PerformanceNode {});
+    sche.register_node(WiFiNode::new(
+        nvs.clone(),
+        EspSystemEventLoop::take().unwrap(),
+        peripherals.modem,
+    ));
+    sche.register_node(TimeNode::new());
+    sche.register_node(HttpClientNode::new());
     let sche_timer = slint::Timer::default();
     sche_timer.start(
         slint::TimerMode::Repeated,

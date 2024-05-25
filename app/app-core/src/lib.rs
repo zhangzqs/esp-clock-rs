@@ -51,6 +51,9 @@ mod dev {
     pub struct DevConfigSetter {}
 
     impl Node for DevConfigSetter {
+        fn priority(&self) -> usize {
+            999
+        }
         fn node_name(&self) -> NodeName {
             NodeName::Other("DevConfigSetter".into())
         }

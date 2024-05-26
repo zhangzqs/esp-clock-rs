@@ -97,6 +97,7 @@ fn main() -> anyhow::Result<()> {
     ));
     sche.register_node(SntpService::new());
     sche.register_node(HttpClientService::new());
+    sche.register_node(NvsStorageService::new(nvs.clone()));
     let sche_timer = slint::Timer::default();
     sche_timer.start(
         slint::TimerMode::Repeated,

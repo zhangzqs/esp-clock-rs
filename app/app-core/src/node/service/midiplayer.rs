@@ -174,17 +174,6 @@ impl Node for MidiPlayerService {
     fn handle_message(&self, ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
         let seq = msg.seq;
         match msg.body {
-            Message::Lifecycle(LifecycleMessage::Init) => {
-                MidiPlayerClient(ctx.clone()).play(
-                    mid.to_vec(),
-                    Box::new(|r| {
-                        info!("midi播放完毕: {:?}", r);
-                    }),
-                );
-                slint::Timer::single_shot(Duration::from_secs(10), move || {
-                    MidiPlayerClient(ctx).off();
-                });
-            }
             Message::Midi(msg) => {
                 let cli = BuzzerClient(ctx.clone());
                 match msg {

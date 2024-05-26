@@ -4,6 +4,7 @@ use crate::proto::{
     OneButtonMessage, RoutePage, RouterMessage,
 };
 use crate::ui::{AppWindow, HomeViewModel, TimeData};
+use log::info;
 use slint::{ComponentHandle, Weak};
 use std::cell::RefCell;
 use std::{rc::Rc, time::Duration};
@@ -94,6 +95,18 @@ impl Node for HomePage {
                                 Message::Router(RouterMessage::GotoPage(RoutePage::Menu)),
                             );
                             return HandleResult::Finish(Message::Empty);
+                        }
+                        OneButtonMessage::Clicks(2) => {
+                            static mid: &[u8] = include_bytes!("../../../a.mid");
+                            ipc::MidiPlayerClient(ctx.clone()).play(
+                                mid.to_vec(),
+                                Box::new(|r| {
+                                    info!("midi播放完毕: {:?}", r);
+                                }),
+                            );
+                            slint::Timer::single_shot(Duration::from_secs(10), move || {
+                                ipc::MidiPlayerClient(ctx).off();
+                            });
                         }
                         _ => {}
                     }

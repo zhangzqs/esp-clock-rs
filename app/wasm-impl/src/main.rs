@@ -3,6 +3,7 @@ use slint::ComponentHandle;
 use std::time::Duration;
 
 mod http;
+mod midiplayer;
 mod storage;
 mod timestamp;
 
@@ -14,6 +15,7 @@ pub fn main() {
     sche.register_node(http::HttpClient::new());
     sche.register_node(timestamp::TimestampClientService {});
     sche.register_node(storage::LocalStorageService::new());
+    sche.register_node(midiplayer::MidiPlayerService::new());
     let sche_timer = slint::Timer::default();
     sche_timer.start(
         slint::TimerMode::Repeated,

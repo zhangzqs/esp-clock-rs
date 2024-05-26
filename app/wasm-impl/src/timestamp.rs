@@ -5,6 +5,11 @@ use app_core::proto::{
 };
 
 pub struct TimestampClientService {}
+impl TimestampClientService {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
 impl Node for TimestampClientService {
     fn node_name(&self) -> NodeName {
         NodeName::TimestampClient

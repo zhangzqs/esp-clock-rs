@@ -5,7 +5,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use log::{debug, info};
+use log::info;
 
 use crate::proto::*;
 

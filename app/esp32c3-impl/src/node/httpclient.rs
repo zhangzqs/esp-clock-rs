@@ -39,7 +39,7 @@ impl HttpClientService {
                             .send((
                                 seq,
                                 Message::Http(HttpMessage::Response(HttpResponse {
-                                    body: HttpBody::Bytes(resp_body),
+                                    body: HttpBody::Bytes(Bytes(resp_body)),
                                 })),
                             ))
                             .unwrap();

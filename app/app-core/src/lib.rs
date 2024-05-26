@@ -41,6 +41,7 @@ fn register_default_nodes(sche: &Scheduler) {
     sche.register_node(TimerService::new());
     sche.register_node(DevConfigSetter {});
     sche.register_node(MockWiFiService::new());
+    sche.register_node(MidiPlayerService::new());
 }
 
 mod dev {

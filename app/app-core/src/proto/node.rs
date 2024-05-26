@@ -20,6 +20,10 @@ pub enum NodeName {
     Storage,
     // WiFi
     WiFi,
+    // 蜂鸣器
+    Buzzer,
+    // MIDI播放器
+    Midi,
     // 性能监视
     Performance,
     // 启动页ui与逻辑

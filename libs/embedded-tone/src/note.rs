@@ -40,7 +40,7 @@ impl From<SolfegeName> for u8 {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum NoteName {
     C,
     Cs,
@@ -82,7 +82,7 @@ impl From<NoteName> for u8 {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Octave {
     O0,
     O1,
@@ -171,10 +171,16 @@ impl From<NoteDuration> for f32 {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AbsulateNotePitch {
     pub note_type: NoteName,
     pub octave: Octave,
+}
+
+impl PartialOrd for AbsulateNotePitch {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.to_midi_note_key().partial_cmp(&other.to_midi_note_key())
+    }
 }
 
 impl AbsulateNotePitch {

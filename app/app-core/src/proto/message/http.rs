@@ -1,8 +1,10 @@
 use serde::{de, Deserialize, Serialize};
 
+use super::Bytes;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum HttpBody {
-    Bytes(Vec<u8>),
+    Bytes(Bytes),
     Stream,
 }
 
@@ -12,7 +14,7 @@ impl HttpBody {
         T: de::Deserialize<'a>,
     {
         match self {
-            HttpBody::Bytes(bs) => serde_json::from_slice::<T>(bs),
+            HttpBody::Bytes(bs) => serde_json::from_slice::<T>(&bs.0),
             HttpBody::Stream => {
                 unimplemented!("not implement");
             }

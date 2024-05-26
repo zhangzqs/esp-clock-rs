@@ -9,6 +9,10 @@ use esp_idf_hal::{
     gpio::{AnyIOPin, PinDriver},
     ledc::{config::TimerConfig, LedcDriver, LedcTimerDriver},
     prelude::*,
+    rmt::{
+        config::{Loop, TransmitConfig},
+        TxRmtDriver,
+    },
     spi::{config::Config, Dma, SpiDeviceDriver, SpiDriverConfig},
 };
 use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition};
@@ -86,6 +90,12 @@ fn main() -> anyhow::Result<()> {
     slint::platform::set_platform(Box::new(platform)).map_err(|e| anyhow::anyhow!("{:?}", e))?;
 
     let btn_pin = PinDriver::input(peripherals.pins.gpio9)?;
+    let beep_tx = TxRmtDriver::new(
+        peripherals.rmt.channel0,
+        peripherals.pins.gpio0,
+        &TransmitConfig::new().looping(Loop::Endless),
+    )
+    .unwrap();
 
     let sche = get_scheduler();
     sche.register_node(OneButtonService::new(btn_pin));
@@ -98,10 +108,11 @@ fn main() -> anyhow::Result<()> {
     sche.register_node(SntpService::new());
     sche.register_node(HttpClientService::new());
     sche.register_node(NvsStorageService::new(nvs.clone()));
+    sche.register_node(BuzzerService::new(beep_tx));
     let sche_timer = slint::Timer::default();
     sche_timer.start(
         slint::TimerMode::Repeated,
-        Duration::from_millis(20),
+        Duration::from_millis(16),
         move || {
             sche.schedule_once();
         },

@@ -9,6 +9,13 @@ use log::info;
 
 use crate::proto::*;
 
+static MSG_SEQ_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+fn gen_msg_seq() -> usize {
+    MSG_SEQ_COUNT.fetch_add(1, Ordering::SeqCst);
+    MSG_SEQ_COUNT.load(Ordering::SeqCst)
+}
+
 struct MessageQueueItem {
     message: MessageWithHeader,
     /// 异步消息是否处于pending态
@@ -19,7 +26,6 @@ struct MessageQueueItem {
 struct ContextImpl {
     node_name: NodeName,
     mq_buffer: Rc<RefCell<Vec<MessageQueueItem>>>,
-    msg_seq_inc: AtomicUsize,
     nodes: Rc<RefCell<HashMap<NodeName, Box<dyn Node>>>>,
     ready_result: Rc<RefCell<HashMap<usize, Message>>>,
 }
@@ -27,12 +33,11 @@ struct ContextImpl {
 impl Context for ContextImpl {
     // 发送广播消息
     fn boardcast(&self, msg: Message) {
-        self.msg_seq_inc.fetch_add(1, Ordering::SeqCst);
         self.mq_buffer.borrow_mut().push(MessageQueueItem {
             message: MessageWithHeader {
                 from: self.node_name.clone(),
                 to: MessageTo::Broadcast,
-                seq: self.msg_seq_inc.load(Ordering::SeqCst),
+                seq: gen_msg_seq(),
                 body: msg,
             },
             is_pending: false,
@@ -42,12 +47,11 @@ impl Context for ContextImpl {
 
     // 异步调用
     fn async_call(&self, node: NodeName, msg: Message, callback: MessageCallbackOnce) {
-        self.msg_seq_inc.fetch_add(1, Ordering::SeqCst);
         self.mq_buffer.borrow_mut().push(MessageQueueItem {
             message: MessageWithHeader {
                 from: self.node_name.clone(),
                 to: MessageTo::Point(node),
-                seq: self.msg_seq_inc.load(Ordering::SeqCst),
+                seq: gen_msg_seq(),
                 body: msg,
             },
             is_pending: false,
@@ -57,22 +61,24 @@ impl Context for ContextImpl {
 
     // 同步调用
     fn sync_call(&self, node: NodeName, msg: Message) -> HandleResult {
-        self.msg_seq_inc.fetch_add(1, Ordering::SeqCst);
-        self.nodes.borrow()[&node].handle_message(
+        let msg = MessageWithHeader {
+            from: self.node_name.clone(),
+            to: MessageTo::Point(node.clone()),
+            body: msg,
+            seq: gen_msg_seq(),
+        };
+        // info!("dispatch sync p2p message {:?}", msg);
+        let ret = self.nodes.borrow()[&node].handle_message(
             Rc::new(ContextImpl {
                 node_name: self.node_name.clone(),
                 mq_buffer: self.mq_buffer.clone(),
                 nodes: self.nodes.clone(),
-                msg_seq_inc: AtomicUsize::new(self.msg_seq_inc.load(Ordering::SeqCst)),
                 ready_result: self.ready_result.clone(),
             }),
-            MessageWithHeader {
-                from: self.node_name.clone(),
-                to: MessageTo::Point(node),
-                body: msg,
-                seq: self.msg_seq_inc.load(Ordering::SeqCst),
-            },
-        )
+            msg,
+        );
+        // info!("handle async p2p message result: {:?}", ret);
+        ret
     }
 
     // 异步结果就绪
@@ -86,7 +92,6 @@ pub struct Scheduler {
     nodes: Rc<RefCell<HashMap<NodeName, Box<dyn Node>>>>,
     mq_buffer1: RefCell<Vec<MessageQueueItem>>,
     mq_buffer2: Rc<RefCell<Vec<MessageQueueItem>>>,
-    msg_seq_inc: AtomicUsize,
     ready_result: Rc<RefCell<HashMap<usize, Message>>>,
 }
 
@@ -112,7 +117,6 @@ impl Scheduler {
                 callback_once: None,
             }]),
             mq_buffer2: Rc::new(RefCell::new(Vec::new())),
-            msg_seq_inc: AtomicUsize::new(0),
             ready_result: Rc::new(RefCell::new(HashMap::new())),
         }
     }
@@ -138,7 +142,6 @@ impl Scheduler {
         Rc::new(ContextImpl {
             node_name: node_name.clone(),
             mq_buffer: self.mq_buffer2.clone(),
-            msg_seq_inc: AtomicUsize::new(self.msg_seq_inc.load(Ordering::SeqCst)),
             nodes: self.nodes.clone(),
             ready_result: self.ready_result.clone(),
         })
@@ -218,10 +221,10 @@ impl Scheduler {
                             });
                         }
                     } else {
-                        info!("dispatch p2p message {:?}", message);
+                        info!("dispatch async p2p message {:?}", message);
                         let ret = self.nodes.borrow()[&node_name]
                             .handle_message(self.gen_ctx(&node_name), message.clone());
-                        info!("handle p2p message result: {:?}", ret);
+                        info!("handle async p2p message result: {:?}", ret);
                         match ret {
                             HandleResult::Finish(e) => {
                                 if let Some(cb) = callback_once.take() {

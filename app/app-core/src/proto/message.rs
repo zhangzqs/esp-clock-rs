@@ -31,6 +31,12 @@ pub use wifi::*;
 mod buzzer;
 pub use buzzer::*;
 
+mod midi;
+pub use midi::*;
+
+mod common;
+pub use common::*;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Message {
     /// 空消息
@@ -53,6 +59,8 @@ pub enum Message {
     Performance(PerformanceMessage),
     Timer(TimerMessage),
     WiFi(WiFiMessage),
+    Buzzer(BuzzerMessage),
+    Midi(MidiMessage),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

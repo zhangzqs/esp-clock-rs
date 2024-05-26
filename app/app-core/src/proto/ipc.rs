@@ -3,9 +3,12 @@ use std::{collections::HashSet, rc::Rc};
 use crate::proto::{Context, Message, NodeName, TimeMessage};
 
 use super::{
-    HttpError, HttpMessage, HttpRequest, HttpResponse, NextSevenDaysWeather, PerformanceMessage,
-    StorageError, StorageMessage, WeatherError, WeatherMessage,
+    BuzzerMessage, Bytes, HttpError, HttpMessage, HttpRequest, HttpResponse, MidiError,
+    MidiMessage, NextSevenDaysWeather, PerformanceMessage, StorageError, StorageMessage,
+    ToneFrequency, ToneSeries, WeatherError, WeatherMessage,
 };
+
+type AsyncCallback<T> = Box<dyn FnOnce(T)>;
 
 type AsyncResultCallback<T, E> = Box<dyn FnOnce(Result<T, E>)>;
 
@@ -140,5 +143,60 @@ impl PerformanceClient {
             Message::Performance(PerformanceMessage::GetFpsResponse(s)) => s,
             m => panic!("unexpected response, {:?}", m),
         }
+    }
+}
+
+pub struct MidiPlayerClient(pub Rc<dyn Context>);
+
+impl MidiPlayerClient {
+    pub fn play(&self, mid: Vec<u8>, callback: AsyncResultCallback<bool, MidiError>) {
+        self.0.async_call(
+            NodeName::Midi,
+            Message::Midi(MidiMessage::PlayRequest(Bytes(mid))),
+            Box::new(|r| {
+                callback(match r.unwrap() {
+                    Message::Midi(msg) => match msg {
+                        MidiMessage::PlayResponse(is_finished) => Ok(is_finished),
+                        MidiMessage::Error(e) => Err(e),
+                        m => panic!("unexpected response, {:?}", m),
+                    },
+                    m => panic!("unexpected response, {:?}", m),
+                });
+            }),
+        );
+    }
+
+    pub fn off(&self) {
+        self.0
+            .sync_call(NodeName::Midi, Message::Midi(MidiMessage::Off));
+    }
+}
+
+pub struct BuzzerClient(pub Rc<dyn Context>);
+
+impl BuzzerClient {
+    pub fn tone(&self, freq: ToneFrequency) {
+        self.0.sync_call(
+            NodeName::Buzzer,
+            Message::Buzzer(BuzzerMessage::ToneForever(freq)),
+        );
+    }
+
+    pub fn tone_series(&self, series: ToneSeries, callback: AsyncCallback<bool>) {
+        self.0.async_call(
+            NodeName::Buzzer,
+            Message::Buzzer(BuzzerMessage::ToneSeriesRequest(series)),
+            Box::new(|r| {
+                callback(match r.unwrap() {
+                    Message::Buzzer(BuzzerMessage::ToneSeriesResponse(is_finished)) => is_finished,
+                    m => panic!("unexpected response, {:?}", m),
+                })
+            }),
+        );
+    }
+
+    pub fn off(&self) {
+        self.0
+            .sync_call(NodeName::Buzzer, Message::Buzzer(BuzzerMessage::Off));
     }
 }

@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use app_core::proto::{
-    Context, HandleResult, HttpBody, HttpError, HttpMessage, HttpRequestMethod, HttpResponse,
-    Message, MessageWithHeader, Node, NodeName,
+    Bytes, Context, HandleResult, HttpBody, HttpError, HttpMessage, HttpRequestMethod,
+    HttpResponse, Message, MessageWithHeader, Node, NodeName,
 };
 
 fn convert(method: HttpRequestMethod) -> reqwest::Method {
@@ -46,7 +46,7 @@ impl Node for HttpClient {
                             .map_err(|x| HttpError::Other(x.to_string()))?
                             .to_vec();
                         Ok(HttpResponse {
-                            body: HttpBody::Bytes(body),
+                            body: HttpBody::Bytes(Bytes(body)),
                         })
                     }
                     .await;

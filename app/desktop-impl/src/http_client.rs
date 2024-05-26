@@ -8,8 +8,8 @@ use std::{
 };
 
 use app_core::proto::{
-    Context, HandleResult, HttpBody, HttpMessage, HttpRequest, HttpRequestMethod, HttpResponse,
-    Message, MessageWithHeader, Node, NodeName,
+    Bytes, Context, HandleResult, HttpBody, HttpMessage, HttpRequest, HttpRequestMethod,
+    HttpResponse, Message, MessageWithHeader, Node, NodeName,
 };
 use reqwest::blocking::ClientBuilder;
 
@@ -60,7 +60,7 @@ impl HttpClient {
                             .send((
                                 seq,
                                 Message::Http(HttpMessage::Response(HttpResponse {
-                                    body: HttpBody::Bytes(content),
+                                    body: HttpBody::Bytes(Bytes(content)),
                                 })),
                             ))
                             .unwrap();

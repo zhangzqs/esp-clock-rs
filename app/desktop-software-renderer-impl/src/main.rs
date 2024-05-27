@@ -1,9 +1,4 @@
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::{cell::RefCell, rc::Rc, time::Duration};
 
 use app_core::get_scheduler;
 use embedded_graphics::{geometry::Size, pixelcolor::Rgb888};

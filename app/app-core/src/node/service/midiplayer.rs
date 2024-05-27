@@ -14,7 +14,7 @@ use midly::{MetaMessage, Timing, TrackEventKind};
 
 use crate::proto::*;
 
-use self::ipc::{BuzzerClient, MidiPlayerClient};
+use self::ipc::BuzzerClient;
 
 fn living_play_midi(
     midi_content: &[u8],

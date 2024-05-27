@@ -3,7 +3,7 @@ use std::{
     rc::Rc,
     sync::{
         atomic::{AtomicUsize, Ordering},
-        Arc, Mutex,
+        Arc,
     },
     time::Duration,
 };

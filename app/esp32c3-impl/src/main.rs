@@ -1,4 +1,12 @@
-use std::{cell::RefCell, rc::Rc, time::Duration};
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex,
+    },
+    time::Duration,
+};
 
 use crate::node::*;
 use app_core::get_scheduler;
@@ -83,9 +91,16 @@ fn main() -> anyhow::Result<()> {
 
     let nvs = EspDefaultNvsPartition::take()?;
 
+    let frame_counter = Arc::new(AtomicUsize::new(0));
     let platform = embedded_software_slint_backend::MySoftwarePlatform::new(
         Rc::new(RefCell::new(display)),
-        Some(|_| Ok(())),
+        Some({
+            let fps_ref = frame_counter.clone();
+            move |_| {
+                fps_ref.fetch_add(1, Ordering::SeqCst);
+                Ok(())
+            }
+        }),
     );
     slint::platform::set_platform(Box::new(platform)).map_err(|e| anyhow::anyhow!("{:?}", e))?;
 
@@ -99,7 +114,7 @@ fn main() -> anyhow::Result<()> {
 
     let sche = get_scheduler();
     sche.register_node(OneButtonService::new(btn_pin));
-    sche.register_node(PerformanceService::new());
+    sche.register_node(PerformanceService::new(frame_counter));
     sche.register_node(WiFiService::new(
         nvs.clone(),
         EspSystemEventLoop::take().unwrap(),

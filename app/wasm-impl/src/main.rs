@@ -19,7 +19,7 @@ pub fn main() {
     let sche_timer = slint::Timer::default();
     sche_timer.start(
         slint::TimerMode::Repeated,
-        Duration::from_millis(10),
+        Duration::from_millis(16),
         move || {
             sche.schedule_once();
         },

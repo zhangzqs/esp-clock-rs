@@ -5,7 +5,7 @@ use crate::proto::{Context, Message, NodeName, TimeMessage};
 use super::{
     BuzzerMessage, Bytes, HttpError, HttpMessage, HttpRequest, HttpResponse, MidiError,
     MidiMessage, NextSevenDaysWeather, PerformanceMessage, StorageError, StorageMessage,
-    ToneFrequency, ToneSeries, WeatherError, WeatherMessage,
+    StorageValue, ToneFrequency, ToneSeries, WeatherError, WeatherMessage,
 };
 
 type AsyncCallback<T> = Box<dyn FnOnce(T)>;
@@ -52,7 +52,7 @@ impl TimestampClient {
 pub struct StorageClient(pub Rc<dyn Context>);
 
 impl StorageClient {
-    pub fn set(&self, key: String, value: Option<String>) -> Result<(), StorageError> {
+    pub fn set(&self, key: String, value: StorageValue) -> Result<(), StorageError> {
         let r = self.0.sync_call(
             NodeName::Storage,
             Message::Storage(StorageMessage::SetRequest(key, value)),
@@ -63,7 +63,7 @@ impl StorageClient {
             m => panic!("unexpected message {:?}", m),
         }
     }
-    pub fn get(&self, key: String) -> Result<Option<String>, StorageError> {
+    pub fn get(&self, key: String) -> Result<StorageValue, StorageError> {
         let r = self.0.sync_call(
             NodeName::Storage,
             Message::Storage(StorageMessage::GetRequest(key)),

@@ -130,11 +130,8 @@ impl Node for WeatherService {
             Message::Weather(WeatherMessage::GetNextSevenDaysWeatherRequest) => {
                 // 首次消息，进入pending状态
                 let stg = ipc::StorageClient(ctx.clone());
-                let appid = stg.get("weather/appid".into()).unwrap().unwrap_or_default();
-                let appsecret = stg
-                    .get("weather/appsecret".into())
-                    .unwrap()
-                    .unwrap_or_default();
+                let appid: String = stg.get("weather/appid".into()).unwrap().into();
+                let appsecret: String = stg.get("weather/appsecret".into()).unwrap().into();
                 HttpClient(ctx.clone()).request(
                     HttpRequest {
                         method: HttpRequestMethod::Get,

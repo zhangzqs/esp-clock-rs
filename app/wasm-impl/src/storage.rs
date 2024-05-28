@@ -1,9 +1,9 @@
 use std::{collections::HashSet, rc::Rc};
 
 use app_core::proto::{
-    Context, HandleResult, Message, MessageWithHeader, Node, NodeName, StorageError, StorageMessage,
+    Context, HandleResult, Message, MessageWithHeader, Node, NodeName, StorageError,
+    StorageMessage, StorageValue,
 };
-use wasm_bindgen::JsValue;
 
 pub struct LocalStorageService {
     stg: web_sys::Storage,
@@ -15,44 +15,67 @@ impl LocalStorageService {
         Self { stg }
     }
 
-    pub fn get(&self, key: &str) -> Result<Option<String>, JsValue> {
-        let k = format!("data/{key}");
-        self.stg.get(&k)
+    fn get_raw(&self, key: &str) -> Result<Option<String>, StorageError> {
+        self.stg
+            .get(key)
+            .map_err(|e| StorageError::IOError(format!("{e:?}")))
     }
 
-    pub fn set(&self, key: &str, value: Option<&str>) -> Result<(), JsValue> {
-        let k = format!("data/{key}");
+    fn set_raw(&self, key: &str, value: Option<String>) -> Result<(), StorageError> {
         if let Some(value) = value {
-            self.stg.set(&k, value)?;
+            self.stg
+                .set(key, &value)
+                .map_err(|e| StorageError::IOError(format!("{e:?}")))?;
             self.add_list(key)?;
         } else {
-            self.stg.remove_item(&k)?;
+            self.stg
+                .remove_item(key)
+                .map_err(|e| StorageError::IOError(format!("{e:?}")))?;
             self.remove_list(key)?;
         }
         Ok(())
     }
 
-    pub fn list(&self) -> Result<HashSet<String>, JsValue> {
+    fn get(&self, key: &str) -> Result<StorageValue, StorageError> {
+        Ok(match self.get_raw(&format!("data/{key}"))? {
+            Some(x) => {
+                serde_json::from_str(&x).map_err(|e| StorageError::TypeError(format!("{e:?}")))?
+            }
+            None => StorageValue::None,
+        })
+    }
+
+    fn set(&self, key: &str, value: StorageValue) -> Result<(), StorageError> {
+        self.set_raw(
+            &format!("data/{key}"),
+            match value {
+                StorageValue::None => None,
+                x => Some(
+                    serde_json::to_string(&x)
+                        .map_err(|e| StorageError::TypeError(format!("{e:?}")))?,
+                ),
+            },
+        )
+    }
+
+    fn list(&self) -> Result<HashSet<String>, StorageError> {
         Ok(self
-            .stg
-            .get("list_meta")?
+            .get_raw("list_meta")?
             .map(|s| serde_json::from_str::<HashSet<String>>(&s).unwrap())
             .unwrap_or_default())
     }
 
-    pub fn add_list(&self, key: &str) -> Result<(), JsValue> {
+    fn add_list(&self, key: &str) -> Result<(), StorageError> {
         let mut list = self.list()?;
         list.insert(key.into());
-        self.stg
-            .set("list_meta", &serde_json::to_string(&list).unwrap())?;
+        self.set_raw("list_meta", Some(serde_json::to_string(&list).unwrap()))?;
         Ok(())
     }
 
-    pub fn remove_list(&self, key: &str) -> Result<(), JsValue> {
+    fn remove_list(&self, key: &str) -> Result<(), StorageError> {
         let mut list = self.list()?;
         if list.remove(key) {
-            self.stg
-                .set("list_meta", &serde_json::to_string(&list).unwrap())?;
+            self.set_raw("list_meta", Some(serde_json::to_string(&list).unwrap()))?;
         }
         Ok(())
     }
@@ -67,9 +90,9 @@ impl Node for LocalStorageService {
         if let Message::Storage(sm) = msg.body {
             let resp = match sm {
                 StorageMessage::GetRequest(key) => self.get(&key).map(StorageMessage::GetResponse),
-                StorageMessage::SetRequest(key, value) => self
-                    .set(&key, value.as_deref())
-                    .map(|_| StorageMessage::SetResponse),
+                StorageMessage::SetRequest(key, value) => {
+                    self.set(&key, value).map(|_| StorageMessage::SetResponse)
+                }
                 StorageMessage::ListKeysRequest => {
                     self.list().map(StorageMessage::ListKeysResponse)
                 }

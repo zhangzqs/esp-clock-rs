@@ -1,9 +1,48 @@
 use std::fmt;
 
+use base64::{prelude::BASE64_STANDARD, Engine};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct Bytes(pub Vec<u8>);
+
+impl From<Bytes> for Vec<u8> {
+    fn from(val: Bytes) -> Self {
+        val.0
+    }
+}
+
+impl Bytes {
+    pub fn to_base64(&self) -> String {
+        let mut s = String::new();
+        BASE64_STANDARD.encode_string(&self.0, &mut s);
+        s
+    }
+}
+
+impl Serialize for Bytes {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut s = String::new();
+        BASE64_STANDARD.encode_string(&self.0, &mut s);
+        serializer.serialize_str(&s)
+    }
+}
+
+impl<'de> Deserialize<'de> for Bytes {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        let mut v = Vec::new();
+        BASE64_STANDARD
+            .decode_vec(String::deserialize(deserializer)?, &mut v)
+            .map_err(serde::de::Error::custom)?;
+        Ok(Self(v))
+    }
+}
 
 impl fmt::Debug for Bytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

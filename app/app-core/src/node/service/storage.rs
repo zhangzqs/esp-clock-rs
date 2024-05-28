@@ -3,7 +3,7 @@ use std::{cell::RefCell, collections::HashMap};
 use crate::proto::*;
 
 pub struct MockStorageService {
-    data: RefCell<HashMap<String, String>>,
+    data: RefCell<HashMap<String, StorageValue>>,
 }
 
 impl MockStorageService {
@@ -28,13 +28,16 @@ impl Node for MockStorageService {
             let mut data = self.data.borrow_mut();
             return HandleResult::Finish(Message::Storage(match sm {
                 StorageMessage::GetRequest(k) => {
-                    StorageMessage::GetResponse(data.get(&k).map(|x| x.into()))
+                    StorageMessage::GetResponse(data.get(&k).cloned().unwrap_or(StorageValue::None))
                 }
                 StorageMessage::SetRequest(k, v) => {
-                    if let Some(v) = v {
-                        data.insert(k, v);
-                    } else {
-                        data.remove(&k);
+                    match v {
+                        StorageValue::None => {
+                            data.remove(&k);
+                        }
+                        v => {
+                            data.insert(k, v);
+                        }
                     }
                     StorageMessage::SetResponse
                 }

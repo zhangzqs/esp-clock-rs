@@ -43,20 +43,20 @@ impl BootPage {
         let t = ipc::TimestampClient(ctx.clone()).get_timestamp_nanos();
         let t = OffsetDateTime::from_unix_timestamp_nanos(t).unwrap();
         ipc::StorageClient(ctx.clone())
-            .set("boot-time".into(), Some(t.to_string()))
+            .set("boot-time".into(), t.to_string().into())
             .unwrap();
     }
 
     fn connect_wifi(&self, ctx: Rc<dyn Context>) {
         let stg = ipc::StorageClient(ctx.clone());
-        let ssid = stg.get("wifi/ssid".into()).unwrap().unwrap_or_default();
-        let password = stg.get("wifi/password".into()).unwrap();
+        let ssid = stg.get("wifi/ssid".into()).unwrap().into();
+        let password = stg.get("wifi/password".into()).unwrap().into();
         let ctx_ref = ctx.clone();
         ctx.async_call(
             NodeName::WiFi,
             Message::WiFi(WiFiMessage::ConnectRequest(WiFiStorageConfiguration {
                 ssid,
-                password,
+                password: Some(password),
             })),
             Box::new(move |r| {
                 // wifi连接成功

@@ -72,7 +72,7 @@ mod dev {
                     .unwrap();
                     let stg = ipc::StorageClient(ctx);
                     for (k, v) in cfg.into_iter() {
-                        stg.set(k, Some(v)).unwrap();
+                        stg.set(k, StorageValue::String(v)).unwrap();
                     }
                 }
                 _ => {}

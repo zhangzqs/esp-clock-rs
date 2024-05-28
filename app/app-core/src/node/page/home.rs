@@ -104,9 +104,6 @@ impl Node for HomePage {
                                     info!("midi播放完毕: {:?}", r);
                                 }),
                             );
-                            slint::Timer::single_shot(Duration::from_secs(10), move || {
-                                ipc::MidiPlayerClient(ctx).off();
-                            });
                         }
                         _ => {}
                     }

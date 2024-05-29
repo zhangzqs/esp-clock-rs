@@ -41,9 +41,12 @@ impl Node for MockStorageService {
                     }
                     StorageMessage::SetResponse
                 }
-                StorageMessage::ListKeysRequest => {
-                    StorageMessage::ListKeysResponse(data.keys().map(|x| x.into()).collect())
-                }
+                StorageMessage::ListKeysRequest(prefix) => StorageMessage::ListKeysResponse(
+                    data.keys()
+                        .filter(|x| x.starts_with(&prefix))
+                        .map(|x| x.into())
+                        .collect(),
+                ),
                 m => panic!("unexcepted message {m:?}"),
             }));
         }

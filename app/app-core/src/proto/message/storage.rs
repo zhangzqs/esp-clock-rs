@@ -70,7 +70,7 @@ pub enum StorageMessage {
     SetRequest(String, StorageValue),
     SetResponse,
 
-    /// 列举出所有的keys
-    ListKeysRequest,
+    /// 根据给定一个前缀，列举出所有的keys
+    ListKeysRequest(String),
     ListKeysResponse(HashSet<String>),
 }

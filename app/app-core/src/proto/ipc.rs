@@ -75,10 +75,10 @@ impl StorageClient {
         }
     }
 
-    pub fn list(&self) -> Result<HashSet<String>, StorageError> {
+    pub fn list(&self, prefix: String) -> Result<HashSet<String>, StorageError> {
         let r = self.0.sync_call(
             NodeName::Storage,
-            Message::Storage(StorageMessage::ListKeysRequest),
+            Message::Storage(StorageMessage::ListKeysRequest(prefix)),
         );
         match r.unwrap() {
             Message::Storage(StorageMessage::ListKeysResponse(r)) => Ok(r),

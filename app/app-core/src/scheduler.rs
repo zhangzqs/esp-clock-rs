@@ -9,6 +9,7 @@ use log::info;
 
 use crate::proto::*;
 
+/// 全局消息计数器
 static MSG_SEQ_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 fn gen_msg_seq() -> usize {
@@ -147,7 +148,7 @@ impl Scheduler {
         })
     }
 
-    pub fn schedule_once(&self) {
+    fn broadcast_scheduler_heartbeat(&self) {
         for node_name in self.broadcast_order.borrow().iter() {
             self.nodes.borrow()[node_name].handle_message(
                 self.gen_ctx(node_name),
@@ -159,93 +160,106 @@ impl Scheduler {
                 },
             );
         }
-        // 消费消息
-        for MessageQueueItem {
-            message,
-            mut callback_once,
-            is_pending,
-        } in self.mq_buffer1.borrow_mut().drain(..)
-        {
-            match message.to.clone() {
-                MessageTo::Broadcast => {
-                    for node_name in self.broadcast_order.borrow().iter() {
-                        let ret = self.nodes.borrow()[node_name]
-                            .handle_message(self.gen_ctx(node_name), message.clone());
-                        match ret {
-                            HandleResult::Finish(_) => {
-                                if callback_once.take().is_some() {
-                                    unimplemented!("broadcast is unsupported for callback")
-                                }
-                            }
-                            HandleResult::Pending => {
-                                // 消息没有就绪结果，改写为单点通信，标记is_pending后，继续排队到异步队列
-                                self.mq_buffer2.borrow_mut().push(MessageQueueItem {
-                                    message: MessageWithHeader {
-                                        from: message.from.clone(),
-                                        to: MessageTo::Point(node_name.clone()),
-                                        seq: message.seq,
-                                        body: message.body.clone(),
-                                    },
-                                    is_pending: true,
-                                    callback_once: None,
-                                });
-                            }
-                            HandleResult::Discard => {}
-                        }
+    }
+
+    fn broadcast_message(&self, mq_item: MessageQueueItem) {
+        let message = mq_item.message;
+        for node_name in self.broadcast_order.borrow().iter() {
+            let ret = self.nodes.borrow()[node_name]
+                .handle_message(self.gen_ctx(node_name), message.clone());
+            match ret {
+                HandleResult::Finish(_) => {
+                    // 目前广播消息不处理Finish状态
+                }
+                HandleResult::Pending => {
+                    // 消息没有就绪结果，改写为单点通信，标记is_pending后，继续排队到异步队列
+                    self.mq_buffer2.borrow_mut().push(MessageQueueItem {
+                        message: MessageWithHeader {
+                            from: message.from.clone(),
+                            to: MessageTo::Point(node_name.clone()),
+                            seq: message.seq,
+                            body: message.body.clone(),
+                        },
+                        is_pending: true,
+                        callback_once: None,
+                    });
+                }
+                HandleResult::Discard => {}
+            }
+        }
+    }
+
+    fn handle_point_message(&self, node_name: &NodeName, mq_item: MessageQueueItem) {
+        let message = mq_item.message;
+        let mut callback_once = mq_item.callback_once;
+
+        if mq_item.is_pending {
+            // 轮询消息结果
+            self.nodes.borrow()[node_name].poll(self.gen_ctx(node_name), message.seq);
+            // 若轮询到了结果
+            if let Some(m) = {
+                let m = self.ready_result.borrow_mut().remove(&message.seq);
+                m
+            } {
+                info!("async message seq {} is ready: {:?}", message.seq, m);
+                // 如果消息已经就绪，则触发回调
+                if let Some(cb) = callback_once.take() {
+                    cb(HandleResult::Finish(m));
+                }
+            } else {
+                // 若仍无消息结果就绪，则继续将进入消息队列排队轮询
+                self.mq_buffer2.borrow_mut().push(MessageQueueItem {
+                    message,
+                    is_pending: true,
+                    callback_once,
+                });
+            }
+        } else {
+            info!("dispatch async p2p message {:?}", message);
+            let ret = self.nodes.borrow()[node_name]
+                .handle_message(self.gen_ctx(node_name), message.clone());
+            info!("handle async p2p message result: {:?}", ret);
+            match ret {
+                HandleResult::Finish(e) => {
+                    if let Some(cb) = callback_once.take() {
+                        cb(HandleResult::Finish(e));
                     }
                 }
+                HandleResult::Pending => {
+                    // 消息没有就绪结果，标记is_pending后，继续排队到异步队列
+                    self.mq_buffer2.borrow_mut().push(MessageQueueItem {
+                        message,
+                        is_pending: true,
+                        callback_once,
+                    });
+                }
+                HandleResult::Discard => {
+                    if let Some(cb) = callback_once.take() {
+                        cb(HandleResult::Discard);
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn schedule_once(&self) {
+        // 广播心跳
+        self.broadcast_scheduler_heartbeat();
+        // 从mq1消费消息
+        for item in self.mq_buffer1.borrow_mut().drain(..) {
+            match item.message.to.clone() {
+                MessageTo::Broadcast => self.broadcast_message(item),
                 MessageTo::Point(node_name) => {
                     // 目标不存在
                     if !self.nodes.borrow().contains_key(&node_name) {
                         panic!("not found node {:?}", node_name);
                     }
-                    if is_pending {
-                        // 轮询消息结果
-                        self.nodes.borrow()[&node_name].poll(self.gen_ctx(&node_name), message.seq);
-                        // 若轮询到了结果
-                        if let Some(m) = {
-                            let m = self.ready_result.borrow_mut().remove(&message.seq);
-                            m
-                        } {
-                            info!("async message seq {} is ready: {:?}", message.seq, m);
-                            // 如果消息已经就绪，则触发回调
-                            if let Some(cb) = callback_once.take() {
-                                cb(HandleResult::Finish(m));
-                            }
-                        } else {
-                            // 若仍无消息结果就绪，则继续将进入消息队列排队轮询
-                            self.mq_buffer2.borrow_mut().push(MessageQueueItem {
-                                message,
-                                is_pending: true,
-                                callback_once,
-                            });
-                        }
-                    } else {
-                        info!("dispatch async p2p message {:?}", message);
-                        let ret = self.nodes.borrow()[&node_name]
-                            .handle_message(self.gen_ctx(&node_name), message.clone());
-                        info!("handle async p2p message result: {:?}", ret);
-                        match ret {
-                            HandleResult::Finish(e) => {
-                                if let Some(cb) = callback_once.take() {
-                                    cb(HandleResult::Finish(e));
-                                }
-                            }
-                            HandleResult::Pending => {
-                                // 消息没有就绪结果，标记is_pending后，继续排队到异步队列
-                                self.mq_buffer2.borrow_mut().push(MessageQueueItem {
-                                    message,
-                                    is_pending: true,
-                                    callback_once,
-                                });
-                            }
-                            HandleResult::Discard => {}
-                        }
-                    }
+                    // 处理消息
+                    self.handle_point_message(&node_name, item)
                 }
             }
         }
-        // 交换两个缓冲区队列
+        // 交换两个缓冲区队列，相当于mq2的消息移动到mq1
         self.mq_buffer2.swap(&self.mq_buffer1)
     }
 }

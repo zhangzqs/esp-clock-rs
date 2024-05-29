@@ -122,8 +122,14 @@ impl NvsStorageService {
         Ok(())
     }
 
-    fn list(&self) -> Result<HashSet<String>> {
-        Ok(self.index.borrow().keys().cloned().collect())
+    fn list(&self, prefix: String) -> Result<HashSet<String>> {
+        Ok(self
+            .index
+            .borrow()
+            .keys()
+            .filter(|x| x.starts_with(&prefix))
+            .map(|x| x.into())
+            .collect())
     }
 
     fn load_meta(&self) {
@@ -170,7 +176,7 @@ impl Node for NvsStorageService {
                         StorageMessage::SetResponse
                     }
                 }
-                StorageMessage::ListKeysRequest => match self.list() {
+                StorageMessage::ListKeysRequest(prefix) => match self.list(prefix) {
                     Ok(x) => StorageMessage::ListKeysResponse(x),
                     Err(e) => StorageMessage::Error(StorageError::Other(e.to_string())),
                 },

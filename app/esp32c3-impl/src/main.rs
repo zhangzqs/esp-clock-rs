@@ -124,6 +124,7 @@ fn main() -> anyhow::Result<()> {
     sche.register_node(HttpClientService::new());
     sche.register_node(NvsStorageService::new(nvs.clone()));
     sche.register_node(BuzzerService::new(beep_tx));
+    sche.register_node(HttpServerService::new());
     let sche_timer = slint::Timer::default();
     sche_timer.start(
         slint::TimerMode::Repeated,

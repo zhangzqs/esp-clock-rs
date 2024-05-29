@@ -45,10 +45,14 @@ impl<'a: 'static, P: Pin> Node for OneButtonService<'a, P> {
                         }
                     } else if let Some(dur) = button.current_holding_time() {
                         info!("Held for {dur:?}");
-                        ctx.boardcast(Message::OneButton(OneButtonMessage::LongPressHolding(dur)));
+                        ctx.boardcast(Message::OneButton(OneButtonMessage::LongPressHolding(
+                            dur.as_millis() as _,
+                        )));
                     } else if let Some(dur) = button.held_time() {
                         info!("Total holding time {dur:?}");
-                        ctx.boardcast(Message::OneButton(OneButtonMessage::LongPressHeld(dur)));
+                        ctx.boardcast(Message::OneButton(OneButtonMessage::LongPressHeld(
+                            dur.as_millis() as _,
+                        )));
                     }
                     button.reset();
                 },

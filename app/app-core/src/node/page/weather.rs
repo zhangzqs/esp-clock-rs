@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc, time::Duration};
+use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     get_app_window,
@@ -59,9 +59,7 @@ impl Node for WeatherPage {
                     }
                 }
                 OneButtonMessage::LongPressHolding(dur) => {
-                    if !*self.hold_close_once_flag.borrow()
-                        && dur > Duration::from_secs(1)
-                        && *self.is_show.borrow()
+                    if !*self.hold_close_once_flag.borrow() && dur > 1000 && *self.is_show.borrow()
                     {
                         *self.hold_close_once_flag.borrow_mut() = true;
                         ctx.sync_call(

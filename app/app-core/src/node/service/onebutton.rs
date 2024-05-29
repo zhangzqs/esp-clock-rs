@@ -97,12 +97,12 @@ impl Node for TouchOneButtonAdapterService {
                             } else if let Some(dur) = button.current_holding_time() {
                                 println!("Held for {dur:?}");
                                 ctx.boardcast(Message::OneButton(
-                                    OneButtonMessage::LongPressHolding(dur),
+                                    OneButtonMessage::LongPressHolding(dur.as_millis() as _),
                                 ));
                             } else if let Some(dur) = button.held_time() {
                                 println!("Total holding time {dur:?}");
                                 ctx.boardcast(Message::OneButton(OneButtonMessage::LongPressHeld(
-                                    dur,
+                                    dur.as_millis() as _,
                                 )));
                             }
                             button.reset();

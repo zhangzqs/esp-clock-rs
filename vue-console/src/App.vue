@@ -1,15 +1,10 @@
 <script setup lang="ts">
-import { Axios } from 'axios'
-const login = () => {
-    const axios = new Axios()
-    axios.get('/api/login')
-
-    console.log('login')
-}
+import { click, clicks } from './api/index'
 </script>
 
 <template>
-    <button @click="login">登录</button>
+    <button @click="click">单击</button>
+    <button @click="() => clicks(2)">双击</button>
     <router-view></router-view>
 </template>
 

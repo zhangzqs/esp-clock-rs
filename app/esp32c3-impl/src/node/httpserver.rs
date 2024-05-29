@@ -1,17 +1,22 @@
 use std::{
     cell::RefCell,
+    io::Write,
     rc::Rc,
     sync::mpsc::{self, Receiver, SyncSender},
 };
 
 use app_core::proto::*;
 use embedded_io_adapters::std::ToStd;
+use esp_idf_hal::io::Write as _;
 use esp_idf_svc::http::{
     server::{Configuration, EspHttpServer},
     Method,
 };
-use esp_idf_sys as _;
+use esp_idf_sys::{self as _, EspError};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+
+static INDEX_HTML: &[u8] = include_bytes!("../../../../vue-console/dist/index.html");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct HttpMessage {
@@ -20,7 +25,7 @@ struct HttpMessage {
 }
 
 struct State {
-    server: EspHttpServer<'static>,
+    _server: EspHttpServer<'static>,
     req_rx: Receiver<HttpMessage>,
     resp_tx: SyncSender<HandleResult>,
 }
@@ -34,19 +39,39 @@ impl State {
         })
         .unwrap();
         server
+            .fn_handler("/", Method::Get, |req| {
+                req.into_ok_response()?.write_all(INDEX_HTML)?;
+                Ok(())
+            })
+            .unwrap()
             .fn_handler("/", Method::Post, move |mut req| {
-                let req_body = serde_json::from_reader::<_, HttpMessage>(ToStd::new(&mut req))?;
-                req_tx.send(req_body)?;
-                let resp_body: HandleResult = resp_rx.recv()?;
-                let resp = req.into_ok_response()?;
-                serde_json::to_writer(ToStd::new(resp), &resp_body)?;
+                let resp_body: anyhow::Result<HandleResult> = (|| {
+                    let req_body = serde_json::from_reader::<_, HttpMessage>(ToStd::new(&mut req))?;
+                    req_tx.send(req_body)?;
+                    Ok(resp_rx.recv()?)
+                })();
+                match resp_body {
+                    Ok(x) => {
+                        let resp = req.into_ok_response()?;
+                        serde_json::to_writer(ToStd::new(resp), &x)?;
+                    }
+                    Err(e) => {
+                        let resp = req.into_status_response(500)?;
+                        serde_json::to_writer(
+                            ToStd::new(resp),
+                            &json!({
+                                "error": format!("{e:?}"),
+                            }),
+                        )?;
+                    }
+                }
                 Ok(())
             })
             .unwrap();
         Self {
             req_rx,
             resp_tx,
-            server,
+            _server: server,
         }
     }
 }

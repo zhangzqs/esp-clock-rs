@@ -2,14 +2,14 @@ use std::rc::Rc;
 
 use dev::DevConfigSetter;
 use node::*;
-pub use scheduler::Scheduler;
 
 mod adapter;
 mod node;
-pub mod proto;
 mod scheduler;
 mod ui;
 
+pub use proto;
+pub use scheduler::Scheduler;
 pub use ui::get_app_window;
 
 static mut SCHEDULER: Option<Rc<Scheduler>> = None;

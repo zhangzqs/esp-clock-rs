@@ -1,6 +1,6 @@
 use std::{collections::HashSet, rc::Rc};
 
-use crate::proto::{Context, Message, NodeName, TimeMessage};
+use crate::{Context, Message, NodeName, TimeMessage};
 
 use super::{
     BuzzerMessage, Bytes, HttpError, HttpMessage, HttpRequest, HttpResponse, MidiError,

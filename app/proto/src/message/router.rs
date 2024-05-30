@@ -1,4 +1,4 @@
-use crate::proto::NodeName;
+use crate::NodeName;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -12,3 +12,6 @@ env_logger = "0.10.1"
 log = "0.4.20"
 anyhow = "1.0.86"
 app-core = { path = "../app-core", features = ["software-renderer"]}
+termion = "4.0.0"
+tui = "0.19.0"
+crossterm = "0.27.0"

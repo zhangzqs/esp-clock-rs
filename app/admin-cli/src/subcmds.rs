@@ -1,7 +1,9 @@
-use std::rc::Rc;
+use std::{rc::Rc};
 
 use app_core::proto::*;
 use clap::Subcommand;
+
+mod onebutton;
 
 #[derive(Subcommand)]
 pub enum SubCommands {
@@ -9,6 +11,8 @@ pub enum SubCommands {
         #[arg()]
         prefix: Option<String>,
     },
+    #[clap(name = "onebutton")]
+    OneButton,
 }
 
 impl SubCommands {
@@ -21,6 +25,9 @@ impl SubCommands {
                     let v = stg.get(k.into()).unwrap();
                     println!("{k}\t{v:?}");
                 }
+            }
+            SubCommands::OneButton => {
+                onebutton::run()?;
             }
         }
         anyhow::Ok(())

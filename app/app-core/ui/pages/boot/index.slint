@@ -1,0 +1,113 @@
+import { Button } from "std-widgets.slint";
+export global BootPageViewModel {
+    property <color> white-no-alpha: #ffffffff;
+    property <color> white-complete-alpha: #ffffff00;
+
+    out property <color> top-gate-bg: white-no-alpha;
+    out property <color> top-genshin-bg: white-no-alpha;
+    out property <color> top-mihoyo-bg: white-no-alpha;
+
+    out property <bool> visible-mihoyo: true;
+    out property <bool> visible-genshin: true;
+    out property <bool> visible-gate: true;
+
+    public function play-mihoyo() {
+        top-mihoyo-bg = white-complete-alpha;
+    }
+
+    public function play-genshin() {
+        visible-mihoyo = false;
+        top-genshin-bg = white-complete-alpha;
+    }
+
+    public function play-gate() {
+        visible-genshin = false;
+        top-gate-bg = white-complete-alpha;
+    }
+}
+
+export component BootPage inherits Rectangle {
+    width: 240px;
+    height: 240px;
+
+    Rectangle {
+        z: 5;
+        background: BootPageViewModel.top-mihoyo-bg;
+        animate background {
+            duration: 3s;
+            easing: ease-out;
+        }
+    }
+
+    Image {
+        visible: BootPageViewModel.visible-mihoyo;
+        z: 4;
+        width: 150px;
+        source: @image-url("assets/mihoyo.png");
+        image-fit: contain;
+        image-rendering: smooth;
+    }
+
+    Rectangle {
+        z: 3;
+        background: BootPageViewModel.top-genshin-bg;
+        animate background {
+            duration: 3s;
+            easing: ease-out;
+        }
+    }
+
+    Image {
+        visible: BootPageViewModel.visible-genshin;
+        z: 2;
+        width: 150px;
+        source: @image-url("assets/genshin.png");
+        image-fit: contain;
+        image-rendering: smooth;
+    }
+
+    Rectangle {
+        z: 1;
+        background: BootPageViewModel.top-gate-bg;
+        animate background {
+            duration: 3s;
+            easing: ease-out;
+        }
+    }
+
+    Image {
+        visible: BootPageViewModel.visible-gate;
+        z: 0;
+        width: 240px;
+        source: @image-url("assets/gate.jpg");
+        image-fit: contain;
+        image-rendering: smooth;
+    }
+}
+
+export component TestBootPage inherits Rectangle {
+    width: 240px;
+    height: 240px;
+    VerticalLayout {
+        BootPage { }
+
+        Button {
+            text: "show mihoyo";
+            clicked => {
+                BootPageViewModel.play-mihoyo();
+            }
+        }
+        Button {
+            text: "show genshin";
+            clicked => {
+                BootPageViewModel.play-genshin();
+            }
+        }
+        Button {
+            text: "show gate";
+            clicked => {
+                BootPageViewModel.play-gate();
+            }
+        }
+    }
+}

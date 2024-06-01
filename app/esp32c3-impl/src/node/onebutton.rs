@@ -31,7 +31,7 @@ impl<'a: 'static, P: Pin> Node for OneButtonService<'a, P> {
             let button = self.button.clone();
             self.timer.start(
                 slint::TimerMode::Repeated,
-                Duration::from_millis(20),
+                Duration::from_millis(16),
                 move || {
                     let mut button = button.borrow_mut();
                     button.tick();

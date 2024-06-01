@@ -5,7 +5,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use log::info;
+use log::{error, info};
 
 use crate::proto::*;
 
@@ -48,6 +48,12 @@ impl Context for ContextImpl {
 
     // 异步调用
     fn async_call(&self, node: NodeName, msg: Message, callback: MessageCallbackOnce) {
+        // 目标不存在
+        if !self.nodes.borrow().contains_key(&node) {
+            error!("not found node {:?}", node);
+            callback(HandleResult::Discard);
+            return;
+        }
         self.mq_buffer.borrow_mut().push(MessageQueueItem {
             message: MessageWithHeader {
                 from: self.node_name.clone(),
@@ -62,6 +68,11 @@ impl Context for ContextImpl {
 
     // 同步调用
     fn sync_call(&self, node: NodeName, msg: Message) -> HandleResult {
+        // 目标不存在
+        if !self.nodes.borrow().contains_key(&node) {
+            error!("not found node {:?}", node);
+            return HandleResult::Discard;
+        }
         let msg = MessageWithHeader {
             from: self.node_name.clone(),
             to: MessageTo::Point(node.clone()),
@@ -249,14 +260,7 @@ impl Scheduler {
         for item in self.mq_buffer1.borrow_mut().drain(..) {
             match item.message.to.clone() {
                 MessageTo::Broadcast => self.broadcast_message(item),
-                MessageTo::Point(node_name) => {
-                    // 目标不存在
-                    if !self.nodes.borrow().contains_key(&node_name) {
-                        panic!("not found node {:?}", node_name);
-                    }
-                    // 处理消息
-                    self.handle_point_message(&node_name, item)
-                }
+                MessageTo::Point(node_name) => self.handle_point_message(&node_name, item),
             }
         }
         // 交换两个缓冲区队列，相当于mq2的消息移动到mq1

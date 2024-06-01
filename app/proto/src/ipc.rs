@@ -1,6 +1,6 @@
 use std::{collections::HashSet, rc::Rc};
 
-use crate::{Context, Message, NodeName, TimeMessage};
+use crate::{Context, Message, NodeName, NowWeather, TimeMessage};
 
 use super::{
     BuzzerMessage, Bytes, HttpError, HttpMessage, HttpRequest, HttpResponse, MidiError,
@@ -96,11 +96,25 @@ impl WeatherClient {
         callback: AsyncResultCallback<NextSevenDaysWeather, WeatherError>,
     ) {
         self.0.async_call(
-            NodeName::HttpClient,
+            NodeName::WeatherClient,
             Message::Weather(WeatherMessage::GetNextSevenDaysWeatherRequest),
             Box::new(|r| {
                 callback(match r.unwrap() {
                     Message::Weather(WeatherMessage::GetNextSevenDaysWeatherResponse(r)) => Ok(r),
+                    Message::Weather(WeatherMessage::Error(e)) => Err(e),
+                    m => panic!("unexpected message {:?}", m),
+                });
+            }),
+        );
+    }
+
+    pub fn get_now_weather(&self, callback: AsyncResultCallback<NowWeather, WeatherError>) {
+        self.0.async_call(
+            NodeName::WeatherClient,
+            Message::Weather(WeatherMessage::GetNowRequest),
+            Box::new(|r| {
+                callback(match r.unwrap() {
+                    Message::Weather(WeatherMessage::GetNowResponse(r)) => Ok(r),
                     Message::Weather(WeatherMessage::Error(e)) => Err(e),
                     m => panic!("unexpected message {:?}", m),
                 });

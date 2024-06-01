@@ -34,6 +34,8 @@ pub enum NodeName {
     MenuPage,
     // 天气页ui与逻辑
     WeatherPage,
+    // 音乐播放器
+    MusicPage,
     // 其他扩展节点
     Other(String),
 }

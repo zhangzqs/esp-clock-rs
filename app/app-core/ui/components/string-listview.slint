@@ -1,0 +1,94 @@
+import { ListView, ScrollView, Button } from "std-widgets.slint";
+
+export component StringListView inherits Rectangle {
+    in property <[string]> string-list;
+
+    // 每一页默认显示8个元素
+    in property <int> items-per-page: 8;
+
+    background: black;
+    property <length> item-height: root.height / items-per-page;
+    in-out property <int> select-id: 0;
+
+    Rectangle {
+        Rectangle {
+            y: mod(select-id, items-per-page) * item-height;
+            height: item-height;
+            background: orange;
+            border-color: gray;
+            border-width: 1px;
+            animate y {
+                duration: 300ms;
+                easing: ease-in-expo;
+            }
+        }
+
+        ScrollView {
+            viewport-y: -(root.height * floor(select-id / items-per-page));
+            animate viewport-y {
+                duration: 500ms;
+                easing: ease-in;
+            }
+            for data[id] in string-list: Rectangle {
+                height: item-height;
+                y: id * item-height;
+                Text {
+                    text: data;
+                    color: white;
+                    horizontal-alignment: left;
+                    width: 100%;
+                    font-size: item-height - 2px;
+                }
+            }
+        }
+    }
+}
+
+export component TestStringListView {
+    width: 240px;
+    height: 2 * 240px;
+    VerticalLayout {
+        m := StringListView {
+            height: 240px;
+            string-list: [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8"
+            ];
+        }
+
+        public function next() {
+            m.select-id = mod(m.select-id + 1, m.string-list.length);
+        }
+        public function prev() {
+            m.select-id = mod(m.select-id - 1, m.string-list.length);
+        }
+
+        Button {
+            text: "prev";
+            clicked => {
+                prev();
+            }
+        }
+
+        Button {
+            text: "next";
+            clicked => {
+                next();
+            }
+        }
+    }
+}

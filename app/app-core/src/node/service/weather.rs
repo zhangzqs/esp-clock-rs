@@ -1,4 +1,4 @@
-use std::{fmt::Display, str::FromStr};
+use std::{fmt::Display, rc::Rc, str::FromStr};
 
 use crate::proto::*;
 use serde::{Deserialize, Serialize};
@@ -58,11 +58,10 @@ impl Date {
 #[derive(Deserialize)]
 struct YikeOneDayWeather {
     date: Date,
-    wea: String,
     wea_img: String,
-    tem: Number<i8>,
-    tem1: Number<i8>,
-    tem2: Number<i8>,
+    tem: Number<f32>,
+    tem1: Number<f32>,
+    tem2: Number<f32>,
     humidity: String,
     air: Number<u16>,
 }
@@ -85,25 +84,42 @@ impl From<YikeOneDayWeather> for OneDayWeather {
                 "yu" => WeatherState::Rain,
                 "yin" => WeatherState::Overcast,
                 "qing" => WeatherState::Sunny,
-                _ => todo!("not supported {}", val.wea),
+                m => unimplemented!("not supported {m}"),
             },
-            state_description: val.wea,
             air_quality_index: val.air.take(),
         }
     }
 }
 
 #[derive(Deserialize)]
-struct YikeWeatherResponse {
+struct YikeDaysWeatherResponse {
+    #[serde(rename = "cityEn")]
     city: String,
     data: Vec<YikeOneDayWeather>,
 }
 
-impl From<YikeWeatherResponse> for NextSevenDaysWeather {
-    fn from(val: YikeWeatherResponse) -> Self {
+impl From<YikeDaysWeatherResponse> for NextSevenDaysWeather {
+    fn from(val: YikeDaysWeatherResponse) -> Self {
         NextSevenDaysWeather {
             city: val.city,
             data: val.data.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct YikeNowWeatherResponse {
+    #[serde(rename = "cityEn")]
+    city: String,
+    #[serde(flatten)]
+    data: YikeOneDayWeather,
+}
+
+impl From<YikeNowWeatherResponse> for NowWeather {
+    fn from(val: YikeNowWeatherResponse) -> Self {
+        NowWeather {
+            city: val.city,
+            data: val.data.into(),
         }
     }
 }
@@ -113,6 +129,60 @@ pub struct WeatherService {}
 impl WeatherService {
     pub fn new() -> Self {
         Self {}
+    }
+
+    fn get_now_weather(seq: usize, ctx: Rc<dyn Context>) -> HandleResult {
+        // 首次消息，进入pending状态
+        let stg = ipc::StorageClient(ctx.clone());
+        let appid: String = stg.get("weather/appid".into()).unwrap().into();
+        let appsecret: String = stg.get("weather/appsecret".into()).unwrap().into();
+        let http = HttpClient(ctx.clone());
+        http.request(
+            HttpRequest {
+                method: HttpRequestMethod::Get,
+                url: format!("http://v1.yiketianqi.com/api?unescape=1&version=v61&appid={appid}&appsecret={appsecret}"),
+            },
+            Box::new(move |r| {
+                let x = match r {
+                    Ok(x) => match x.body.deserialize_by_json::<YikeNowWeatherResponse>() {
+                        Ok(x) => WeatherMessage::GetNowResponse(x.into()),
+                        Err(e) => {
+                            WeatherMessage::Error(WeatherError::SerdeError(e.to_string()))
+                        }
+                    },
+                    Err(e) => WeatherMessage::Error(WeatherError::HttpError(e)),
+                };
+                ctx.async_ready(seq, Message::Weather(x));
+            }),
+        );
+        HandleResult::Pending
+    }
+
+    fn get_next_seven_days_weather(seq: usize, ctx: Rc<dyn Context>) -> HandleResult {
+        // 首次消息，进入pending状态
+        let stg = ipc::StorageClient(ctx.clone());
+        let appid: String = stg.get("weather/appid".into()).unwrap().into();
+        let appsecret: String = stg.get("weather/appsecret".into()).unwrap().into();
+        let http = HttpClient(ctx.clone());
+        http.request(
+            HttpRequest {
+                method: HttpRequestMethod::Get,
+                url: format!("http://v1.yiketianqi.com/api?unescape=1&version=v91&appid={appid}&appsecret={appsecret}"),
+            },
+            Box::new(move |r| {
+                let x = match r {
+                    Ok(x) => match x.body.deserialize_by_json::<YikeDaysWeatherResponse>() {
+                        Ok(x) => WeatherMessage::GetNextSevenDaysWeatherResponse(x.into()),
+                        Err(e) => {
+                            WeatherMessage::Error(WeatherError::SerdeError(e.to_string()))
+                        }
+                    },
+                    Err(e) => WeatherMessage::Error(WeatherError::HttpError(e)),
+                };
+                ctx.async_ready(seq, Message::Weather(x));
+            }),
+        );
+        HandleResult::Pending
     }
 }
 
@@ -126,32 +196,17 @@ impl Node for WeatherService {
         ctx: std::rc::Rc<dyn Context>,
         msg: MessageWithHeader,
     ) -> HandleResult {
+        let seq = msg.seq;
         match msg.body {
-            Message::Weather(WeatherMessage::GetNextSevenDaysWeatherRequest) => {
-                // 首次消息，进入pending状态
-                let stg = ipc::StorageClient(ctx.clone());
-                let appid: String = stg.get("weather/appid".into()).unwrap().into();
-                let appsecret: String = stg.get("weather/appsecret".into()).unwrap().into();
-                HttpClient(ctx.clone()).request(
-                    HttpRequest {
-                        method: HttpRequestMethod::Get,
-                        url: format!("http://v1.yiketianqi.com/api?unescape=1&version=v91&appid={appid}&appsecret={appsecret}"),
-                    },
-                    Box::new(move |r| {
-                        let x = match r {
-                            Ok(x) => match x.body.deserialize_by_json::<YikeWeatherResponse>() {
-                                Ok(x) => WeatherMessage::GetNextSevenDaysWeatherResponse(x.into()),
-                                Err(e) => {
-                                    WeatherMessage::Error(WeatherError::SerdeError(e.to_string()))
-                                }
-                            },
-                            Err(e) => WeatherMessage::Error(WeatherError::HttpError(e)),
-                        };
-                        ctx.async_ready(msg.seq, Message::Weather(x));
-                    }),
-                );
-                return HandleResult::Pending;
-            }
+            Message::Weather(msg) => match msg {
+                WeatherMessage::GetNextSevenDaysWeatherRequest => {
+                    return Self::get_next_seven_days_weather(seq, ctx);
+                }
+                WeatherMessage::GetNowRequest => {
+                    return Self::get_now_weather(seq, ctx);
+                }
+                _ => {}
+            },
             _ => {}
         }
         HandleResult::Discard

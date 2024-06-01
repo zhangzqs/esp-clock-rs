@@ -2,36 +2,35 @@ import { HomePage, HomeViewModel } from "home/index.slint";
 import { MenuPage, MenuViewModel } from "menu/index.slint";
 import { PageRouter, PageRouteTable } from "../common/route.slint";
 import { WeatherPage, WeatherViewModel } from "weather/index.slint";
+import { MusicPage, MusicPageViewModel } from "music/index.slint";
+import { BootPage, BootPageViewModel } from "boot/index.slint";
 
 export component RouteView inherits Rectangle {
-    boot-page := Rectangle {
+    BootPage {
         visible: PageRouter.current-page == PageRouteTable.boot;
-        Text {
-            text: "原神，启动！";
-        }
     }
 
-    home-page := HomePage {
+    HomePage {
         visible: PageRouter.current-page == PageRouteTable.home;
-        width: 100%;
-        height: 100%;
     }
 
-    menu-page := MenuPage {
+    MenuPage {
         visible: PageRouter.current-page == PageRouteTable.menu;
-        width: 100%;
-        height: 100%;
     }
 
-    weather-page := WeatherPage {
+    WeatherPage {
         visible: PageRouter.current-page == PageRouteTable.weather;
-        width: 100%;
-        height: 100%;
+    }
+
+    MusicPage {
+        visible: PageRouter.current-page == PageRouteTable.music;
     }
 }
 
 export { 
+    BootPageViewModel,
     HomeViewModel, 
     MenuViewModel,
-    WeatherViewModel
+    WeatherViewModel,
+    MusicPageViewModel
 }

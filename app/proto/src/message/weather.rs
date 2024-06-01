@@ -67,12 +67,11 @@ mod date_serde {
 pub struct OneDayWeather {
     #[serde(with = "date_serde")]
     pub date: time::Date,
-    pub now_temperature: i8,
-    pub max_temperature: i8,
-    pub min_temperature: i8,
+    pub now_temperature: f32,
+    pub max_temperature: f32,
+    pub min_temperature: f32,
     pub humidity: i8,
     pub state: WeatherState,
-    pub state_description: String,
     pub air_quality_index: u16,
 }
 
@@ -96,6 +95,12 @@ pub struct NextSevenDaysWeather {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NowWeather {
+    pub city: String,
+    pub data: OneDayWeather,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WeatherError {
     SerdeError(String),
     HttpError(HttpError),
@@ -104,6 +109,8 @@ pub enum WeatherError {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WeatherMessage {
     Error(WeatherError),
+    GetNowRequest,
+    GetNowResponse(NowWeather),
     GetNextSevenDaysWeatherRequest,
     GetNextSevenDaysWeatherResponse(NextSevenDaysWeather),
 }

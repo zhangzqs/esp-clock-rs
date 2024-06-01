@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::{rc::Rc, time::Duration};
 
 use log::info;
@@ -11,13 +12,15 @@ use crate::proto::{
 use crate::{get_app_window, ui};
 
 pub struct BootPage {
-    t: slint::Timer,
+    t: RefCell<Option<slint::Timer>>,
+    is_show: RefCell<bool>,
 }
 
 impl BootPage {
     pub fn new() -> Self {
         Self {
-            t: slint::Timer::default(),
+            t: RefCell::new(None),
+            is_show: RefCell::new(false),
         }
     }
 }
@@ -25,18 +28,22 @@ impl BootPage {
 impl BootPage {
     fn start_performance_monitor(&self, ctx: Rc<dyn Context>) {
         let p = ipc::PerformanceClient(ctx);
-        self.t.start(
-            slint::TimerMode::Repeated,
-            Duration::from_secs(1),
-            move || {
-                if let Some(ui) = get_app_window().upgrade() {
-                    let vm = ui.global::<ui::PerformanceViewModel>();
-                    vm.set_largest_free_block(p.get_largeest_free_block() as i32);
-                    vm.set_memory(p.get_free_heap_size() as i32);
-                    vm.set_fps(p.get_fps() as i32);
-                }
-            },
-        );
+        self.t
+            .borrow_mut()
+            .get_or_insert_with(slint::Timer::default)
+            .start(
+                slint::TimerMode::Repeated,
+                Duration::from_secs(1),
+                move || {
+                    if let Some(ui) = get_app_window().upgrade() {
+                        let vm = ui.global::<ui::PerformanceViewModel>();
+                        vm.set_is_show(true);
+                        vm.set_largest_free_block(p.get_largeest_free_block() as i32);
+                        vm.set_memory(p.get_free_heap_size() as i32);
+                        vm.set_fps(p.get_fps() as i32);
+                    }
+                },
+            );
     }
 
     fn set_boot_time(&self, ctx: Rc<dyn Context>) {
@@ -69,9 +76,28 @@ impl BootPage {
         );
     }
 
+    fn animate(&self) {
+        if let Some(ui) = get_app_window().upgrade() {
+            let vm = ui.global::<ui::BootPageViewModel>();
+            vm.invoke_play_mihoyo();
+        }
+        slint::Timer::single_shot(Duration::from_secs(3), || {
+            if let Some(ui) = get_app_window().upgrade() {
+                let vm = ui.global::<ui::BootPageViewModel>();
+                vm.invoke_play_genshin();
+            }
+            slint::Timer::single_shot(Duration::from_secs(3), || {
+                if let Some(ui) = get_app_window().upgrade() {
+                    let vm = ui.global::<ui::BootPageViewModel>();
+                    vm.invoke_play_gate();
+                }
+            });
+        });
+    }
+
     fn init(&self, ctx: Rc<dyn Context>) {
+        self.animate();
         self.set_boot_time(ctx.clone());
-        self.start_performance_monitor(ctx.clone());
         self.connect_wifi(ctx.clone());
     }
 }
@@ -88,8 +114,16 @@ impl Node for BootPage {
                     self.init(ctx.clone());
                     return HandleResult::Finish(Message::Empty);
                 }
-                _ => {}
+                LifecycleMessage::Show => *self.is_show.borrow_mut() = true,
+                LifecycleMessage::Hide => *self.is_show.borrow_mut() = false,
             },
+            Message::OneButton(proto::OneButtonMessage::Clicks(2)) => {
+                let is_show = *self.is_show.borrow_mut();
+                if is_show {
+                    // 双击时启用性能监视器
+                    self.start_performance_monitor(ctx.clone());
+                }
+            }
             _ => {}
         }
         HandleResult::Discard

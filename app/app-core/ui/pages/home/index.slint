@@ -1,25 +1,31 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { HomeIcons } from "assets/index.slint";
 
-export enum Weather {
-    Cloudy,
-    Sunny,
+export enum WeatherState {
+    cloudy,
+    sunny,
+    snow,
+    thunder,
+    sandstorm,
+    fog,
+    hail,
+    rain,
+    overcast,
 }
 
-export global WeatherLogic {
-    pure public function icon(w: Weather) -> image {
-        if (w == Weather.Cloudy) {
-            return HomeIcons.cloudy;
-        }
-        if (w == Weather.Sunny) {
-            return HomeIcons.sunny;
-        }
-        return HomeIcons.fog;
-    }
-}
-
-export enum Location {
-    Shanghai,
+export enum AirLevel {
+    /// 优
+    good,
+    /// 良
+    moderate,
+    /// 轻度污染
+    unhealthy-for-sensitive-groups,
+    /// 中度污染
+    unhealthy,
+    /// 重度污染
+    very-unhealthy,
+    /// 严重污染
+    hazardous,
 }
 
 struct TimeData {
@@ -33,12 +39,14 @@ struct TimeData {
 }
 
 struct WeatherData {
-    weather: Weather,
-    location: Location,
+    weather: WeatherState,
+    location: string,
     max-temp: int,
     min-temp: int,
     current-temp: int,
     current-humi: int,
+    air-level: AirLevel,
+    air-quality-index: int,
 }
 
 export global HomeViewModel {
@@ -47,6 +55,8 @@ export global HomeViewModel {
 }
 
 export component HomePage inherits Rectangle {
+    width: 240px;
+    height: 240px;
     background: black;
     property <TimeData> time <=> HomeViewModel.time;
     property <WeatherData> weather <=> HomeViewModel.weather;
@@ -59,7 +69,7 @@ export component HomePage inherits Rectangle {
         return n;
     }
 
-    property <[string]> const-week-string: ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+    property <[string]> const-week-string: ["Sun.", "Mon.", "Tue.", "Wed.", "Thu.", "Fri.", "Sat."];
     // 将一个整数n转化为星期
     pure function cvt-n-to-week(n: int) -> string {
         if (n >= 0 && n < 7) {
@@ -73,18 +83,94 @@ export component HomePage inherits Rectangle {
     }
 
     pure function build-date-week-string() -> string {
-        return "\{time.year}年\{cvt-n-to-two(time.month)}月\{cvt-n-to-two(time.day)}日  \{cvt-n-to-week(time.week)}";
+        return "\{time.year}-\{cvt-n-to-two(time.month)}-\{cvt-n-to-two(time.day)}  \{cvt-n-to-week(time.week)}";
     }
 
-    pure function build-weather-name(n: Weather) -> string {
-        return "多云";
-    }
-
-    pure function build-localtion-name(n: Location) -> string {
-        if (n == Location.Shanghai) {
-            return "上海";
+    pure function weather-state(w: WeatherState) -> {
+        icon: image,
+        text: string,
+    } {
+        if (w == WeatherState.cloudy) {
+            return { icon: HomeIcons.cloudy, text: "Cloudy" };
         }
-        return "未知";
+        if (w == WeatherState.sunny) {
+            return { icon: HomeIcons.sunny, text: "Sunny" };
+        }
+        if (w == WeatherState.fog) {
+            return { icon: HomeIcons.fog, text:"Fog" };
+        }
+        if (w == WeatherState.rain) {
+            return { icon: HomeIcons.rain, text: "Rain" };
+        }
+        if (w == WeatherState.snow) {
+            return { icon: HomeIcons.snow, text: "Snow" };
+        }
+        if (w == WeatherState.hail) {
+            return { icon: HomeIcons.hail, text: "Hail" };
+        }
+        if (w == WeatherState.overcast) {
+            return { icon: HomeIcons.overcast, text: "Overcast" };
+        }
+        if (w == WeatherState.sandstorm) {
+            return { icon: HomeIcons.sandstorm, text: "Sandstorm" };
+        }
+        if (w == WeatherState.thunder) {
+            return { icon: HomeIcons.thunder, text: "Thunder" };
+        }
+        return { };
+    }
+
+    pure function air-level-text(l: AirLevel) -> {
+        text: string,
+        background: color,
+    } {
+        if (l == AirLevel.good) {
+            return {
+                text: "Good",
+                background: Colors.green,
+            };
+        }
+        if (l == AirLevel.moderate) {
+            return {
+                text: "Moderate",
+                background: Colors.yellow,
+            };
+        }
+        if (l == AirLevel.unhealthy-for-sensitive-groups) {
+            return {
+                text: "UFSG",
+                background: Colors.orange,
+            };
+        }
+        if (l == AirLevel.unhealthy) {
+            return {
+                text: "Unhealthy",
+                background: Colors.red,
+            };
+        }
+        if (l == AirLevel.very-unhealthy) {
+            return {
+                text: "VeryUnhealthy",
+                background: Colors.purple,
+            };
+        }
+        if (l == AirLevel.hazardous) {
+            return {
+                text: "Hazardous",
+                background: Colors.maroon,
+            };
+        }
+        return { text: "unknown" };
+    }
+
+    pure function contrasting-color(src: color) -> color {
+        // return rgb(0,255,255);
+        return hsv(
+            mod(src.to-hsv().hue + 180, 360), 
+            src.to-hsv().saturation,
+            src.to-hsv().value, 
+            src.to-hsv().alpha,
+        );
     }
 
     VerticalLayout {
@@ -97,22 +183,10 @@ export component HomePage inherits Rectangle {
             HorizontalLayout {
                 padding: 5px;
                 Rectangle {
-                    VerticalLayout {
-                        alignment: center;
-                        Text {
-                            text: "今日天气";
-                            font-size: 15px;
-                            color: white;
-                        }
-
-                        HorizontalLayout {
-                            alignment: center;
-                            Text {
-                                text: build-localtion-name(weather.location);
-                                font-size: 15px;
-                                color: white;
-                            }
-                        }
+                    Text {
+                        text: "City: \n\{weather.location}";
+                        font-size: 16px;
+                        color: white;
                     }
                 }
 
@@ -125,14 +199,18 @@ export component HomePage inherits Rectangle {
                     VerticalLayout {
                         alignment: center;
                         Text {
-                            text: "最高温度: \{weather.max-temp}℃";
-                            font-size: 15px;
+                            text: "High: \{weather.max-temp}℃";
+                            font-size: 18px;
                             color: white;
                         }
 
+                        Rectangle {
+                            height: 5px;
+                        }
+
                         Text {
-                            text: "最低温度: \{weather.min-temp}℃";
-                            font-size: 15px;
+                            text: "Low: \{weather.min-temp}℃";
+                            font-size: 18px;
                             color: white;
                         }
                     }
@@ -142,18 +220,20 @@ export component HomePage inherits Rectangle {
                     border-color: gray;
                     border-width: 1px;
                     VerticalLayout {
-                        alignment: center;
-                        Image {
-                            source: WeatherLogic.icon(weather.weather);
-                            width: 45px;
-                            height: 45px;
-                            colorize: white;
+                        HorizontalLayout {
+                            alignment: center;
+                            Image {
+                                source: weather-state(weather.weather).icon;
+                                width: 40px;
+                                height: 40px;
+                                image-fit: ImageFit.contain;
+                            }
                         }
 
                         HorizontalLayout {
                             alignment: center;
                             Text {
-                                text: build-weather-name(weather.weather);
+                                text: weather-state(weather.weather).text;
                                 font-size: 16px;
                                 color: white;
                             }
@@ -164,37 +244,75 @@ export component HomePage inherits Rectangle {
         }
 
         Rectangle {
-            height: 8px;
+            height: 3px;
         }
 
-        Rectangle {
-            border-width: 1px;
-            border-radius: 10px;
-            VerticalLayout {
-                height: 80px;
-                alignment: center;
-                HorizontalLayout {
+        HorizontalLayout {
+            Image {
+                source: @image-url("Klee.png");
+                width: 40px;
+            }
+            Rectangle {
+                VerticalLayout {
+                    height: 80px;
                     alignment: center;
-                    Text {
-                        text: build-time-string();
-                        font-size: 24px;
-                        color: white;
+                    HorizontalLayout {
+                        alignment: center;
+                        Text {
+                            text: build-time-string();
+                            font-size: 24px;
+                            color: white;
+                        }
                     }
-                }
-
-                HorizontalLayout {
-                    alignment: center;
-                    Text {
-                        text: build-date-week-string();
-                        font-size: 20px;
-                        color: white;
+    
+                    HorizontalLayout {
+                        alignment: center;
+                        Text {
+                            text: build-date-week-string();
+                            font-size: 20px;
+                            color: white;
+                        }
                     }
                 }
             }
+            Image {
+                source: @image-url("Nahida.png");
+                width: 40px;
+            }
+        }
+
+
+        Rectangle {
+            height: 5px;
         }
 
         Rectangle {
-            height: 10px;
+            height: 1px;
+            background: gray;
+        }
+
+        Rectangle {
+            height: 1px;
+        }
+
+        HorizontalLayout {
+            alignment: space-around;
+            Text {
+                text: "AQI: \{weather.air-quality-index}";
+                color: white;
+                font-size: 17px;
+            }
+
+            Rectangle {
+                background: air-level-text(weather.air-level).background;
+                height: 20px;
+
+                Text {
+                    text: air-level-text(weather.air-level).text;
+                    color: contrasting-color(air-level-text(weather.air-level).background);
+                    font-size: 17px;
+                }
+            }
         }
 
         Rectangle {
@@ -206,6 +324,7 @@ export component HomePage inherits Rectangle {
                     Image {
                         source: HomeIcons.thermometer;
                         colorize: red;
+                        width: 25px;
                     }
 
                     HorizontalBox {
@@ -213,11 +332,13 @@ export component HomePage inherits Rectangle {
                             border-width: 1px;
                             border-color: white;
                             border-radius: 5px;
+                            width: root.width * 60%;
+                            height: 10px;
                             HorizontalLayout {
                                 padding: 2px;
                                 Rectangle {
                                     background: red;
-                                    width: 50%;
+                                    width: ((weather.current-temp - weather.min-temp) / (weather.max-temp - weather.min-temp)) * parent.width;
                                 }
                             }
                         }
@@ -240,6 +361,7 @@ export component HomePage inherits Rectangle {
                     Image {
                         source: HomeIcons.water-level;
                         colorize: skyblue;
+                        width: 25px;
                     }
 
                     HorizontalBox {
@@ -247,11 +369,13 @@ export component HomePage inherits Rectangle {
                             border-width: 1px;
                             border-color: white;
                             border-radius: 5px;
+                            width: root.width * 60%;
+                            height: 10px;
                             HorizontalLayout {
                                 padding: 2px;
                                 Rectangle {
                                     background: green;
-                                    width: 75%;
+                                    width: (weather.current-humi / 100) * parent.width;
                                 }
                             }
                         }
@@ -271,5 +395,34 @@ export component HomePage inherits Rectangle {
                 }
             }
         }
+    }
+}
+
+export component TestHomePage {
+    width: 240px;
+    height: 240px;
+    HomePage { }
+
+    init => {
+        HomeViewModel.time = {
+            year: 2024,
+            month: 6,
+            day: 1,
+            week: 6,
+            hour: 8,
+            minute: 30,
+            second: 36,
+        };
+
+        HomeViewModel.weather = {
+            weather: WeatherState.sunny,
+            location: "shanghai",
+            current-humi: 30,
+            current-temp: 30,
+            max-temp: 40,
+            min-temp: 20,
+            air-quality-index: 103,
+            air-level: AirLevel.good,
+        };
     }
 }

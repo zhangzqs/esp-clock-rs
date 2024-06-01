@@ -1,89 +1,22 @@
-import { ListView, Button } from "std-widgets.slint";
+import { Button, ScrollView } from "std-widgets.slint";
+import { StringListView } from "../../components/string-listview.slint";
 
-export component MusicPage inherits Rectangle {
-    background: black;
-    in property <[string]> string-list;
-
-    property <int> select-id: 0;
-
-    public function next() -> int {
-        select-id = mod(select-id + 1, string-list.length);
-        update-viewport();
-        return select-id;
-    }
-
-    public function prev() -> int {
-        select-id = mod(select-id - 1, string-list.length);
-        update-viewport();
-        return select-id;
-    }
-
-    in property <length> item-height: 25px;
-    function get-start-scroll-id() -> int {
-        return floor(root.height / item-height / 2);
-    }
-
-    function update-viewport() {
-        lv.viewport-y = select-id < get-start-scroll-id() ? 0 : -item-height * (select-id - get-start-scroll-id());
-    }
-
-    lv := ListView {
-        viewport-y: select-id < get-start-scroll-id() ? 0 : -item-height * (select-id - get-start-scroll-id());
-
-        for data[id] in string-list: Rectangle {
-            background: select-id == id ? orange : root.background;
-            border-color: gray;
-            border-width: 1px;
-            height: item-height;
-            Text {
-                text: data;
-                color: white;
-                horizontal-alignment: left;
-                width: 100%;
-                font-size: item-height - 2px;
-            }
-        }
-    }
+export global MusicPageViewModel {
+    in property <[string]> music-list;
+    in-out property <int> select-id;
 }
 
-export component TestMusicPage {
+export component MusicPage inherits Rectangle {
     width: 240px;
-    height: 2 * 240px;
-    VerticalLayout {
-        m := MusicPage {
-            height: 240px;
-            string-list: [
-                "1",
-                "2",
-                "3",
-                "4",
-                "5",
-                "6",
-                "7",
-                "8",
-                "1",
-                "2",
-                "3",
-                "4",
-                "5",
-                "6",
-                "7",
-                "8"
-            ];
-        }
+    height: 240px;
+    if MusicPageViewModel.music-list.length == 0: Text {
+        text: "No music";
+        font-size: 30px;
+        color: white;
+    }
 
-        Button {
-            text: "prev";
-            clicked => {
-                m.prev();
-            }
-        }
-
-        Button {
-            text: "next";
-            clicked => {
-                m.next();
-            }
-        }
+    if MusicPageViewModel.music-list.length > 0: StringListView {
+        string-list: MusicPageViewModel.music-list;
+        select-id: MusicPageViewModel.select-id;
     }
 }

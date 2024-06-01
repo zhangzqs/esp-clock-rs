@@ -20,7 +20,7 @@ impl Node for MockWiFiService {
         if let Message::WiFi(msg) = msg.body {
             match msg {
                 WiFiMessage::ConnectRequest(_) => {
-                    slint::Timer::single_shot(Duration::from_secs(3), move || {
+                    slint::Timer::single_shot(Duration::from_secs(9), move || {
                         ctx.async_ready(seq, Message::WiFi(WiFiMessage::ConnectResponse));
                     });
                     return HandleResult::Pending;

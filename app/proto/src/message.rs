@@ -90,6 +90,7 @@ impl Message {
                     RoutePage::Home => "router/gotopage/home",
                     RoutePage::Menu => "router/gotopage/menu",
                     RoutePage::Weather => "router/gotopage/weather",
+                    RoutePage::Music => "router/gotopage/music",
                 },
             },
             Message::Weather(_) => "weather",

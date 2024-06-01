@@ -1,4 +1,4 @@
-// pub mod ipc;
+pub mod ipc;
 mod message;
 mod node;
 use std::rc::Rc;

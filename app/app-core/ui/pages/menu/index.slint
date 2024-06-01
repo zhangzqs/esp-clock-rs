@@ -1,8 +1,9 @@
-import { VerticalBox , StandardButton, Button, HorizontalBox, ListView} from "std-widgets.slint";
+import { VerticalBox , StandardButton, Button, HorizontalBox, ListView, ScrollView} from "std-widgets.slint";
 import { PageRouteTable } from "../../common/route.slint";
 import { MenuIcons } from "assets/index.slint";
 
 struct MenuItemEntry {
+    title: string,
     page: PageRouteTable,
     icon: image,
 }
@@ -10,19 +11,18 @@ struct MenuItemEntry {
 export global MenuViewModel {
     out property <[MenuItemEntry]> entry-list: [
         {
+            title: "Home",
             page: PageRouteTable.home,
             icon: MenuIcons.home,
         },
         {
+            title: "Weather",
             page: PageRouteTable.weather,
             icon: MenuIcons.sun,
         },
         {
+            title: "Music",
             page: PageRouteTable.music,
-            icon: MenuIcons.home,
-        },
-        {
-            page: PageRouteTable.home,
             icon: MenuIcons.home,
         },
     ];
@@ -39,18 +39,6 @@ component MenuItem inherits Rectangle {
 
     width: 80px;
     height: 80px;
-    function menu-item-name(p: PageRouteTable) -> string {
-        if (p == PageRouteTable.home) {
-            return "首页";
-        }
-        if (p == PageRouteTable.weather) {
-            return "天气";
-        }
-        if (p == PageRouteTable.music) {
-            return "音乐";
-        }
-        return "未知";
-    }
 
     VerticalLayout {
         alignment: center;
@@ -70,7 +58,7 @@ component MenuItem inherits Rectangle {
 
                 Text {
                     horizontal-alignment: center;
-                    text: menu-item-name(entry.page);
+                    text: entry.title;
                     font-size: 20px;
                     color: white;
                 }
@@ -81,19 +69,37 @@ component MenuItem inherits Rectangle {
 
 export component MenuPage inherits Rectangle {
     width: 240px;
-    height: 240px;
+    height: 280px;
     background: black;
     border-width: 2px;
 
-    for entry[id] in MenuViewModel.entry-list: Rectangle {
+    Rectangle {
         width: 80px;
         height: 80px;
         border-width: 2px;
-        border-color: id == MenuViewModel.current-id ? gray : black;
-        x: mod(id, 3) * 80px;
-        y: floor(id / 3) * 80px;
-        MenuItem {
-            entry: entry;
+        border-color: gray;
+        x: mod(MenuViewModel.current-id, 3) * 80px;
+        y: floor(mod(MenuViewModel.current-id, 9) / 3) * 80px;
+        animate x, y {
+            duration: 300ms;
+            easing: ease-in;
+        }
+    }
+
+    ScrollView {
+        viewport-y: -(240px * floor(MenuViewModel.current-id / 9));
+        for entry[id] in MenuViewModel.entry-list: Rectangle {
+            width: 80px;
+            height: 80px;
+            x: mod(id, 3) * 80px;
+            y: floor(id / 3) * 80px;
+            MenuItem {
+                entry: entry;
+            }
+        }
+        animate viewport-y {
+            duration: 500ms;
+            easing: ease-in;
         }
     }
 }

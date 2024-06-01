@@ -1,13 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{
-    get_app_window,
-    proto::{
-        Context, HandleResult, LifecycleMessage, Message, MessageWithHeader, Node, NodeName,
-        OneButtonMessage, RoutePage, RouterMessage, WeatherMessage,
-    },
-    ui,
-};
+use crate::{get_app_window, proto::*, ui};
 use log::{error, info};
 use slint::ComponentHandle;
 

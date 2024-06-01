@@ -6,6 +6,7 @@ pub fn proto_route_table_to_slint_route_table(r: RoutePage) -> PageRouteTable {
         RoutePage::Home => PageRouteTable::Home,
         RoutePage::Menu => PageRouteTable::Menu,
         RoutePage::Weather => PageRouteTable::Weather,
+        RoutePage::Music => PageRouteTable::Music,
     }
 }
 
@@ -15,5 +16,6 @@ pub fn slint_route_table_to_proto_route_table(r: PageRouteTable) -> RoutePage {
         PageRouteTable::Home => RoutePage::Home,
         PageRouteTable::Menu => RoutePage::Menu,
         PageRouteTable::Weather => RoutePage::Weather,
+        PageRouteTable::Music => RoutePage::Music,
     }
 }

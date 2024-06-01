@@ -7,6 +7,7 @@ pub enum RoutePage {
     Home,
     Menu,
     Weather,
+    Music,
 }
 
 impl RoutePage {
@@ -16,6 +17,7 @@ impl RoutePage {
             RoutePage::Home => NodeName::HomePage,
             RoutePage::Menu => NodeName::MenuPage,
             RoutePage::Weather => NodeName::WeatherPage,
+            RoutePage::Music => NodeName::MusicPage,
         }
     }
 }

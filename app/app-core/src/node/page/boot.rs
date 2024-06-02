@@ -9,6 +9,7 @@ use crate::proto::{
     ipc, Context, HandleResult, LifecycleMessage, Message, MessageWithHeader, Node, NodeName,
     RoutePage, RouterMessage, WiFiMessage, WiFiStorageConfiguration,
 };
+use crate::storage::WiFiStorage;
 use crate::{get_app_window, ui};
 
 pub struct BootPage {
@@ -55,9 +56,9 @@ impl BootPage {
     }
 
     fn connect_wifi(&self, ctx: Rc<dyn Context>) {
-        let stg = ipc::StorageClient(ctx.clone());
-        let ssid = stg.get("wifi/ssid".into()).unwrap().into();
-        let password = stg.get("wifi/password".into()).unwrap().into();
+        let stg = WiFiStorage(ipc::StorageClient(ctx.clone()));
+        let ssid = stg.get_ssid().unwrap_or_default();
+        let password = stg.get_password().unwrap_or_default();
         let ctx_ref = ctx.clone();
         ctx.async_call(
             NodeName::WiFi,

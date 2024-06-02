@@ -5,7 +5,7 @@ use crate::proto::{
 use crate::ui::{HomeViewModel, TimeData, WeatherData};
 use crate::{get_app_window, ui};
 use log::{error, info};
-use slint::{ComponentHandle};
+use slint::ComponentHandle;
 use std::cell::RefCell;
 use std::{rc::Rc, time::Duration};
 use time::{OffsetDateTime, UtcOffset};

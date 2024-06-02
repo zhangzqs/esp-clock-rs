@@ -12,6 +12,7 @@ type AsyncCallback<T> = Box<dyn FnOnce(T)>;
 
 type AsyncResultCallback<T, E> = Box<dyn FnOnce(Result<T, E>)>;
 
+#[derive(Clone)]
 pub struct HttpClient(pub Rc<dyn Context>);
 
 impl HttpClient {
@@ -33,7 +34,7 @@ impl HttpClient {
         )
     }
 }
-
+#[derive(Clone)]
 pub struct TimestampClient(pub Rc<dyn Context>);
 
 impl TimestampClient {
@@ -49,6 +50,7 @@ impl TimestampClient {
     }
 }
 
+#[derive(Clone)]
 pub struct StorageClient(pub Rc<dyn Context>);
 
 impl StorageClient {
@@ -88,6 +90,7 @@ impl StorageClient {
     }
 }
 
+#[derive(Clone)]
 pub struct WeatherClient(pub Rc<dyn Context>);
 
 impl WeatherClient {
@@ -123,6 +126,7 @@ impl WeatherClient {
     }
 }
 
+#[derive(Clone)]
 pub struct PerformanceClient(pub Rc<dyn Context>);
 
 impl PerformanceClient {
@@ -160,6 +164,7 @@ impl PerformanceClient {
     }
 }
 
+#[derive(Clone)]
 pub struct MidiPlayerClient(pub Rc<dyn Context>);
 
 impl MidiPlayerClient {
@@ -186,6 +191,7 @@ impl MidiPlayerClient {
     }
 }
 
+#[derive(Clone)]
 pub struct BuzzerClient(pub Rc<dyn Context>);
 
 impl BuzzerClient {

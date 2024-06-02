@@ -6,6 +6,7 @@ use node::*;
 mod adapter;
 mod node;
 mod scheduler;
+mod storage;
 mod ui;
 
 pub use proto;

@@ -1,5 +1,5 @@
-use crate::{proto::*};
-use std::{rc::Rc};
+use crate::proto::*;
+use std::rc::Rc;
 
 pub struct MusicPage {}
 

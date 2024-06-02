@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use proto::TopicName;
 use slint::{ComponentHandle, Model};
 
 use crate::get_app_window;
@@ -10,15 +11,11 @@ use crate::proto::{
 };
 use crate::{adapter, ui::MenuViewModel};
 
-pub struct MenuPage {
-    is_show: RefCell<bool>,
-}
+pub struct MenuPage {}
 
 impl MenuPage {
     pub fn new() -> Self {
-        Self {
-            is_show: RefCell::new(false),
-        }
+        Self {}
     }
 
     fn next_page(&self) {
@@ -56,30 +53,26 @@ impl Node for MenuPage {
         match msg.body {
             Message::Lifecycle(msg) => match msg {
                 LifecycleMessage::Show => {
-                    *self.is_show.borrow_mut() = true;
+                    ctx.subscribe_topic(TopicName::OneButton);
                     return HandleResult::Finish(Message::Empty);
                 }
                 LifecycleMessage::Hide => {
-                    *self.is_show.borrow_mut() = false;
+                    ctx.unsubscribe_topic(TopicName::OneButton);
                     return HandleResult::Finish(Message::Empty);
                 }
                 _ => {}
             },
-            Message::OneButton(msg) => {
-                if *self.is_show.borrow() {
-                    match msg {
-                        OneButtonMessage::Click => {
-                            self.next_page();
-                            return HandleResult::Finish(Message::Empty);
-                        }
-                        OneButtonMessage::Clicks(2) => {
-                            self.enter_page(ctx.clone());
-                            return HandleResult::Finish(Message::Empty);
-                        }
-                        _ => {}
-                    }
+            Message::OneButton(msg) => match msg {
+                OneButtonMessage::Click => {
+                    self.next_page();
+                    return HandleResult::Finish(Message::Empty);
                 }
-            }
+                OneButtonMessage::Clicks(2) => {
+                    self.enter_page(ctx.clone());
+                    return HandleResult::Finish(Message::Empty);
+                }
+                _ => {}
+            },
             _ => {}
         }
         HandleResult::Discard

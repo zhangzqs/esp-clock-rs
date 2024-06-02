@@ -39,20 +39,32 @@ impl<'a: 'static, P: Pin> Node for OneButtonService<'a, P> {
                     if button.clicks() > 0 {
                         let clicks = button.clicks();
                         if clicks == 1 {
-                            ctx.boardcast(Message::OneButton(OneButtonMessage::Click));
+                            ctx.broadcast_topic(
+                                TopicName::OneButton,
+                                Message::OneButton(OneButtonMessage::Click),
+                            );
                         } else {
-                            ctx.boardcast(Message::OneButton(OneButtonMessage::Clicks(clicks)));
+                            ctx.broadcast_topic(
+                                TopicName::OneButton,
+                                Message::OneButton(OneButtonMessage::Clicks(clicks)),
+                            );
                         }
                     } else if let Some(dur) = button.current_holding_time() {
                         info!("Held for {dur:?}");
-                        ctx.boardcast(Message::OneButton(OneButtonMessage::LongPressHolding(
-                            dur.as_millis() as _,
-                        )));
+                        ctx.broadcast_topic(
+                            TopicName::OneButton,
+                            Message::OneButton(OneButtonMessage::LongPressHolding(
+                                dur.as_millis() as _
+                            )),
+                        );
                     } else if let Some(dur) = button.held_time() {
                         info!("Total holding time {dur:?}");
-                        ctx.boardcast(Message::OneButton(OneButtonMessage::LongPressHeld(
-                            dur.as_millis() as _,
-                        )));
+                        ctx.broadcast_topic(
+                            TopicName::OneButton,
+                            Message::OneButton(OneButtonMessage::LongPressHeld(
+                                dur.as_millis() as _
+                            )),
+                        );
                     }
                     button.reset();
                 },

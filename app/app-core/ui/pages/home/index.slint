@@ -173,6 +173,17 @@ export component HomePage inherits Rectangle {
         );
     }
 
+    function now-temp-percent() -> float {
+        // 防止今日温度越界，导致显示异常
+        if (weather.current-temp < weather.min-temp) {
+            return 0;
+        }
+        if (weather.current-temp > weather.max-temp) {
+            return 1;
+        }
+        return ((weather.current-temp - weather.min-temp) / (weather.max-temp - weather.min-temp));
+    }
+
     VerticalLayout {
         padding: 2px;
         Rectangle {
@@ -252,6 +263,7 @@ export component HomePage inherits Rectangle {
                 source: @image-url("Klee.png");
                 width: 40px;
             }
+
             Rectangle {
                 VerticalLayout {
                     height: 80px;
@@ -264,7 +276,7 @@ export component HomePage inherits Rectangle {
                             color: white;
                         }
                     }
-    
+
                     HorizontalLayout {
                         alignment: center;
                         Text {
@@ -275,12 +287,12 @@ export component HomePage inherits Rectangle {
                     }
                 }
             }
+
             Image {
                 source: @image-url("Nahida.png");
                 width: 40px;
             }
         }
-
 
         Rectangle {
             height: 5px;
@@ -338,7 +350,8 @@ export component HomePage inherits Rectangle {
                                 padding: 2px;
                                 Rectangle {
                                     background: red;
-                                    width: ((weather.current-temp - weather.min-temp) / (weather.max-temp - weather.min-temp)) * parent.width;
+                                    width: now-temp-percent() * parent.width;
+                                    // 当前天气可能溢出
                                 }
                             }
                         }

@@ -61,6 +61,8 @@ pub enum HandleResult {
     Discard,
     // 消息还在处理，下一轮将继续被轮询(仅调度器可感知该消息结果)
     Pending,
+    // 对于广播消息，当某个节点返回该结果时，将阻断继续广播
+    Block,
 }
 
 impl HandleResult {

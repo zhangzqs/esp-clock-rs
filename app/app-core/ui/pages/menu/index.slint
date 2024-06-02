@@ -25,6 +25,11 @@ export global MenuViewModel {
             page: PageRouteTable.music,
             icon: MenuIcons.home,
         },
+        {
+            title: "Music",
+            page: PageRouteTable.music,
+            icon: MenuIcons.home,
+        },
     ];
     in-out property <int> current-id: 0;
 
@@ -44,24 +49,24 @@ component MenuItem inherits Rectangle {
         alignment: center;
         HorizontalLayout {
             alignment: center;
-            VerticalLayout {
-                Image {
-                    source: entry.icon;
-                    width: 50px;
-                    height: 50px;
-                    colorize: goldenrod;
-                }
+            Image {
+                source: entry.icon;
+                width: 50px;
+                height: 50px;
+                colorize: goldenrod;
+            }
+        }
 
-                Rectangle {
-                    height: 1px;
-                }
+        Rectangle {
+            height: 1px;
+        }
 
-                Text {
-                    horizontal-alignment: center;
-                    text: entry.title;
-                    font-size: 20px;
-                    color: white;
-                }
+        HorizontalLayout {
+            alignment: center;
+            Text {
+                text: entry.title;
+                font-size: 16px;
+                color: white;
             }
         }
     }
@@ -69,9 +74,8 @@ component MenuItem inherits Rectangle {
 
 export component MenuPage inherits Rectangle {
     width: 240px;
-    height: 280px;
+    height: 240px;
     background: black;
-    border-width: 2px;
 
     Rectangle {
         width: 80px;

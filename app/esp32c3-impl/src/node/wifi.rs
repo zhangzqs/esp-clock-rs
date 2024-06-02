@@ -45,7 +45,7 @@ where
 
     fn poll(&self, ctx: Rc<dyn Context>, seq: usize) {
         if let Some(m) = self.ready_resp.lock().unwrap().remove(&seq) {
-            ctx.boardcast(Message::WiFi(WiFiMessage::ConnectedBoardcast));
+            ctx.broadcast_global(Message::WiFi(WiFiMessage::ConnectedBoardcast));
             ctx.async_ready(seq, m);
         }
     }

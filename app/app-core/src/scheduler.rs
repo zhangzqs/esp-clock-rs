@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     rc::Rc,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -29,7 +29,7 @@ struct ContextImpl {
     mq_buffer: Rc<RefCell<Vec<MessageQueueItem>>>,
     nodes: Rc<RefCell<HashMap<NodeName, Box<dyn Node>>>>,
     ready_result: Rc<RefCell<HashMap<usize, Message>>>,
-    subscriber: Rc<RefCell<HashMap<TopicName, HashSet<NodeName>>>>,
+    subscriber: Rc<RefCell<HashMap<TopicName, VecDeque<NodeName>>>>,
 }
 
 impl Context for ContextImpl {
@@ -65,12 +65,21 @@ impl Context for ContextImpl {
     fn subscribe_topic(&self, topic: TopicName) {
         info!("node {:?} subscribe topic {:?}", self.node_name, topic);
 
-        let node = self.node_name.clone();
         self.subscriber
             .borrow_mut()
-            .entry(topic)
-            .or_insert(Default::default())
-            .insert(node);
+            .entry(topic.clone())
+            .or_insert(Default::default());
+
+        // 形成一个栈，后订阅的先收到消息，方便形成事件冒泡，利用HandleResult::Block机制阻断广播
+        // 较近的订阅者可以阻断其他订阅者接收广播
+        // TODO: 数据结构性能优化
+        let node = &self.node_name;
+        self.subscriber.borrow_mut().entry(topic).and_modify(|vec| {
+            if vec.contains(&node) {
+                vec.retain(|x| x != node);
+            }
+            vec.push_front(node.clone());
+        });
     }
 
     // 解除订阅话题
@@ -79,7 +88,7 @@ impl Context for ContextImpl {
 
         let node = &self.node_name;
         self.subscriber.borrow_mut().entry(topic).and_modify(|x| {
-            x.remove(node);
+            x.retain(|x| x != node);
         });
     }
 
@@ -127,7 +136,7 @@ impl Context for ContextImpl {
             }),
             msg,
         );
-        // info!("handle async p2p message result: {:?}", ret);
+        // info!("handle sync p2p message result: {:?}", ret);
         ret
     }
 
@@ -143,7 +152,7 @@ pub struct Scheduler {
     mq_buffer1: RefCell<Vec<MessageQueueItem>>,
     mq_buffer2: Rc<RefCell<Vec<MessageQueueItem>>>,
     ready_result: Rc<RefCell<HashMap<usize, Message>>>,
-    subscriber: Rc<RefCell<HashMap<TopicName, HashSet<NodeName>>>>,
+    subscriber: Rc<RefCell<HashMap<TopicName, VecDeque<NodeName>>>>,
 }
 
 impl Default for Scheduler {
@@ -178,6 +187,7 @@ impl Scheduler {
         self.nodes
             .borrow_mut()
             .insert(app.node_name(), Box::new(app));
+        // TODO: 使用优先队列优化数据结构
         let mut broadcast_order = self
             .nodes
             .borrow()
@@ -238,6 +248,9 @@ impl Scheduler {
                     });
                 }
                 HandleResult::Discard => {}
+                HandleResult::Block => {
+                    return;
+                }
             }
         }
     }
@@ -300,9 +313,9 @@ impl Scheduler {
                         callback_once,
                     });
                 }
-                HandleResult::Discard => {
+                x => {
                     if let Some(cb) = callback_once.take() {
-                        cb(HandleResult::Discard);
+                        cb(x);
                     }
                 }
             }

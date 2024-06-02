@@ -30,6 +30,7 @@ impl Node for MidiPlayerService {
                 let mut s = String::new();
                 BASE64_STANDARD.encode_string(bs, &mut s);
                 loadFile(s);
+                return HandleResult::Finish(Message::Midi(MidiMessage::PlayResponse(false)));
             }
             _ => {}
         }

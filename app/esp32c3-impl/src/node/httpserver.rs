@@ -23,6 +23,7 @@ struct HttpMessage {
     to: MessageTo,
     body: Message,
     // 是否为同步消息？
+    #[serde(default)]
     is_sync: bool,
 }
 
@@ -88,6 +89,38 @@ impl HttpServerService {
             state: RefCell::new(None),
         }
     }
+
+    fn handle_request(&self, ctx: Rc<dyn Context>) {
+        if let Some(s) = &*self.state.borrow() {
+            if let Ok(x) = s.req_rx.try_recv() {
+                let tx = s.resp_tx.clone();
+                match x.to {
+                    MessageTo::Broadcast => {
+                        ctx.broadcast_global(x.body);
+                        tx.send(HandleResult::Finish(Message::Empty)).unwrap();
+                    }
+                    MessageTo::Topic(topic) => {
+                        ctx.broadcast_topic(topic, x.body);
+                        tx.send(HandleResult::Finish(Message::Empty)).unwrap();
+                    }
+                    MessageTo::Point(node) => {
+                        if x.is_sync {
+                            let m = ctx.sync_call(node, x.body);
+                            tx.send(m).unwrap();
+                        } else {
+                            ctx.async_call(
+                                node,
+                                x.body,
+                                Box::new(move |m| {
+                                    tx.send(m).unwrap();
+                                }),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl Node for HttpServerService {
@@ -98,34 +131,12 @@ impl Node for HttpServerService {
     fn handle_message(&self, ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
         match msg.body {
             Message::WiFi(WiFiMessage::ConnectedBoardcast) => {
+                ctx.subscribe_topic(TopicName::Scheduler);
                 self.state.borrow_mut().replace(State::new());
+                return HandleResult::Finish(Message::Empty);
             }
             _ => {
-                if let Some(s) = &*self.state.borrow() {
-                    if let Ok(x) = s.req_rx.try_recv() {
-                        let tx = s.resp_tx.clone();
-                        match x.to {
-                            MessageTo::Broadcast => {
-                                ctx.boardcast(x.body);
-                                tx.send(HandleResult::Finish(Message::Empty)).unwrap();
-                            }
-                            MessageTo::Point(node) => {
-                                if x.is_sync {
-                                    let m = ctx.sync_call(node, x.body);
-                                    tx.send(m).unwrap();
-                                } else {
-                                    ctx.async_call(
-                                        node,
-                                        x.body,
-                                        Box::new(move |m| {
-                                            tx.send(m).unwrap();
-                                        }),
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
+                self.handle_request(ctx.clone());
             }
         }
         HandleResult::Discard

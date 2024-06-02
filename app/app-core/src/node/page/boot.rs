@@ -6,10 +6,7 @@ use proto::TopicName;
 use slint::ComponentHandle;
 use time::OffsetDateTime;
 
-use crate::proto::{
-    ipc, Context, HandleResult, LifecycleMessage, Message, MessageWithHeader, Node, NodeName,
-    RoutePage, RouterMessage, WiFiMessage, WiFiStorageConfiguration,
-};
+use crate::proto::*;
 use crate::storage::WiFiStorage;
 use crate::{get_app_window, ui};
 
@@ -111,18 +108,23 @@ impl Node for BootPage {
         match msg.body {
             Message::Lifecycle(msg) => match msg {
                 LifecycleMessage::Init => {
+                    ctx.subscribe_topic(TopicName::OneButton);
                     self.init(ctx.clone());
                     return HandleResult::Finish(Message::Empty);
                 }
                 LifecycleMessage::Show => {
-                    ctx.subscribe_topic(TopicName::OneButton);
+                    // 首屏组件，默认直接显示，没有其他页面会发送这个消息
+                    // 故按键订阅需要在init消息处完成
+                    return HandleResult::Finish(Message::Empty);
                 }
                 LifecycleMessage::Hide => {
                     ctx.unsubscribe_topic(TopicName::OneButton);
+                    return HandleResult::Finish(Message::Empty);
                 }
             },
             Message::OneButton(proto::OneButtonMessage::Clicks(2)) => {
                 self.start_performance_monitor(ctx.clone());
+                return HandleResult::Finish(Message::Empty);
             }
             _ => {}
         }

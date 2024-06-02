@@ -16,7 +16,7 @@ use esp_idf_sys::{self as _, EspError};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-static INDEX_HTML: &[u8] = include_bytes!("../../../../vue-console/dist/index.html");
+// static INDEX_HTML: &[u8] = include_bytes!("../../../../vue-console/dist/index.html");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct HttpMessage {
@@ -40,7 +40,7 @@ impl State {
         .unwrap();
         server
             .fn_handler("/", Method::Get, |req| {
-                req.into_ok_response()?.write_all(INDEX_HTML)?;
+                req.into_ok_response()?.write_all(b"not found index.html")?;
                 Ok(())
             })
             .unwrap()

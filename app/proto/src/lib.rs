@@ -1,16 +1,19 @@
 pub mod ipc;
 mod message;
 mod node;
+mod topic;
+
 use std::rc::Rc;
 
 use serde::{Deserialize, Serialize};
 
-pub use {message::*, node::NodeName};
+pub use {message::*, node::NodeName, topic::TopicName};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MessageTo {
     Broadcast,
     Point(NodeName),
+    Topic(TopicName),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,7 +32,16 @@ pub type MessageCallbackOnce = Box<dyn FnOnce(HandleResult)>;
 
 pub trait Context {
     // 发送广播消息
-    fn boardcast(&self, msg: Message);
+    fn broadcast_global(&self, msg: Message);
+
+    // 发送话题消息
+    fn broadcast_topic(&self, topic: TopicName, msg: Message);
+
+    // 订阅话题
+    fn subscribe_topic(&self, topic: TopicName);
+
+    // 解除订阅话题
+    fn unsubscribe_topic(&self, topic: TopicName);
 
     // 发送只会反馈一次的消息
     fn async_call(&self, node: NodeName, msg: Message, callback: MessageCallbackOnce);

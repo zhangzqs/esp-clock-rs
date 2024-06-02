@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     rc::Rc,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -29,11 +29,12 @@ struct ContextImpl {
     mq_buffer: Rc<RefCell<Vec<MessageQueueItem>>>,
     nodes: Rc<RefCell<HashMap<NodeName, Box<dyn Node>>>>,
     ready_result: Rc<RefCell<HashMap<usize, Message>>>,
+    subscriber: Rc<RefCell<HashMap<TopicName, HashSet<NodeName>>>>,
 }
 
 impl Context for ContextImpl {
-    // 发送广播消息
-    fn boardcast(&self, msg: Message) {
+    // 发送全局广播消息
+    fn broadcast_global(&self, msg: Message) {
         self.mq_buffer.borrow_mut().push(MessageQueueItem {
             message: MessageWithHeader {
                 from: self.node_name.clone(),
@@ -44,6 +45,42 @@ impl Context for ContextImpl {
             is_pending: false,
             callback_once: None,
         })
+    }
+
+    // 发送话题广播消息
+    fn broadcast_topic(&self, topic: TopicName, msg: Message) {
+        self.mq_buffer.borrow_mut().push(MessageQueueItem {
+            message: MessageWithHeader {
+                from: self.node_name.clone(),
+                to: MessageTo::Topic(topic),
+                seq: gen_msg_seq(),
+                body: msg,
+            },
+            is_pending: false,
+            callback_once: None,
+        })
+    }
+
+    // 订阅话题消息
+    fn subscribe_topic(&self, topic: TopicName) {
+        info!("node {:?} subscribe topic {:?}", self.node_name, topic);
+
+        let node = self.node_name.clone();
+        self.subscriber
+            .borrow_mut()
+            .entry(topic)
+            .or_insert(Default::default())
+            .insert(node);
+    }
+
+    // 解除订阅话题
+    fn unsubscribe_topic(&self, topic: TopicName) {
+        info!("node {:?} unsubscribe topic {:?}", self.node_name, topic);
+
+        let node = &self.node_name;
+        self.subscriber.borrow_mut().entry(topic).and_modify(|x| {
+            x.remove(node);
+        });
     }
 
     // 异步调用
@@ -82,10 +119,11 @@ impl Context for ContextImpl {
         // info!("dispatch sync p2p message {:?}", msg);
         let ret = self.nodes.borrow()[&node].handle_message(
             Rc::new(ContextImpl {
-                node_name: self.node_name.clone(),
+                node_name: node,
                 mq_buffer: self.mq_buffer.clone(),
                 nodes: self.nodes.clone(),
                 ready_result: self.ready_result.clone(),
+                subscriber: self.subscriber.clone(),
             }),
             msg,
         );
@@ -105,6 +143,7 @@ pub struct Scheduler {
     mq_buffer1: RefCell<Vec<MessageQueueItem>>,
     mq_buffer2: Rc<RefCell<Vec<MessageQueueItem>>>,
     ready_result: Rc<RefCell<HashMap<usize, Message>>>,
+    subscriber: Rc<RefCell<HashMap<TopicName, HashSet<NodeName>>>>,
 }
 
 impl Default for Scheduler {
@@ -130,6 +169,7 @@ impl Scheduler {
             }]),
             mq_buffer2: Rc::new(RefCell::new(Vec::new())),
             ready_result: Rc::new(RefCell::new(HashMap::new())),
+            subscriber: Rc::new(RefCell::new(HashMap::new())),
         }
     }
 
@@ -156,26 +196,28 @@ impl Scheduler {
             mq_buffer: self.mq_buffer2.clone(),
             nodes: self.nodes.clone(),
             ready_result: self.ready_result.clone(),
+            subscriber: self.subscriber.clone(),
         })
     }
 
     fn broadcast_scheduler_heartbeat(&self) {
-        for node_name in self.broadcast_order.borrow().iter() {
-            self.nodes.borrow()[node_name].handle_message(
-                self.gen_ctx(node_name),
-                MessageWithHeader {
-                    from: NodeName::Scheduler,
-                    to: MessageTo::Broadcast,
-                    seq: 0,
-                    body: Message::Empty,
-                },
-            );
-        }
+        self.broadcast_topic_message(
+            &TopicName::Scheduler,
+            MessageWithHeader {
+                from: NodeName::Scheduler,
+                to: MessageTo::Topic(TopicName::Scheduler),
+                seq: 0,
+                body: Message::Empty,
+            },
+        );
     }
 
-    fn broadcast_message(&self, mq_item: MessageQueueItem) {
-        let message = mq_item.message;
-        for node_name in self.broadcast_order.borrow().iter() {
+    fn broadcast_message<'a, Iter: Iterator<Item = &'a NodeName>>(
+        &self,
+        node: Iter,
+        message: MessageWithHeader,
+    ) {
+        for node_name in node {
             let ret = self.nodes.borrow()[node_name]
                 .handle_message(self.gen_ctx(node_name), message.clone());
             match ret {
@@ -198,6 +240,20 @@ impl Scheduler {
                 HandleResult::Discard => {}
             }
         }
+    }
+
+    fn broadcast_global_message(&self, message: MessageWithHeader) {
+        self.broadcast_message(self.broadcast_order.borrow().iter(), message);
+    }
+
+    fn broadcast_topic_message(&self, topic: &TopicName, message: MessageWithHeader) {
+        if !self.subscriber.borrow().contains_key(topic) {
+            return;
+        }
+
+        // 广播消息的处理函数中可能需要解除订阅，这将会对subscriber造成一次可变借用，故此处复制一份
+        let cloned_subscriber = self.subscriber.borrow()[topic].clone();
+        self.broadcast_message(cloned_subscriber.iter(), message);
     }
 
     fn handle_point_message(&self, node_name: &NodeName, mq_item: MessageQueueItem) {
@@ -259,7 +315,8 @@ impl Scheduler {
         // 从mq1消费消息
         for item in self.mq_buffer1.borrow_mut().drain(..) {
             match item.message.to.clone() {
-                MessageTo::Broadcast => self.broadcast_message(item),
+                MessageTo::Broadcast => self.broadcast_global_message(item.message),
+                MessageTo::Topic(topic) => self.broadcast_topic_message(&topic, item.message),
                 MessageTo::Point(node_name) => self.handle_point_message(&node_name, item),
             }
         }

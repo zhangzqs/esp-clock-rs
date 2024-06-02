@@ -22,6 +22,8 @@ use serde_json::json;
 struct HttpMessage {
     to: MessageTo,
     body: Message,
+    // 是否为同步消息？
+    is_sync: bool,
 }
 
 struct State {
@@ -108,13 +110,18 @@ impl Node for HttpServerService {
                                 tx.send(HandleResult::Finish(Message::Empty)).unwrap();
                             }
                             MessageTo::Point(node) => {
-                                ctx.async_call(
-                                    node,
-                                    x.body,
-                                    Box::new(move |m| {
-                                        tx.send(m).unwrap();
-                                    }),
-                                );
+                                if x.is_sync {
+                                    let m = ctx.sync_call(node, x.body);
+                                    tx.send(m).unwrap();
+                                } else {
+                                    ctx.async_call(
+                                        node,
+                                        x.body,
+                                        Box::new(move |m| {
+                                            tx.send(m).unwrap();
+                                        }),
+                                    );
+                                }
                             }
                         }
                     }

@@ -37,6 +37,9 @@ pub use midi::*;
 mod common;
 pub use common::*;
 
+mod alertdialog;
+pub use alertdialog::*;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Message {
     /// 空消息
@@ -61,6 +64,7 @@ pub enum Message {
     WiFi(WiFiMessage),
     Buzzer(BuzzerMessage),
     Midi(MidiMessage),
+    AlertDialog(AlertDialogMessage),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

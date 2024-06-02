@@ -5,6 +5,7 @@ use crate::proto::{
 use crate::ui::{HomeViewModel, TimeData, WeatherData};
 use crate::{get_app_window, ui};
 use log::{error, info};
+use proto::TopicName;
 use slint::ComponentHandle;
 use std::cell::RefCell;
 use std::{rc::Rc, time::Duration};
@@ -13,7 +14,6 @@ use time::{OffsetDateTime, UtcOffset};
 pub struct HomePage {
     time_update_timer: RefCell<Option<slint::Timer>>,
     weather_update_timer: RefCell<Option<slint::Timer>>,
-    is_show: RefCell<bool>,
 }
 
 impl HomePage {
@@ -21,7 +21,6 @@ impl HomePage {
         Self {
             time_update_timer: RefCell::new(None),
             weather_update_timer: RefCell::new(None),
-            is_show: RefCell::new(false),
         }
     }
 }
@@ -128,40 +127,36 @@ impl Node for HomePage {
         match msg.body {
             Message::Lifecycle(msg) => match msg {
                 LifecycleMessage::Show => {
-                    *self.is_show.borrow_mut() = true;
+                    ctx.subscribe_topic(TopicName::OneButton);
                     self.on_show(ctx);
                     return HandleResult::Finish(Message::Empty);
                 }
                 LifecycleMessage::Hide => {
-                    *self.is_show.borrow_mut() = false;
+                    ctx.unsubscribe_topic(TopicName::OneButton);
                     self.on_hide();
                     return HandleResult::Finish(Message::Empty);
                 }
                 _ => {}
             },
-            Message::OneButton(msg) => {
-                if *self.is_show.borrow() {
-                    match msg {
-                        OneButtonMessage::Click => {
-                            ctx.sync_call(
-                                NodeName::Router,
-                                Message::Router(RouterMessage::GotoPage(RoutePage::Menu)),
-                            );
-                            return HandleResult::Finish(Message::Empty);
-                        }
-                        OneButtonMessage::Clicks(2) => {
-                            static mid: &[u8] = include_bytes!("../../../a.mid");
-                            ipc::MidiPlayerClient(ctx.clone()).play(
-                                mid.to_vec(),
-                                Box::new(|r| {
-                                    info!("midi播放完毕: {:?}", r);
-                                }),
-                            );
-                        }
-                        _ => {}
-                    }
+            Message::OneButton(msg) => match msg {
+                OneButtonMessage::Click => {
+                    ctx.sync_call(
+                        NodeName::Router,
+                        Message::Router(RouterMessage::GotoPage(RoutePage::Menu)),
+                    );
+                    return HandleResult::Finish(Message::Empty);
                 }
-            }
+                OneButtonMessage::Clicks(2) => {
+                    static mid: &[u8] = include_bytes!("../../../a.mid");
+                    ipc::MidiPlayerClient(ctx.clone()).play(
+                        mid.to_vec(),
+                        Box::new(|r| {
+                            info!("midi播放完毕: {:?}", r);
+                        }),
+                    );
+                }
+                _ => {}
+            },
             _ => {}
         }
         HandleResult::Discard

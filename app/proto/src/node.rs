@@ -26,6 +26,8 @@ pub enum NodeName {
     Midi,
     // 性能监视
     Performance,
+    // 全局Alert对话框
+    AlertDialog,
     // 启动页ui与逻辑
     BootPage,
     // 首页ui与逻辑

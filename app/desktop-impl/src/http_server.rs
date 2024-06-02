@@ -33,7 +33,10 @@ impl Node for HttpServer {
             Ok(Some(mut raw_req)) => match serde_json::from_reader::<_, Req>(raw_req.as_reader()) {
                 Ok(req_msg) => match req_msg.to {
                     MessageTo::Broadcast => {
-                        ctx.boardcast(req_msg.body);
+                        ctx.broadcast_global(req_msg.body);
+                    }
+                    MessageTo::Topic(topic) => {
+                        ctx.broadcast_topic(topic, req_msg.body);
                     }
                     MessageTo::Point(p) => {
                         ctx.async_call(

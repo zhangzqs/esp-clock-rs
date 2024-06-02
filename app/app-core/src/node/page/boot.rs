@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::{rc::Rc, time::Duration};
 
 use log::info;
+use proto::TopicName;
 use slint::ComponentHandle;
 use time::OffsetDateTime;
 
@@ -14,14 +15,12 @@ use crate::{get_app_window, ui};
 
 pub struct BootPage {
     t: RefCell<Option<slint::Timer>>,
-    is_show: RefCell<bool>,
 }
 
 impl BootPage {
     pub fn new() -> Self {
         Self {
             t: RefCell::new(None),
-            is_show: RefCell::new(false),
         }
     }
 }
@@ -115,15 +114,15 @@ impl Node for BootPage {
                     self.init(ctx.clone());
                     return HandleResult::Finish(Message::Empty);
                 }
-                LifecycleMessage::Show => *self.is_show.borrow_mut() = true,
-                LifecycleMessage::Hide => *self.is_show.borrow_mut() = false,
+                LifecycleMessage::Show => {
+                    ctx.subscribe_topic(TopicName::OneButton);
+                }
+                LifecycleMessage::Hide => {
+                    ctx.unsubscribe_topic(TopicName::OneButton);
+                }
             },
             Message::OneButton(proto::OneButtonMessage::Clicks(2)) => {
-                let is_show = *self.is_show.borrow_mut();
-                if is_show {
-                    // 双击时启用性能监视器
-                    self.start_performance_monitor(ctx.clone());
-                }
+                self.start_performance_monitor(ctx.clone());
             }
             _ => {}
         }

@@ -76,7 +76,10 @@ impl Node for ConsoleNode {
         {
             match to {
                 MessageTo::Broadcast => {
-                    ctx.boardcast(body);
+                    ctx.broadcast_global(body);
+                }
+                MessageTo::Topic(topic) => {
+                    ctx.broadcast_topic(topic, body);
                 }
                 MessageTo::Point(node) => {
                     ctx.async_call(node, body, callback);

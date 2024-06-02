@@ -4,6 +4,8 @@ use std::time::Duration;
 
 use button_driver::{Button, ButtonConfig, PinWrapper, Platform};
 
+use log::info;
+use proto::TopicName;
 use slint::ComponentHandle;
 
 use crate::get_app_window;
@@ -71,6 +73,7 @@ impl Node for TouchOneButtonAdapterService {
         match msg.body {
             Message::Lifecycle(msg) => match msg {
                 LifecycleMessage::Init => {
+                    info!("TouchOneButtonAdapterService init");
                     let mut button = Button::new_with_platform(
                         MyButtonPin(self.button_state.clone()),
                         MyButtonPlatform::new(),
@@ -86,24 +89,34 @@ impl Node for TouchOneButtonAdapterService {
                             button.tick();
                             if button.clicks() > 0 {
                                 let clicks = button.clicks();
-                                println!("Clicks: {}", clicks);
+                                info!("Clicks: {}", clicks);
                                 if clicks == 1 {
-                                    ctx.boardcast(Message::OneButton(OneButtonMessage::Click));
+                                    ctx.broadcast_topic(
+                                        TopicName::OneButton,
+                                        Message::OneButton(OneButtonMessage::Click),
+                                    );
                                 } else {
-                                    ctx.boardcast(Message::OneButton(OneButtonMessage::Clicks(
-                                        clicks,
-                                    )));
+                                    ctx.broadcast_topic(
+                                        TopicName::OneButton,
+                                        Message::OneButton(OneButtonMessage::Clicks(clicks)),
+                                    );
                                 }
                             } else if let Some(dur) = button.current_holding_time() {
-                                println!("Held for {dur:?}");
-                                ctx.boardcast(Message::OneButton(
-                                    OneButtonMessage::LongPressHolding(dur.as_millis() as _),
-                                ));
+                                info!("Held for {dur:?}");
+                                ctx.broadcast_topic(
+                                    TopicName::OneButton,
+                                    Message::OneButton(OneButtonMessage::LongPressHolding(
+                                        dur.as_millis() as _,
+                                    )),
+                                );
                             } else if let Some(dur) = button.held_time() {
-                                println!("Total holding time {dur:?}");
-                                ctx.boardcast(Message::OneButton(OneButtonMessage::LongPressHeld(
-                                    dur.as_millis() as _,
-                                )));
+                                info!("Total holding time {dur:?}");
+                                ctx.broadcast_topic(
+                                    TopicName::OneButton,
+                                    Message::OneButton(OneButtonMessage::LongPressHeld(
+                                        dur.as_millis() as _,
+                                    )),
+                                );
                             }
                             button.reset();
                         },

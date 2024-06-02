@@ -33,6 +33,7 @@ fn register_default_nodes(sche: &Scheduler) {
     sche.register_node(MenuPage::new());
     sche.register_node(BootPage::new());
     sche.register_node(AlertDialog::new());
+    sche.register_node(MusicPage::new());
 
     sche.register_node(RouterService::new());
     sche.register_node(TouchOneButtonAdapterService::new());

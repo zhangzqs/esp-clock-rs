@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashMap, VecDeque},
     rc::Rc,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -68,14 +68,14 @@ impl Context for ContextImpl {
         self.subscriber
             .borrow_mut()
             .entry(topic.clone())
-            .or_insert(Default::default());
+            .or_default();
 
         // 形成一个栈，后订阅的先收到消息，方便形成事件冒泡，利用HandleResult::Block机制阻断广播
         // 较近的订阅者可以阻断其他订阅者接收广播
         // TODO: 数据结构性能优化
         let node = &self.node_name;
         self.subscriber.borrow_mut().entry(topic).and_modify(|vec| {
-            if vec.contains(&node) {
+            if vec.contains(node) {
                 vec.retain(|x| x != node);
             }
             vec.push_front(node.clone());

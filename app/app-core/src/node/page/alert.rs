@@ -1,13 +1,9 @@
-use std::cell::RefCell;
 use std::{rc::Rc, time::Duration};
 
-use log::info;
 use proto::TopicName;
-use slint::{ComponentHandle, Image, SharedPixelBuffer};
-use time::OffsetDateTime;
+use slint::ComponentHandle;
 
 use crate::proto::*;
-use crate::storage::WiFiStorage;
 use crate::{get_app_window, ui};
 
 pub struct AlertDialog {}

@@ -93,6 +93,7 @@ impl BootPage {
     }
 
     fn init(&self, ctx: Rc<dyn Context>) {
+        self.start_performance_monitor(ctx.clone());
         self.animate();
         self.set_boot_time(ctx.clone());
         self.connect_wifi(ctx.clone());

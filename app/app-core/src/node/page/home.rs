@@ -5,7 +5,7 @@ use crate::proto::{
 use crate::ui::{HomeViewModel, TimeData, WeatherData};
 use crate::{get_app_window, ui};
 use log::{error, info};
-use proto::TopicName;
+use proto::{AlertDialogContent, AlertDialogMessage, TopicName};
 use slint::ComponentHandle;
 use std::cell::RefCell;
 use std::{rc::Rc, time::Duration};
@@ -47,7 +47,7 @@ impl HomePage {
     }
 
     fn update_weather(ctx: Rc<dyn Context>) {
-        ipc::WeatherClient(ctx).get_now_weather(Box::new(|r| match r {
+        ipc::WeatherClient(ctx.clone()).get_now_weather(Box::new(move |r| match r {
             Ok(x) => {
                 if let Some(ui) = get_app_window().upgrade() {
                     let home_app = ui.global::<HomeViewModel>();
@@ -85,6 +85,17 @@ impl HomePage {
             }
             Err(e) => {
                 error!("error: {e:?}");
+                ctx.async_call(
+                    NodeName::AlertDialog,
+                    Message::AlertDialog(AlertDialogMessage::ShowRequest {
+                        duration: Some(3000),
+                        content: AlertDialogContent {
+                            text: Some(format!("{e:?}")),
+                            image: None,
+                        },
+                    }),
+                    Box::new(|_| {}),
+                )
             }
         }));
     }
@@ -147,9 +158,9 @@ impl Node for HomePage {
                     return HandleResult::Finish(Message::Empty);
                 }
                 OneButtonMessage::Clicks(2) => {
-                    static mid: &[u8] = include_bytes!("../../../a.mid");
+                    static MID: &[u8] = include_bytes!("../../../a.mid");
                     ipc::MidiPlayerClient(ctx.clone()).play(
-                        mid.to_vec(),
+                        MID.to_vec(),
                         Box::new(|r| {
                             info!("midi播放完毕: {:?}", r);
                         }),

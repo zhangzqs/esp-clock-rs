@@ -155,9 +155,6 @@ fn midi_to_freq_and_dur_series(midi_content: &[u8]) -> ToneSeries {
     ToneSeries(src_ret_ref.clone())
 }
 
-// static mid: &[u8] = include_bytes!("../../../music/If_I_Can_Stop_One_Heart_From_Breaking.mid");
-static mid: &[u8] = include_bytes!("../../../a.mid");
-
 pub struct MidiPlayerService {}
 
 impl MidiPlayerService {

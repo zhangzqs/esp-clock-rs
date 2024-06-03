@@ -13,8 +13,7 @@ use embedded_io_adapters::std::ToStd;
 use embedded_svc::http::client::Client;
 use esp_idf_svc::http::client::{Configuration, EspHttpConnection};
 use esp_idf_sys::{self as _, EspError};
-
-mod conn_wrapper;
+use libflate::gzip::{self, Decoder};
 
 pub struct HttpClientService {
     state: Arc<Mutex<HashMap<usize, (HttpRequest, Option<Message>)>>>,
@@ -26,28 +25,40 @@ impl HttpClientService {
             Arc::new(Mutex::new(HashMap::new()));
 
         let state_ref = state.clone();
-        thread::spawn(move || {
-            let conn = conn_wrapper::MyConnection::new(Configuration::default()).unwrap();
-            let mut client = Client::wrap(conn);
+        thread::Builder::new()
+            .stack_size(8 * 1024)
+            .spawn(move || {
+                loop {
+                    for (_, (req, result)) in state_ref.lock().unwrap().iter_mut() {
+                        let ret = (|| -> anyhow::Result<_> {
+                            let conn = EspHttpConnection::new(&Configuration {
+                                crt_bundle_attach: Some(esp_idf_sys::esp_crt_bundle_attach), // https支持
+                                ..Default::default()
+                            })?;
+                            let mut client = Client::wrap(conn);
 
-            loop {
-                for (_, (req, result)) in state_ref.lock().unwrap().iter_mut() {
-                    let ret = (|| -> anyhow::Result<_> {
-                        let req = client.get(&req.url)?.submit()?;
-                        let resp_body = ToStd::new(req).bytes().try_collect::<Vec<_>>()?;
-                        Ok(HttpMessage::Response(HttpResponse {
-                            body: HttpBody::Bytes(Bytes(resp_body)),
-                        }))
-                    })();
-                    *result = Some(Message::Http(match ret {
-                        Ok(x) => x,
-                        Err(e) => HttpMessage::Error(HttpError::Other(format!("{e}"))),
-                    }));
+                            let resp = client.get(&req.url)?.submit()?;
+                            let resp_body = if let Some("gzip") = resp.header("content-encoding") {
+                                gzip::Decoder::new(ToStd::new(resp))?
+                                    .bytes()
+                                    .try_collect::<Vec<_>>()?
+                            } else {
+                                ToStd::new(resp).bytes().try_collect::<Vec<_>>()?
+                            };
+                            Ok(HttpMessage::Response(HttpResponse {
+                                body: HttpBody::Bytes(Bytes(resp_body)),
+                            }))
+                        })();
+                        *result = Some(Message::Http(match ret {
+                            Ok(x) => x,
+                            Err(e) => HttpMessage::Error(HttpError::Other(format!("{e}"))),
+                        }));
+                    }
+
+                    thread::sleep(Duration::from_millis(16));
                 }
-
-                thread::sleep(Duration::from_millis(16));
-            }
-        });
+            })
+            .unwrap();
         Self { state }
     }
 }

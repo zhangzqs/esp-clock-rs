@@ -1,11 +1,8 @@
-use crate::proto::{
-    ipc, Context, HandleResult, LifecycleMessage, Message, MessageWithHeader, Node, NodeName,
-    OneButtonMessage, RoutePage, RouterMessage,
-};
-use crate::ui::{HomeViewModel, TimeData, WeatherData};
-use crate::{get_app_window, ui};
-use log::{error, info};
-use proto::{AlertDialogContent, AlertDialogMessage, TopicName};
+use crate::get_app_window;
+use crate::proto::*;
+use crate::ui::{HomeViewModel, TimeData};
+use log::info;
+use proto::TopicName;
 use slint::ComponentHandle;
 use std::cell::RefCell;
 use std::{rc::Rc, time::Duration};
@@ -46,63 +43,69 @@ impl HomePage {
         }
     }
 
-    fn update_weather(ctx: Rc<dyn Context>) {
-        ipc::WeatherClient(ctx.clone()).get_now_weather(Box::new(move |r| match r {
-            Ok(x) => {
-                if let Some(ui) = get_app_window().upgrade() {
-                    let home_app = ui.global::<HomeViewModel>();
-                    let w = &x.data;
-                    home_app.set_weather(WeatherData {
-                        current_humi: w.humidity as _,
-                        current_temp: w.now_temperature.round() as _,
-                        location: x.city.into(),
-                        max_temp: w.max_temperature.round() as _,
-                        min_temp: w.min_temperature.round() as _,
-                        weather: match w.state {
-                            proto::WeatherState::Snow => ui::WeatherState::Snow,
-                            proto::WeatherState::Thunder => ui::WeatherState::Thunder,
-                            proto::WeatherState::Sandstorm => ui::WeatherState::Sandstorm,
-                            proto::WeatherState::Fog => ui::WeatherState::Fog,
-                            proto::WeatherState::Hail => ui::WeatherState::Hail,
-                            proto::WeatherState::Cloudy => ui::WeatherState::Cloudy,
-                            proto::WeatherState::Rain => ui::WeatherState::Rain,
-                            proto::WeatherState::Overcast => ui::WeatherState::Overcast,
-                            proto::WeatherState::Sunny => ui::WeatherState::Sunny,
-                        },
-                        air_quality_index: w.air_quality_index as _,
-                        air_level: match w.get_air_level() {
-                            proto::AirLevel::Good => ui::AirLevel::Good,
-                            proto::AirLevel::Moderate => ui::AirLevel::Moderate,
-                            proto::AirLevel::UnhealthyForSensitiveGroups => {
-                                ui::AirLevel::UnhealthyForSensitiveGroups
-                            }
-                            proto::AirLevel::Unhealthy => ui::AirLevel::Unhealthy,
-                            proto::AirLevel::VeryUnhealthy => ui::AirLevel::VeryUnhealthy,
-                            proto::AirLevel::Hazardous => ui::AirLevel::Hazardous,
-                        },
-                    });
-                }
-            }
-            Err(e) => {
-                error!("error: {e:?}");
-                ctx.async_call(
-                    NodeName::AlertDialog,
-                    Message::AlertDialog(AlertDialogMessage::ShowRequest {
-                        duration: Some(3000),
-                        content: AlertDialogContent {
-                            text: Some(format!("{e:?}")),
-                            image: None,
-                        },
-                    }),
-                    Box::new(|_| {}),
-                )
-            }
-        }));
-    }
+    // fn update_weather(ctx: Rc<dyn Context>) {
+    //     let id = StorageClient(ctx.clone())
+    //         .get("weather/location_id".into())
+    //         .unwrap();
+    //     ipc::WeatherClient(ctx.clone()).get_now_weather(
+    //         WeatherQuery::LocationID(id),
+    //         Box::new(move |r| match r {
+    //             Ok(x) => {
+    //                 if let Some(ui) = get_app_window().upgrade() {
+    //                     let home_app = ui.global::<HomeViewModel>();
+    //                     let w = &x.data;
+    //                     home_app.set_weather(WeatherData {
+    //                         current_humi: w.humidity as _,
+    //                         current_temp: w.now_temperature.round() as _,
+    //                         location: x.city.into(),
+    //                         max_temp: w.max_temperature.round() as _,
+    //                         min_temp: w.min_temperature.round() as _,
+    //                         weather: match w.state {
+    //                             proto::WeatherState::Snow => ui::WeatherState::Snow,
+    //                             proto::WeatherState::Thunder => ui::WeatherState::Thunder,
+    //                             proto::WeatherState::Sandstorm => ui::WeatherState::Sandstorm,
+    //                             proto::WeatherState::Fog => ui::WeatherState::Fog,
+    //                             proto::WeatherState::Hail => ui::WeatherState::Hail,
+    //                             proto::WeatherState::Cloudy => ui::WeatherState::Cloudy,
+    //                             proto::WeatherState::Rain => ui::WeatherState::Rain,
+    //                             proto::WeatherState::Overcast => ui::WeatherState::Overcast,
+    //                             proto::WeatherState::Sunny => ui::WeatherState::Sunny,
+    //                         },
+    //                         air_quality_index: w.air_quality_index as _,
+    //                         air_level: match w.get_air_level() {
+    //                             proto::AirLevel::Good => ui::AirLevel::Good,
+    //                             proto::AirLevel::Moderate => ui::AirLevel::Moderate,
+    //                             proto::AirLevel::UnhealthyForSensitiveGroups => {
+    //                                 ui::AirLevel::UnhealthyForSensitiveGroups
+    //                             }
+    //                             proto::AirLevel::Unhealthy => ui::AirLevel::Unhealthy,
+    //                             proto::AirLevel::VeryUnhealthy => ui::AirLevel::VeryUnhealthy,
+    //                             proto::AirLevel::Hazardous => ui::AirLevel::Hazardous,
+    //                         },
+    //                     });
+    //                 }
+    //             }
+    //             Err(e) => {
+    //                 error!("error: {e:?}");
+    //                 ctx.async_call(
+    //                     NodeName::AlertDialog,
+    //                     Message::AlertDialog(AlertDialogMessage::ShowRequest {
+    //                         duration: Some(3000),
+    //                         content: AlertDialogContent {
+    //                             text: Some(format!("{e:?}")),
+    //                             image: None,
+    //                         },
+    //                     }),
+    //                     Box::new(|_| {}),
+    //                 )
+    //             }
+    //         }),
+    //     );
+    // }
 
     fn on_show(&self, ctx: Rc<dyn Context>) {
         Self::update_time(ctx.clone());
-        Self::update_weather(ctx.clone());
+        // Self::update_weather(ctx.clone());
         self.time_update_timer
             .borrow_mut()
             .get_or_insert(slint::Timer::default())
@@ -118,7 +121,7 @@ impl HomePage {
             .start(slint::TimerMode::Repeated, Duration::from_secs(60), {
                 let ctx = ctx.clone();
                 move || {
-                    Self::update_weather(ctx.clone());
+                    // Self::update_weather(ctx.clone());
                 }
             });
     }

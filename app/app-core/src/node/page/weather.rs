@@ -1,8 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{get_app_window, proto::*, ui};
-use log::{error, info};
-use slint::ComponentHandle;
+use crate::proto::*;
 
 pub struct WeatherPage {
     is_show: RefCell<bool>,
@@ -28,27 +26,27 @@ impl Node for WeatherPage {
             Message::OneButton(msg) => match msg {
                 OneButtonMessage::Click => {
                     if *self.is_show.borrow() {
-                        ctx.async_call(
-                            NodeName::WeatherClient,
-                            Message::Weather(WeatherMessage::GetNextSevenDaysWeatherRequest),
-                            Box::new(|r| match r {
-                                HandleResult::Finish(msg) => {
-                                    if let Message::Weather(
-                                        WeatherMessage::GetNextSevenDaysWeatherResponse(resp),
-                                    ) = msg
-                                    {
-                                        info!("weather: {:?}", resp);
-                                        if let Some(ui) = get_app_window().upgrade() {
-                                            let vm = ui.global::<ui::WeatherViewModel>();
-                                            vm.set_text(format!("{resp:?}").into())
-                                        }
-                                    } else {
-                                        error!("weather: {:?}", msg);
-                                    }
-                                }
-                                _ => {}
-                            }),
-                        );
+                        // ctx.async_call(
+                        //     NodeName::WeatherClient,
+                        //     Message::Weather(WeatherMessage::GetNextSevenDaysWeatherRequest),
+                        //     Box::new(|r| match r {
+                        //         HandleResult::Finish(msg) => {
+                        //             if let Message::Weather(
+                        //                 WeatherMessage::GetNextSevenDaysWeatherResponse(resp),
+                        //             ) = msg
+                        //             {
+                        //                 info!("weather: {:?}", resp);
+                        //                 if let Some(ui) = get_app_window().upgrade() {
+                        //                     let vm = ui.global::<ui::WeatherViewModel>();
+                        //                     vm.set_text(format!("{resp:?}").into())
+                        //                 }
+                        //             } else {
+                        //                 error!("weather: {:?}", msg);
+                        //             }
+                        //         }
+                        //         _ => {}
+                        //     }),
+                        // );
                     }
                 }
                 OneButtonMessage::LongPressHolding(dur) => {

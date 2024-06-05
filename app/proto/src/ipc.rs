@@ -1,11 +1,14 @@
 use std::{collections::HashSet, rc::Rc};
 
-use crate::{Context, Message, NodeName, NowWeather, TimeMessage};
+use crate::{
+    CityLookUpItem, Context, ForecastWeather, Message, NodeName, NowWeather, TimeMessage,
+    WeatherForecastDays, WeatherQuery,
+};
 
 use super::{
     BuzzerMessage, Bytes, HttpError, HttpMessage, HttpRequest, HttpResponse, MidiError,
-    MidiMessage, NextSevenDaysWeather, PerformanceMessage, StorageError, StorageMessage,
-    StorageValue, ToneFrequency, ToneSeries, WeatherError, WeatherMessage,
+    MidiMessage, PerformanceMessage, StorageError, StorageMessage, StorageValue, ToneFrequency,
+    ToneSeries, WeatherError, WeatherMessage,
 };
 
 type AsyncCallback<T> = Box<dyn FnOnce(T)>;
@@ -94,16 +97,36 @@ impl StorageClient {
 pub struct WeatherClient(pub Rc<dyn Context>);
 
 impl WeatherClient {
-    pub fn get_next_seven_days_weather(
+    pub fn city_lookup(
         &self,
-        callback: AsyncResultCallback<NextSevenDaysWeather, WeatherError>,
+        query: String,
+        callback: AsyncResultCallback<Vec<CityLookUpItem>, WeatherError>,
     ) {
         self.0.async_call(
             NodeName::WeatherClient,
-            Message::Weather(WeatherMessage::GetNextSevenDaysWeatherRequest),
+            Message::Weather(WeatherMessage::CityLookUpRequest(query)),
             Box::new(|r| {
                 callback(match r.unwrap() {
-                    Message::Weather(WeatherMessage::GetNextSevenDaysWeatherResponse(r)) => Ok(r),
+                    Message::Weather(WeatherMessage::CityLookUpResponse(r)) => Ok(r),
+                    Message::Weather(WeatherMessage::Error(e)) => Err(e),
+                    m => panic!("unexpected message {:?}", m),
+                })
+            }),
+        );
+    }
+
+    pub fn get_forecast_days_weather(
+        &self,
+        query: WeatherQuery,
+        days: WeatherForecastDays,
+        callback: AsyncResultCallback<ForecastWeather, WeatherError>,
+    ) {
+        self.0.async_call(
+            NodeName::WeatherClient,
+            Message::Weather(WeatherMessage::GetForecastWeatherRequest(query, days)),
+            Box::new(|r| {
+                callback(match r.unwrap() {
+                    Message::Weather(WeatherMessage::GetForecastWeatherResponse(r)) => Ok(r),
                     Message::Weather(WeatherMessage::Error(e)) => Err(e),
                     m => panic!("unexpected message {:?}", m),
                 });
@@ -111,10 +134,14 @@ impl WeatherClient {
         );
     }
 
-    pub fn get_now_weather(&self, callback: AsyncResultCallback<NowWeather, WeatherError>) {
+    pub fn get_now_weather(
+        &self,
+        query: WeatherQuery,
+        callback: AsyncResultCallback<NowWeather, WeatherError>,
+    ) {
         self.0.async_call(
             NodeName::WeatherClient,
-            Message::Weather(WeatherMessage::GetNowRequest),
+            Message::Weather(WeatherMessage::GetNowRequest(query)),
             Box::new(|r| {
                 callback(match r.unwrap() {
                     Message::Weather(WeatherMessage::GetNowResponse(r)) => Ok(r),

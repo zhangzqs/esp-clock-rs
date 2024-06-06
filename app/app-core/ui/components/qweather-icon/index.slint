@@ -1,0 +1,198 @@
+global IconAssets {
+    public pure function load-image(s: int) -> image {
+        if s == 100 {
+            return @image-url("icons/100.svg");
+        }
+        if s == 101 {
+            return @image-url("icons/101.svg");
+        }
+        if s == 102 {
+            return @image-url("icons/102.svg");
+        }
+        if s == 103 {
+            return @image-url("icons/103.svg");
+        }
+        if s == 104 {
+            return @image-url("icons/104.svg");
+        }
+        if s == 150 {
+            return @image-url("icons/150.svg");
+        }
+        if s == 151 {
+            return @image-url("icons/151.svg");
+        }
+        if s == 152 {
+            return @image-url("icons/152.svg");
+        }
+        if s == 153 {
+            return @image-url("icons/153.svg");
+        }
+        if s == 300 {
+            return @image-url("icons/300.svg");
+        }
+        if s == 301 {
+            return @image-url("icons/301.svg");
+        }
+        if s == 302 {
+            return @image-url("icons/302.svg");
+        }
+        if s == 303 {
+            return @image-url("icons/303.svg");
+        }
+        if s == 304 {
+            return @image-url("icons/304.svg");
+        }
+        if s == 305 {
+            return @image-url("icons/305.svg");
+        }
+        if s == 306 {
+            return @image-url("icons/306.svg");
+        }
+        if s == 307 {
+            return @image-url("icons/307.svg");
+        }
+        if s == 308 {
+            return @image-url("icons/308.svg");
+        }
+        if s == 309 {
+            return @image-url("icons/309.svg");
+        }
+        if s == 310 {
+            return @image-url("icons/310.svg");
+        }
+        if s == 311 {
+            return @image-url("icons/311.svg");
+        }
+        if s == 312 {
+            return @image-url("icons/312.svg");
+        }
+        if s == 313 {
+            return @image-url("icons/313.svg");
+        }
+        if s == 314 {
+            return @image-url("icons/314.svg");
+        }
+        if s == 315 {
+            return @image-url("icons/315.svg");
+        }
+        if s == 316 {
+            return @image-url("icons/316.svg");
+        }
+        if s == 317 {
+            return @image-url("icons/317.svg");
+        }
+        if s == 318 {
+            return @image-url("icons/318.svg");
+        }
+        if s == 350 {
+            return @image-url("icons/350.svg");
+        }
+        if s == 351 {
+            return @image-url("icons/351.svg");
+        }
+        if s == 399 {
+            return @image-url("icons/399.svg");
+        }
+        if s == 400 {
+            return @image-url("icons/400.svg");
+        }
+        if s == 401 {
+            return @image-url("icons/401.svg");
+        }
+        if s == 402 {
+            return @image-url("icons/402.svg");
+        }
+        if s == 403 {
+            return @image-url("icons/403.svg");
+        }
+        if s == 404 {
+            return @image-url("icons/404.svg");
+        }
+        if s == 405 {
+            return @image-url("icons/405.svg");
+        }
+        if s == 406 {
+            return @image-url("icons/406.svg");
+        }
+        if s == 407 {
+            return @image-url("icons/407.svg");
+        }
+        if s == 408 {
+            return @image-url("icons/408.svg");
+        }
+        if s == 409 {
+            return @image-url("icons/409.svg");
+        }
+        if s == 410 {
+            return @image-url("icons/410.svg");
+        }
+        if s == 456 {
+            return @image-url("icons/456.svg");
+        }
+        if s == 457 {
+            return @image-url("icons/457.svg");
+        }
+        if s == 499 {
+            return @image-url("icons/499.svg");
+        }
+        if s == 500 {
+            return @image-url("icons/500.svg");
+        }
+        if s == 501 {
+            return @image-url("icons/501.svg");
+        }
+        if s == 502 {
+            return @image-url("icons/502.svg");
+        }
+        if s == 503 {
+            return @image-url("icons/503.svg");
+        }
+        if s == 504 {
+            return @image-url("icons/504.svg");
+        }
+        if s == 507 {
+            return @image-url("icons/507.svg");
+        }
+        if s == 508 {
+            return @image-url("icons/508.svg");
+        }
+        if s == 509 {
+            return @image-url("icons/509.svg");
+        }
+        if s == 510 {
+            return @image-url("icons/510.svg");
+        }
+        if s == 511 {
+            return @image-url("icons/511.svg");
+        }
+        if s == 512 {
+            return @image-url("icons/512.svg");
+        }
+        if s == 513 {
+            return @image-url("icons/513.svg");
+        }
+        if s == 514 {
+            return @image-url("icons/514.svg");
+        }
+        if s == 515 {
+            return @image-url("icons/515.svg");
+        }
+        if s == 900 {
+            return @image-url("icons/900.svg");
+        }
+        if s == 901 {
+            return @image-url("icons/901.svg");
+        }
+        if s == 999 {
+            return @image-url("icons/999.svg");
+        }
+        return @image-url("");
+    }
+}
+
+export component QWeatherIcon inherits Image {
+    in property <int> icon-id: 100;
+    width: 16px;
+    height: 16px;
+    source: IconAssets.load-image(icon-id);
+}

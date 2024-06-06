@@ -1,10 +1,14 @@
+use crate::StorageError;
+
 use super::HttpError;
 use serde::{Deserialize, Serialize};
+use time::serde::rfc3339;
 use time::OffsetDateTime;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NowWeather {
     /// 更新时间
+    #[serde(with = "rfc3339")]
     pub updated_time: OffsetDateTime,
     /// 当前温度，摄氏度
     pub temp: i8,
@@ -18,10 +22,13 @@ pub struct NowWeather {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WeatherError {
+    StorageError(StorageError),
     SerdeError(String),
     HttpError(HttpError),
     ApiError(u16),
     MissingFieldError(String),
+    MissingKey,
+    MissingLocation,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,6 +54,7 @@ pub struct ForecastOneDayWeather {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ForecastWeather {
     /// 更新时间
+    #[serde(with = "rfc3339")]
     pub updated_time: OffsetDateTime,
     pub daily: Vec<ForecastOneDayWeather>,
 }
@@ -76,30 +84,45 @@ mod date_serde {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum WeatherQuery {
-    LocationID(u32),
-    LatLong(f32, f32),
+pub struct NowAirQuality {
+    #[serde(with = "rfc3339")]
+    pub updated_time: OffsetDateTime,
+    pub value: u16,
+    pub category: String,
+    pub color: (u8, u8, u8),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum WeatherForecastDays {
-    ThreeDays,
-    SevenDays,
+pub struct Location {
+    pub location_id: u32,
+    pub location: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WeatherMessage {
     Error(WeatherError),
 
-    // 实时天气(location_id)
-    GetNowRequest(WeatherQuery),
-    GetNowResponse(NowWeather),
+    // 设置位置
+    SetLocationRequest(Location),
+    SetLocationResponse,
+
+    // 获取位置
+    GetLocationRequest,
+    GetLocationResponse(Location),
+
+    // 实时天气
+    GetNowWeatherRequest,
+    GetNowWeatherResponse(NowWeather),
 
     // 天气预报
-    GetForecastWeatherRequest(WeatherQuery, WeatherForecastDays),
+    GetForecastWeatherRequest,
     GetForecastWeatherResponse(ForecastWeather),
 
     // 城市查询
     CityLookUpRequest(String),
     CityLookUpResponse(Vec<CityLookUpItem>),
+
+    // 空气质量查询(location_id)
+    GetNowAirQualityRequest,
+    GetNowAirQualityResponse(NowAirQuality),
 }

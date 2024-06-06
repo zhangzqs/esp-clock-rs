@@ -1,10 +1,13 @@
 use crate::get_app_window;
 use crate::proto::*;
-use crate::ui::{HomeViewModel, TimeData};
+use crate::ui;
+use log::error;
 use log::info;
 use proto::TopicName;
+use slint::Color;
 use slint::ComponentHandle;
 use std::cell::RefCell;
+use std::fmt::Debug;
 use std::{rc::Rc, time::Duration};
 use time::{OffsetDateTime, UtcOffset};
 
@@ -23,15 +26,11 @@ impl HomePage {
 }
 
 impl HomePage {
-    fn update_time(ctx: Rc<dyn Context>) {
-        let t = ipc::TimestampClient(ctx).get_timestamp_nanos();
-        let t = OffsetDateTime::from_unix_timestamp_nanos(t)
-            .unwrap()
-            .to_offset(UtcOffset::from_hms(8, 0, 0).unwrap());
-
+    fn update_time() {
+        let t = OffsetDateTime::now_utc().to_offset(UtcOffset::from_hms(8, 0, 0).unwrap());
         if let Some(ui) = get_app_window().upgrade() {
-            let home_app = ui.global::<HomeViewModel>();
-            home_app.set_time(TimeData {
+            let home_app = ui.global::<ui::HomeViewModel>();
+            home_app.set_time(ui::TimeData {
                 day: t.day() as _,
                 hour: t.hour() as _,
                 minute: t.minute() as _,
@@ -43,87 +42,127 @@ impl HomePage {
         }
     }
 
-    // fn update_weather(ctx: Rc<dyn Context>) {
-    //     let id = StorageClient(ctx.clone())
-    //         .get("weather/location_id".into())
-    //         .unwrap();
-    //     ipc::WeatherClient(ctx.clone()).get_now_weather(
-    //         WeatherQuery::LocationID(id),
-    //         Box::new(move |r| match r {
-    //             Ok(x) => {
-    //                 if let Some(ui) = get_app_window().upgrade() {
-    //                     let home_app = ui.global::<HomeViewModel>();
-    //                     let w = &x.data;
-    //                     home_app.set_weather(WeatherData {
-    //                         current_humi: w.humidity as _,
-    //                         current_temp: w.now_temperature.round() as _,
-    //                         location: x.city.into(),
-    //                         max_temp: w.max_temperature.round() as _,
-    //                         min_temp: w.min_temperature.round() as _,
-    //                         weather: match w.state {
-    //                             proto::WeatherState::Snow => ui::WeatherState::Snow,
-    //                             proto::WeatherState::Thunder => ui::WeatherState::Thunder,
-    //                             proto::WeatherState::Sandstorm => ui::WeatherState::Sandstorm,
-    //                             proto::WeatherState::Fog => ui::WeatherState::Fog,
-    //                             proto::WeatherState::Hail => ui::WeatherState::Hail,
-    //                             proto::WeatherState::Cloudy => ui::WeatherState::Cloudy,
-    //                             proto::WeatherState::Rain => ui::WeatherState::Rain,
-    //                             proto::WeatherState::Overcast => ui::WeatherState::Overcast,
-    //                             proto::WeatherState::Sunny => ui::WeatherState::Sunny,
-    //                         },
-    //                         air_quality_index: w.air_quality_index as _,
-    //                         air_level: match w.get_air_level() {
-    //                             proto::AirLevel::Good => ui::AirLevel::Good,
-    //                             proto::AirLevel::Moderate => ui::AirLevel::Moderate,
-    //                             proto::AirLevel::UnhealthyForSensitiveGroups => {
-    //                                 ui::AirLevel::UnhealthyForSensitiveGroups
-    //                             }
-    //                             proto::AirLevel::Unhealthy => ui::AirLevel::Unhealthy,
-    //                             proto::AirLevel::VeryUnhealthy => ui::AirLevel::VeryUnhealthy,
-    //                             proto::AirLevel::Hazardous => ui::AirLevel::Hazardous,
-    //                         },
-    //                     });
-    //                 }
-    //             }
-    //             Err(e) => {
-    //                 error!("error: {e:?}");
-    //                 ctx.async_call(
-    //                     NodeName::AlertDialog,
-    //                     Message::AlertDialog(AlertDialogMessage::ShowRequest {
-    //                         duration: Some(3000),
-    //                         content: AlertDialogContent {
-    //                             text: Some(format!("{e:?}")),
-    //                             image: None,
-    //                         },
-    //                     }),
-    //                     Box::new(|_| {}),
-    //                 )
-    //             }
-    //         }),
-    //     );
-    // }
+    fn alert_dialog<T: Debug>(ctx: Rc<dyn Context>, e: T) {
+        error!("error: {e:?}");
+        ctx.async_call(
+            NodeName::AlertDialog,
+            Message::AlertDialog(AlertDialogMessage::ShowRequest {
+                duration: Some(3000),
+                content: AlertDialogContent {
+                    text: Some(format!("{e:?}")),
+                    image: None,
+                },
+            }),
+            Box::new(|_| {}),
+        )
+    }
+
+    fn update_weather(ctx: Rc<dyn Context>) {
+        let update_ui = |forecast: ForecastWeather,
+                         now_weather: NowWeather,
+                         now_air_quality: NowAirQuality,
+                         location: Location| {
+            if let Some(ui) = get_app_window().upgrade() {
+                let home_app = ui.global::<ui::HomeViewModel>();
+                home_app.set_weather(ui::WeatherData {
+                    location: location.location.into(),
+                    current_humi: now_weather.humidity as _,
+                    current_temp: now_weather.temp as _,
+                    weather: now_weather.text.into(),
+                    icon: now_weather.icon as _,
+                    min_temp: forecast.daily[0].min_temp as _,
+                    max_temp: forecast.daily[0].max_temp as _,
+                    air_quality_color: Color::from_rgb_u8(
+                        now_air_quality.color.0,
+                        now_air_quality.color.1,
+                        now_air_quality.color.2,
+                    ),
+                    air_quality_index: now_air_quality.value as _,
+                    air_quality_text: now_air_quality.category.into(),
+                });
+            }
+        };
+
+        type RefValue<T> = Rc<RefCell<Option<Result<T, WeatherError>>>>;
+
+        let wg = ctx.create_wait_group();
+        let now_weather = RefValue::<NowWeather>::default();
+        ipc::WeatherClient(ctx.clone()).get_now_weather(Box::new({
+            let wg = wg.clone();
+            wg.inc();
+            let now_weather = now_weather.clone();
+            move |r| {
+                *now_weather.borrow_mut() = Some(r);
+                wg.done();
+            }
+        }));
+
+        let forecast_weather = RefValue::<ForecastWeather>::default();
+        ipc::WeatherClient(ctx.clone()).get_forecast_weather(Box::new({
+            let wg = wg.clone();
+            wg.inc();
+            let forecast_weather = forecast_weather.clone();
+            move |r| {
+                *forecast_weather.borrow_mut() = Some(r);
+                wg.done();
+            }
+        }));
+
+        let now_air_quality = RefValue::<NowAirQuality>::default();
+        ipc::WeatherClient(ctx.clone()).get_now_air_quality(Box::new({
+            let wg = wg.clone();
+            wg.inc();
+            let now_air_quality = now_air_quality.clone();
+            move |r| {
+                *now_air_quality.borrow_mut() = Some(r);
+                wg.done();
+            }
+        }));
+
+        let location = match ipc::WeatherClient(ctx.clone()).get_location() {
+            Ok(x) => x,
+            Err(e) => {
+                Self::alert_dialog(ctx.clone(), e);
+                return;
+            }
+        };
+        wg.wait(Box::new(move || {
+            let f = || -> Result<(), WeatherError> {
+                let now_weather = now_weather.borrow_mut().take().unwrap()?;
+                let forecast_weather = forecast_weather.borrow_mut().take().unwrap()?;
+                let now_air_quality = now_air_quality.borrow_mut().take().unwrap()?;
+                update_ui(forecast_weather, now_weather, now_air_quality, location);
+                Ok(())
+            };
+            if let Err(e) = f() {
+                Self::alert_dialog(ctx, e);
+            }
+        }));
+    }
 
     fn on_show(&self, ctx: Rc<dyn Context>) {
-        Self::update_time(ctx.clone());
-        // Self::update_weather(ctx.clone());
+        Self::update_time();
+        Self::update_weather(ctx.clone());
         self.time_update_timer
             .borrow_mut()
             .get_or_insert(slint::Timer::default())
-            .start(slint::TimerMode::Repeated, Duration::from_secs(1), {
-                let ctx = ctx.clone();
+            .start(
+                slint::TimerMode::Repeated,
+                Duration::from_secs(1),
                 move || {
-                    Self::update_time(ctx.clone());
-                }
-            });
+                    Self::update_time();
+                },
+            );
         self.weather_update_timer
             .borrow_mut()
             .get_or_insert(slint::Timer::default())
-            .start(slint::TimerMode::Repeated, Duration::from_secs(60), {
-                let ctx = ctx.clone();
+            .start(
+                slint::TimerMode::Repeated,
+                Duration::from_secs(60),
                 move || {
-                    // Self::update_weather(ctx.clone());
-                }
-            });
+                    Self::update_weather(ctx.clone());
+                },
+            );
     }
 
     fn on_hide(&self) {

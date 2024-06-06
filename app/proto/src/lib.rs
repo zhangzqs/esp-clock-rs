@@ -30,6 +30,12 @@ pub struct MessageWithHeader {
 
 pub type MessageCallbackOnce = Box<dyn FnOnce(HandleResult)>;
 
+pub trait WaitGroup {
+    fn inc(&self);
+    fn done(&self);
+    fn wait(&self, callback: Box<dyn FnOnce()>);
+}
+
 pub trait Context {
     // 发送广播消息
     fn broadcast_global(&self, msg: Message);
@@ -51,6 +57,9 @@ pub trait Context {
 
     // 消息就绪，并传递值
     fn async_ready(&self, seq: usize, result: Message);
+
+    // 创建等待器
+    fn create_wait_group(&self) -> Rc<dyn WaitGroup>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

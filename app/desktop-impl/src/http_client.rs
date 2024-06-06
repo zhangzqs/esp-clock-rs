@@ -37,7 +37,7 @@ impl HttpClient {
     pub fn new(threads: usize) -> Self {
         let (req_tx, req_rx) = mpsc::channel::<(usize, HttpRequest)>();
         let (resp_tx, resp_rx) = mpsc::channel();
-        let client = ClientBuilder::new().build().unwrap();
+        let client = ClientBuilder::new().gzip(true).build().unwrap();
 
         let req_rx = Arc::new(Mutex::new(req_rx));
         for _ in 0..threads {

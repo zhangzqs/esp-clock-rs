@@ -83,6 +83,9 @@ impl NvsStorageService {
     }
 
     fn get(&self, k: String) -> Result<StorageValue> {
+        if !self.index.borrow().contains_key(&k) {
+            return Ok(StorageValue::None);
+        }
         let (idx, typ) = &self.index.borrow()[&k];
         Ok(match typ {
             ItemType::None => StorageValue::None,

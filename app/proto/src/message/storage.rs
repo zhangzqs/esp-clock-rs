@@ -19,11 +19,19 @@ pub enum StorageValue {
 }
 
 impl StorageValue {
-    pub fn as_str<E>(self, e: E) -> Result<String, E> {
+    pub fn as_str(self) -> Option<String> {
         match self {
-            Self::String(x) => Ok(x),
-            _ => Err(e),
+            Self::String(x) => {
+                return Some(x);
+            }
+            Self::Bytes(bs) => {
+                if let Ok(x) = String::from_utf8(bs.0) {
+                    return Some(x);
+                }
+            }
+            _ => {}
         }
+        None
     }
 }
 

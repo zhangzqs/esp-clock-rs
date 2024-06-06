@@ -43,11 +43,20 @@ impl BootPage {
             );
     }
 
+    fn stop_performance_monitor(&self) {
+        if let Some(ui) = get_app_window().upgrade() {
+            let vm = ui.global::<ui::PerformanceViewModel>();
+            vm.set_is_show(false);
+        }
+        self.t.take();
+    }
+
     fn set_boot_time(&self, ctx: Rc<dyn Context>) {
-        let t = ipc::TimestampClient(ctx.clone()).get_timestamp_nanos();
-        let t = OffsetDateTime::from_unix_timestamp_nanos(t).unwrap();
         ipc::StorageClient(ctx.clone())
-            .set("boot-time".into(), t.to_string().into())
+            .set(
+                "boot-time".into(),
+                OffsetDateTime::now_utc().to_string().into(),
+            )
             .unwrap();
     }
 
@@ -93,7 +102,6 @@ impl BootPage {
     }
 
     fn init(&self, ctx: Rc<dyn Context>) {
-        self.start_performance_monitor(ctx.clone());
         self.animate();
         self.set_boot_time(ctx.clone());
         self.connect_wifi(ctx.clone());
@@ -126,6 +134,13 @@ impl Node for BootPage {
             Message::OneButton(proto::OneButtonMessage::Clicks(2)) => {
                 self.start_performance_monitor(ctx.clone());
                 return HandleResult::Finish(Message::Empty);
+            }
+            Message::BootPage(BootPageMessage::EnablePerformanceMonitor(enable)) => {
+                if enable {
+                    self.start_performance_monitor(ctx.clone());
+                } else {
+                    self.stop_performance_monitor();
+                }
             }
             _ => {}
         }

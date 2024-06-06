@@ -6,7 +6,6 @@ mod console;
 mod http;
 mod midiplayer;
 mod storage;
-mod timestamp;
 
 #[wasm_bindgen::prelude::wasm_bindgen(start)]
 pub fn main() {
@@ -14,7 +13,6 @@ pub fn main() {
     let app = get_app_window();
     let sche = get_scheduler();
     sche.register_node(http::HttpClient::new());
-    sche.register_node(timestamp::TimestampClientService {});
     sche.register_node(storage::LocalStorageService::new());
     sche.register_node(midiplayer::MidiPlayerService::new());
     sche.register_node(console::ConsoleNode::new());

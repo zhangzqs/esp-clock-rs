@@ -40,7 +40,7 @@ impl Node for SntpService {
             let ntp_server = ipc::StorageClient(ctx)
                 .get("sntp/server".into())
                 .unwrap()
-                .as_str("")
+                .as_str()
                 .unwrap_or("0.pool.ntp.org".into());
             let sntp = EspSntp::new(&SntpConf {
                 servers: [&ntp_server],

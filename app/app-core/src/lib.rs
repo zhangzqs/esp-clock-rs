@@ -37,7 +37,6 @@ fn register_default_nodes(sche: &Scheduler) {
 
     sche.register_node(RouterService::new());
     sche.register_node(TouchOneButtonAdapterService::new());
-    sche.register_node(DefaultTimestampService {});
     sche.register_node(WeatherService::new());
     sche.register_node(MockStorageService::new());
     sche.register_node(MockPerformanceService {});

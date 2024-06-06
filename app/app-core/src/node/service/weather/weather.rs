@@ -5,8 +5,6 @@ use serde::Deserialize;
 
 use super::common::*;
 
-pub use super::common::WeatherQueryInput;
-
 #[derive(Deserialize, Debug, Clone)]
 pub struct WeatherNowData {
     /// 温度，默认单位：摄氏度
@@ -49,17 +47,8 @@ impl TryInto<proto::NowWeather> for WeatherNowOutput {
 }
 
 mod date_serde {
-    use serde::{Deserialize, Serializer};
+    use serde::Deserialize;
     use time::macros::format_description;
-
-    pub fn serialize<S>(t: &time::Date, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let fmt = format_description!("[year]-[month]-[day]");
-        let s = t.format(fmt).map_err(serde::ser::Error::custom)?;
-        serializer.serialize_str(&s)
-    }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<time::Date, D::Error>
     where
@@ -136,24 +125,68 @@ impl TryInto<proto::ForecastWeather> for WeatherForecastOutput {
     }
 }
 
+#[derive(Deserialize, Debug, Clone)]
+pub struct AirQuality {
+    #[serde(rename = "defaultLocalAqi")]
+    pub default_local_aqi: bool,
+    pub value: u16,
+    pub category: String,
+    pub color: RgbColor,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct AirQualityNowOutput {
+    pub code: ErrorCode,
+    #[serde(rename = "updateTime")]
+    pub update_time: Option<UtcDateTime>,
+    pub aqi: Option<Vec<AirQuality>>,
+}
+
+impl TryInto<proto::NowAirQuality> for AirQualityNowOutput {
+    type Error = WeatherError;
+
+    fn try_into(self) -> Result<proto::NowAirQuality, Self::Error> {
+        self.code.detect_error()?;
+        let updated_time = self.update_time.ok_or(WeatherError::MissingFieldError(
+            "missing field `updateTime`".into(),
+        ))?;
+        let aqi = self.aqi.ok_or(WeatherError::MissingFieldError(
+            "missing field `aqi`".into(),
+        ))?;
+        let aq = aqi
+            .into_iter()
+            .filter(|x| x.default_local_aqi)
+            .next()
+            .ok_or(WeatherError::MissingFieldError(
+                "missing defaultLocalAqi: true".into(),
+            ))?;
+        Ok(proto::NowAirQuality {
+            updated_time: updated_time.into(),
+            value: aq.value,
+            category: aq.category,
+            color: aq.color.into(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct WeatherQueryInput {
+    pub location: String,
+    pub key: String,
+}
+
 impl WeatherQueryInput {
-    pub fn request_forecast(
+    pub fn request_forecast_weather(
         &self,
         ctx: Rc<dyn Context>,
-        days: WeatherForecastDays,
         callback: Box<dyn FnOnce(Result<WeatherForecastOutput, WeatherError>)>,
     ) {
         ipc::HttpClient(ctx).request(
             HttpRequest {
                 method: HttpRequestMethod::Get,
                 url: format!(
-                    "https://api.qweather.com/v7/weather/{}?gzip=n&lang=en&key={}&location={}",
-                    match days {
-                        WeatherForecastDays::ThreeDays => "3d",
-                        WeatherForecastDays::SevenDays => "7d",
-                    },
-                    self.key,
-                    self.location
+                    "https://devapi.qweather.com/v7/weather/3d?gzip=n&lang=en&key={}&location={}",
+                    self.key, self.location
                 ),
             },
             Box::new(|r| {
@@ -168,7 +201,7 @@ impl WeatherQueryInput {
         );
     }
 
-    pub fn request_now(
+    pub fn request_now_weather(
         &self,
         ctx: Rc<dyn Context>,
         callback: Box<dyn FnOnce(Result<WeatherNowOutput, WeatherError>)>,
@@ -177,8 +210,33 @@ impl WeatherQueryInput {
             HttpRequest {
                 method: HttpRequestMethod::Get,
                 url: format!(
-                    "https://api.qweather.com/v7/weather/now?gzip=n&lang=en&key={}&location={}",
+                    "https://devapi.qweather.com/v7/weather/now?gzip=n&lang=en&key={}&location={}",
                     self.key, self.location
+                ),
+            },
+            Box::new(|r| {
+                callback(match r {
+                    Ok(x) => x
+                        .body
+                        .deserialize_by_json()
+                        .map_err(|e| WeatherError::SerdeError(format!("{e}"))),
+                    Err(e) => Err(WeatherError::HttpError(e)),
+                });
+            }),
+        );
+    }
+
+    pub fn request_now_air_quality(
+        &self,
+        ctx: Rc<dyn Context>,
+        callback: Box<dyn FnOnce(Result<AirQualityNowOutput, WeatherError>)>,
+    ) {
+        ipc::HttpClient(ctx).request(
+            HttpRequest {
+                method: HttpRequestMethod::Get,
+                url: format!(
+                    "https://devapi.qweather.com/airquality/v1/now/{}?gzip=n&lang=en&key={}",
+                    self.location, self.key
                 ),
             },
             Box::new(|r| {

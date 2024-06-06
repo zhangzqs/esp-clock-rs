@@ -1,32 +1,6 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { HomeIcons } from "assets/index.slint";
-
-export enum WeatherState {
-    cloudy,
-    sunny,
-    snow,
-    thunder,
-    sandstorm,
-    fog,
-    hail,
-    rain,
-    overcast,
-}
-
-export enum AirLevel {
-    /// 优
-    good,
-    /// 良
-    moderate,
-    /// 轻度污染
-    unhealthy-for-sensitive-groups,
-    /// 中度污染
-    unhealthy,
-    /// 重度污染
-    very-unhealthy,
-    /// 严重污染
-    hazardous,
-}
+import { QWeatherIcon } from "../../components/index.slint";
 
 struct TimeData {
     year: int,
@@ -39,14 +13,16 @@ struct TimeData {
 }
 
 struct WeatherData {
-    weather: WeatherState,
+    weather: string,
+    icon: int,
     location: string,
     max-temp: int,
     min-temp: int,
     current-temp: int,
     current-humi: int,
-    air-level: AirLevel,
     air-quality-index: int,
+    air-quality-color: color,
+    air-quality-text: string,
 }
 
 export global HomeViewModel {
@@ -86,85 +62,7 @@ export component HomePage inherits Rectangle {
         return "\{time.year}-\{cvt-n-to-two(time.month)}-\{cvt-n-to-two(time.day)}  \{cvt-n-to-week(time.week)}";
     }
 
-    pure function weather-state(w: WeatherState) -> {
-        icon: image,
-        text: string,
-    } {
-        if (w == WeatherState.cloudy) {
-            return { icon: HomeIcons.cloudy, text: "Cloudy" };
-        }
-        if (w == WeatherState.sunny) {
-            return { icon: HomeIcons.sunny, text: "Sunny" };
-        }
-        if (w == WeatherState.fog) {
-            return { icon: HomeIcons.fog, text:"Fog" };
-        }
-        if (w == WeatherState.rain) {
-            return { icon: HomeIcons.rain, text: "Rain" };
-        }
-        if (w == WeatherState.snow) {
-            return { icon: HomeIcons.snow, text: "Snow" };
-        }
-        if (w == WeatherState.hail) {
-            return { icon: HomeIcons.hail, text: "Hail" };
-        }
-        if (w == WeatherState.overcast) {
-            return { icon: HomeIcons.overcast, text: "Overcast" };
-        }
-        if (w == WeatherState.sandstorm) {
-            return { icon: HomeIcons.sandstorm, text: "Sandstorm" };
-        }
-        if (w == WeatherState.thunder) {
-            return { icon: HomeIcons.thunder, text: "Thunder" };
-        }
-        return { };
-    }
-
-    pure function air-level-text(l: AirLevel) -> {
-        text: string,
-        background: color,
-    } {
-        if (l == AirLevel.good) {
-            return {
-                text: "Good",
-                background: Colors.green,
-            };
-        }
-        if (l == AirLevel.moderate) {
-            return {
-                text: "Moderate",
-                background: Colors.yellow,
-            };
-        }
-        if (l == AirLevel.unhealthy-for-sensitive-groups) {
-            return {
-                text: "UFSG",
-                background: Colors.orange,
-            };
-        }
-        if (l == AirLevel.unhealthy) {
-            return {
-                text: "Unhealthy",
-                background: Colors.red,
-            };
-        }
-        if (l == AirLevel.very-unhealthy) {
-            return {
-                text: "VeryUnhealthy",
-                background: Colors.purple,
-            };
-        }
-        if (l == AirLevel.hazardous) {
-            return {
-                text: "Hazardous",
-                background: Colors.maroon,
-            };
-        }
-        return { text: "unknown" };
-    }
-
     pure function contrasting-color(src: color) -> color {
-        // return rgb(0,255,255);
         return hsv(
             mod(src.to-hsv().hue + 180, 360), 
             src.to-hsv().saturation,
@@ -195,8 +93,8 @@ export component HomePage inherits Rectangle {
                 padding: 5px;
                 Rectangle {
                     Text {
-                        text: "City: \n\{weather.location}";
-                        font-size: 16px;
+                        text: "Location: \n\{weather.location}";
+                        font-size: 14px;
                         color: white;
                     }
                 }
@@ -233,18 +131,19 @@ export component HomePage inherits Rectangle {
                     VerticalLayout {
                         HorizontalLayout {
                             alignment: center;
-                            Image {
-                                source: weather-state(weather.weather).icon;
+                            QWeatherIcon {
+                                icon-id: weather.icon;
                                 width: 40px;
                                 height: 40px;
                                 image-fit: ImageFit.contain;
+                                colorize: white;
                             }
                         }
 
                         HorizontalLayout {
                             alignment: center;
                             Text {
-                                text: weather-state(weather.weather).text;
+                                text: weather.weather;
                                 font-size: 16px;
                                 color: white;
                             }
@@ -316,12 +215,12 @@ export component HomePage inherits Rectangle {
             }
 
             Rectangle {
-                background: air-level-text(weather.air-level).background;
+                background: weather.air-quality-color;
                 height: 20px;
 
                 Text {
-                    text: air-level-text(weather.air-level).text;
-                    color: contrasting-color(air-level-text(weather.air-level).background);
+                    text: weather.air-quality-text;
+                    color: contrasting-color(weather.air-quality-color);
                     font-size: 17px;
                 }
             }
@@ -427,15 +326,15 @@ export component TestHomePage {
             second: 36,
         };
 
-        HomeViewModel.weather = {
-            weather: WeatherState.sunny,
-            location: "shanghai",
-            current-humi: 30,
-            current-temp: 30,
-            max-temp: 40,
-            min-temp: 20,
-            air-quality-index: 103,
-            air-level: AirLevel.good,
-        };
+        // HomeViewModel.weather = {
+        //     weather: "Sunny",
+        //     location: "Shanghai",
+        //     current-humi: 30,
+        //     current-temp: 30,
+        //     max-temp: 40,
+        //     min-temp: 20,
+        //     air-quality-index: 103,
+        //     air-level: AirLevel.good,
+        // };
     }
 }

@@ -65,8 +65,37 @@ impl ErrorCode {
     }
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct WeatherQueryInput {
-    pub location: String,
-    pub key: String,
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct RgbColor(u8, u8, u8);
+
+impl<'de> Deserialize<'de> for RgbColor {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let mut rgb_str = s.split(",");
+        let r = rgb_str
+            .next()
+            .ok_or(serde::de::Error::custom("no red component"))?
+            .parse()
+            .map_err(serde::de::Error::custom)?;
+        let g = rgb_str
+            .next()
+            .ok_or(serde::de::Error::custom("no green component"))?
+            .parse()
+            .map_err(serde::de::Error::custom)?;
+        let b = rgb_str
+            .next()
+            .ok_or(serde::de::Error::custom("no blue component"))?
+            .parse()
+            .map_err(serde::de::Error::custom)?;
+        Ok(Self(r, g, b))
+    }
+}
+
+impl Into<(u8, u8, u8)> for RgbColor {
+    fn into(self) -> (u8, u8, u8) {
+        (self.0, self.1, self.2)
+    }
 }

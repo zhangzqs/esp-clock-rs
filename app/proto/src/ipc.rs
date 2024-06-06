@@ -1,8 +1,8 @@
 use std::{collections::HashSet, rc::Rc};
 
 use crate::{
-    CityLookUpItem, Context, ForecastWeather, Message, NodeName, NowWeather, TimeMessage,
-    WeatherForecastDays, WeatherQuery,
+    CityLookUpItem, Context, ForecastWeather, Location, Message, NodeName, NowAirQuality,
+    NowWeather,
 };
 
 use super::{
@@ -37,22 +37,6 @@ impl HttpClient {
         )
     }
 }
-#[derive(Clone)]
-pub struct TimestampClient(pub Rc<dyn Context>);
-
-impl TimestampClient {
-    pub fn get_timestamp_nanos(&self) -> i128 {
-        let r = self.0.sync_call(
-            NodeName::TimestampClient,
-            Message::DateTime(TimeMessage::GetTimestampNanosRequest),
-        );
-        match r.unwrap() {
-            Message::DateTime(TimeMessage::GetTimestampNanosResponse(ts)) => ts,
-            m => panic!("unexpected response, {:?}", m),
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct StorageClient(pub Rc<dyn Context>);
 
@@ -115,15 +99,13 @@ impl WeatherClient {
         );
     }
 
-    pub fn get_forecast_days_weather(
+    pub fn get_forecast_weather(
         &self,
-        query: WeatherQuery,
-        days: WeatherForecastDays,
         callback: AsyncResultCallback<ForecastWeather, WeatherError>,
     ) {
         self.0.async_call(
             NodeName::WeatherClient,
-            Message::Weather(WeatherMessage::GetForecastWeatherRequest(query, days)),
+            Message::Weather(WeatherMessage::GetForecastWeatherRequest),
             Box::new(|r| {
                 callback(match r.unwrap() {
                     Message::Weather(WeatherMessage::GetForecastWeatherResponse(r)) => Ok(r),
@@ -134,22 +116,70 @@ impl WeatherClient {
         );
     }
 
-    pub fn get_now_weather(
-        &self,
-        query: WeatherQuery,
-        callback: AsyncResultCallback<NowWeather, WeatherError>,
-    ) {
+    pub fn get_now_weather(&self, callback: AsyncResultCallback<NowWeather, WeatherError>) {
         self.0.async_call(
             NodeName::WeatherClient,
-            Message::Weather(WeatherMessage::GetNowRequest(query)),
+            Message::Weather(WeatherMessage::GetNowWeatherRequest),
             Box::new(|r| {
                 callback(match r.unwrap() {
-                    Message::Weather(WeatherMessage::GetNowResponse(r)) => Ok(r),
+                    Message::Weather(WeatherMessage::GetNowWeatherResponse(r)) => Ok(r),
                     Message::Weather(WeatherMessage::Error(e)) => Err(e),
                     m => panic!("unexpected message {:?}", m),
                 });
             }),
         );
+    }
+
+    pub fn get_now_air_quality(&self, callback: AsyncResultCallback<NowAirQuality, WeatherError>) {
+        self.0.async_call(
+            NodeName::WeatherClient,
+            Message::Weather(WeatherMessage::GetNowAirQualityRequest),
+            Box::new(|r| {
+                callback(match r.unwrap() {
+                    Message::Weather(WeatherMessage::GetNowAirQualityResponse(r)) => Ok(r),
+                    Message::Weather(WeatherMessage::Error(e)) => Err(e),
+                    m => panic!("unexpected message {:?}", m),
+                });
+            }),
+        );
+    }
+
+    pub fn set_location(&self, loc: Location) -> Result<(), WeatherError> {
+        match self
+            .0
+            .sync_call(
+                NodeName::WeatherClient,
+                Message::Weather(WeatherMessage::SetLocationRequest(loc)),
+            )
+            .unwrap()
+        {
+            Message::Weather(WeatherMessage::SetLocationResponse) => {
+                return Ok(());
+            }
+            Message::Weather(WeatherMessage::Error(e)) => {
+                return Err(e);
+            }
+            m => panic!("unexpected message {:?}", m),
+        }
+    }
+
+    pub fn get_location(&self) -> Result<Location, WeatherError> {
+        match self
+            .0
+            .sync_call(
+                NodeName::WeatherClient,
+                Message::Weather(WeatherMessage::GetLocationRequest),
+            )
+            .unwrap()
+        {
+            Message::Weather(WeatherMessage::GetLocationResponse(r)) => {
+                return Ok(r);
+            }
+            Message::Weather(WeatherMessage::Error(e)) => {
+                return Err(e);
+            }
+            m => panic!("unexpected message {:?}", m),
+        }
     }
 }
 

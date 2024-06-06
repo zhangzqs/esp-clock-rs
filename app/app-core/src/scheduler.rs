@@ -17,6 +17,38 @@ fn gen_msg_seq() -> usize {
     MSG_SEQ_COUNT.load(Ordering::SeqCst)
 }
 
+#[derive(Default)]
+struct WaitGroupImpl {
+    counter: AtomicUsize,
+    callback: RefCell<Option<Box<dyn FnOnce()>>>,
+}
+
+impl WaitGroupImpl {
+    pub fn handle(&self) -> bool {
+        let is_done = self.counter.load(Ordering::SeqCst) == 0;
+        if is_done {
+            if let Some(f) = self.callback.borrow_mut().take() {
+                f();
+            }
+        }
+        is_done
+    }
+}
+
+impl WaitGroup for WaitGroupImpl {
+    fn inc(&self) {
+        self.counter.fetch_add(1, Ordering::SeqCst);
+    }
+
+    fn done(&self) {
+        self.counter.fetch_sub(1, Ordering::SeqCst);
+    }
+
+    fn wait(&self, callback: Box<dyn FnOnce()>) {
+        *self.callback.borrow_mut() = Some(callback);
+    }
+}
+
 struct MessageQueueItem {
     message: MessageWithHeader,
     /// 异步消息是否处于pending态
@@ -30,6 +62,7 @@ struct ContextImpl {
     nodes: Rc<RefCell<HashMap<NodeName, Box<dyn Node>>>>,
     ready_result: Rc<RefCell<HashMap<usize, Message>>>,
     subscriber: Rc<RefCell<HashMap<TopicName, VecDeque<NodeName>>>>,
+    wg_queue: Rc<RefCell<Vec<Rc<WaitGroupImpl>>>>,
 }
 
 impl Context for ContextImpl {
@@ -133,6 +166,7 @@ impl Context for ContextImpl {
                 nodes: self.nodes.clone(),
                 ready_result: self.ready_result.clone(),
                 subscriber: self.subscriber.clone(),
+                wg_queue: self.wg_queue.clone(),
             }),
             msg,
         );
@@ -144,8 +178,15 @@ impl Context for ContextImpl {
     fn async_ready(&self, seq: usize, result: Message) {
         self.ready_result.borrow_mut().insert(seq, result);
     }
+
+    fn create_wait_group(&self) -> Rc<dyn WaitGroup> {
+        let wg = Rc::new(WaitGroupImpl::default());
+        self.wg_queue.borrow_mut().push(wg.clone());
+        wg.clone()
+    }
 }
 
+#[derive(Default)]
 pub struct Scheduler {
     broadcast_order: RefCell<Vec<NodeName>>,
     nodes: Rc<RefCell<HashMap<NodeName, Box<dyn Node>>>>,
@@ -153,33 +194,24 @@ pub struct Scheduler {
     mq_buffer2: Rc<RefCell<Vec<MessageQueueItem>>>,
     ready_result: Rc<RefCell<HashMap<usize, Message>>>,
     subscriber: Rc<RefCell<HashMap<TopicName, VecDeque<NodeName>>>>,
-}
-
-impl Default for Scheduler {
-    fn default() -> Self {
-        Self::new()
-    }
+    wg_queue1: RefCell<Vec<Rc<WaitGroupImpl>>>,
+    wg_queue2: Rc<RefCell<Vec<Rc<WaitGroupImpl>>>>,
 }
 
 impl Scheduler {
     pub(crate) fn new() -> Self {
-        Self {
-            broadcast_order: RefCell::new(Vec::new()),
-            nodes: Rc::new(RefCell::new(HashMap::new())),
-            mq_buffer1: RefCell::new(vec![MessageQueueItem {
-                message: MessageWithHeader {
-                    from: NodeName::Scheduler,
-                    to: MessageTo::Broadcast,
-                    seq: 0,
-                    body: Message::Lifecycle(LifecycleMessage::Init),
-                },
-                is_pending: false,
-                callback_once: None,
-            }]),
-            mq_buffer2: Rc::new(RefCell::new(Vec::new())),
-            ready_result: Rc::new(RefCell::new(HashMap::new())),
-            subscriber: Rc::new(RefCell::new(HashMap::new())),
-        }
+        let s = Self::default();
+        s.mq_buffer1.borrow_mut().push(MessageQueueItem {
+            message: MessageWithHeader {
+                from: NodeName::Scheduler,
+                to: MessageTo::Broadcast,
+                seq: 0,
+                body: Message::Lifecycle(LifecycleMessage::Init),
+            },
+            is_pending: false,
+            callback_once: None,
+        });
+        s
     }
 
     pub fn register_node<A: Node + 'static>(&self, app: A) {
@@ -207,6 +239,7 @@ impl Scheduler {
             nodes: self.nodes.clone(),
             ready_result: self.ready_result.clone(),
             subscriber: self.subscriber.clone(),
+            wg_queue: self.wg_queue2.clone(),
         })
     }
 
@@ -325,6 +358,7 @@ impl Scheduler {
     pub fn schedule_once(&self) {
         // 广播心跳
         self.broadcast_scheduler_heartbeat();
+        
         // 从mq1消费消息
         for item in self.mq_buffer1.borrow_mut().drain(..) {
             match item.message.to.clone() {
@@ -334,6 +368,15 @@ impl Scheduler {
             }
         }
         // 交换两个缓冲区队列，相当于mq2的消息移动到mq1
-        self.mq_buffer2.swap(&self.mq_buffer1)
+        self.mq_buffer2.swap(&self.mq_buffer1);
+
+        // 检查wg是否done
+        for wg in self.wg_queue1.borrow_mut().drain(..) {
+            // 若wg还没有done，则流传到wg_queue2
+            if !wg.handle() {
+                self.wg_queue2.borrow_mut().push(wg);
+            }
+        }
+        self.wg_queue2.swap(&self.wg_queue1);
     }
 }

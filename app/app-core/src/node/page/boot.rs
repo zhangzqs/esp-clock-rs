@@ -24,6 +24,10 @@ impl BootPage {
 
 impl BootPage {
     fn start_performance_monitor(&self, ctx: Rc<dyn Context>) {
+        // 幂等性
+        if self.t.borrow().is_some() {
+            return;
+        }
         let p = ipc::PerformanceClient(ctx);
         self.t
             .borrow_mut()
@@ -44,6 +48,10 @@ impl BootPage {
     }
 
     fn stop_performance_monitor(&self) {
+        // 幂等性
+        if self.t.borrow().is_none() {
+            return;
+        }
         if let Some(ui) = get_app_window().upgrade() {
             let vm = ui.global::<ui::PerformanceViewModel>();
             vm.set_is_show(false);

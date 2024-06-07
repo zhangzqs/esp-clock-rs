@@ -10,6 +10,10 @@ pub struct NetIpInfo {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WiFiMessage {
+    // 开启WiFi热点
+    StartAPRequest,
+    StartAPResponse,
+
     // 根据指定配置连接wifi
     ConnectRequest(WiFiStorageConfiguration),
     ConnectResponse,
@@ -18,5 +22,6 @@ pub enum WiFiMessage {
     GetIpInfoRequest,
     GetIpInfoResponse(NetIpInfo),
 
-    ConnectedBoardcast,
+    ConnectedBroadcast,
+    APStartedBroadcast,
 }

@@ -153,13 +153,9 @@ impl TryInto<proto::NowAirQuality> for AirQualityNowOutput {
         let aqi = self.aqi.ok_or(WeatherError::MissingFieldError(
             "missing field `aqi`".into(),
         ))?;
-        let aq = aqi
-            .into_iter()
-            .filter(|x| x.default_local_aqi)
-            .next()
-            .ok_or(WeatherError::MissingFieldError(
-                "missing defaultLocalAqi: true".into(),
-            ))?;
+        let aq = aqi.into_iter().find(|x| x.default_local_aqi).ok_or(
+            WeatherError::MissingFieldError("missing defaultLocalAqi: true".into()),
+        )?;
         Ok(proto::NowAirQuality {
             updated_time: updated_time.into(),
             value: aq.value,

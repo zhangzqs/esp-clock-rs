@@ -1,5 +1,7 @@
 pub mod ipc;
-mod message;
+pub mod storage;
+
+pub mod message;
 mod node;
 mod topic;
 

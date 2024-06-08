@@ -116,7 +116,7 @@ fn main() -> anyhow::Result<()> {
 
     let sche = get_scheduler();
     sche.register_node(OneButtonService::new(btn_pin));
-    sche.register_node(PerformanceService::new(frame_counter));
+    sche.register_node(SystemService::new(frame_counter));
     sche.register_node(WiFiService::new(
         nvs.clone(),
         EspSystemEventLoop::take().unwrap(),

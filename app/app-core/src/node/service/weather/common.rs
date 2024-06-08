@@ -74,7 +74,7 @@ impl<'de> Deserialize<'de> for RgbColor {
         D: ::serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        let mut rgb_str = s.split(",");
+        let mut rgb_str = s.split(',');
         let r = rgb_str
             .next()
             .ok_or(serde::de::Error::custom("no red component"))?
@@ -94,8 +94,8 @@ impl<'de> Deserialize<'de> for RgbColor {
     }
 }
 
-impl Into<(u8, u8, u8)> for RgbColor {
-    fn into(self) -> (u8, u8, u8) {
-        (self.0, self.1, self.2)
+impl From<RgbColor> for (u8, u8, u8) {
+    fn from(val: RgbColor) -> Self {
+        (val.0, val.1, val.2)
     }
 }

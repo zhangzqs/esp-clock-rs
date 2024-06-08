@@ -29,6 +29,7 @@ impl Node for SntpService {
             SyncStatus::Reset => {}
             SyncStatus::Completed => {
                 info!("时间同步完成");
+                ctx.broadcast_topic(TopicName::Sntp, Message::Sntp(SntpMessage::SyncCompleted));
                 ctx.async_ready(seq, Message::Empty);
             }
             SyncStatus::InProgress => {}
@@ -36,20 +37,26 @@ impl Node for SntpService {
     }
 
     fn handle_message(&self, ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
-        if let Message::WiFi(WiFiMessage::ConnectedBoardcast) = msg.body {
-            let ntp_server = ipc::StorageClient(ctx)
-                .get("sntp/server".into())
-                .unwrap()
-                .as_str()
-                .unwrap_or("0.pool.ntp.org".into());
-            let sntp = EspSntp::new(&SntpConf {
-                servers: [&ntp_server],
-                sync_mode: SyncMode::Immediate,
-                operating_mode: OperatingMode::Poll,
-            })
-            .unwrap();
-            *self.sntp.borrow_mut() = Some(sntp);
-            return HandleResult::Pending;
+        match msg.body {
+            Message::Lifecycle(LifecycleMessage::Init) => {
+                ctx.subscribe_topic(TopicName::WiFi);
+            }
+            Message::WiFi(WiFiMessage::ConnectedBroadcast) => {
+                let ntp_server = ipc::StorageClient(ctx)
+                    .get("sntp/server".into())
+                    .unwrap()
+                    .as_str()
+                    .unwrap_or("0.pool.ntp.org".into());
+                let sntp = EspSntp::new(&SntpConf {
+                    servers: [&ntp_server],
+                    sync_mode: SyncMode::Immediate,
+                    operating_mode: OperatingMode::Poll,
+                })
+                .unwrap();
+                *self.sntp.borrow_mut() = Some(sntp);
+                return HandleResult::Pending;
+            }
+            _ => {}
         }
         HandleResult::Discard
     }

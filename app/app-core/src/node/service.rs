@@ -1,6 +1,6 @@
 mod midiplayer;
 mod onebutton;
-mod performance;
+mod system;
 mod router;
 mod storage;
 mod timer;
@@ -9,7 +9,6 @@ mod wifi;
 
 pub use {
     midiplayer::MidiPlayerService, onebutton::TouchOneButtonAdapterService,
-    performance::MockPerformanceService, router::RouterService, storage::MockStorageService,
-    timer::TimerService, weather::WeatherService,
-    wifi::MockWiFiService,
+    system::MockSystemService, router::RouterService, storage::MockStorageService,
+    timer::TimerService, weather::WeatherService, wifi::MockWiFiService,
 };

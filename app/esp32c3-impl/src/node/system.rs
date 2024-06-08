@@ -10,13 +10,13 @@ use std::{
 use app_core::proto::*;
 use esp_idf_sys as _;
 
-pub struct PerformanceService {
+pub struct SystemService {
     timer: slint::Timer,
     frame_counter: Arc<AtomicUsize>,
     fps: Arc<AtomicUsize>,
 }
 
-impl PerformanceService {
+impl SystemService {
     pub fn new(frame_counter: Arc<AtomicUsize>) -> Self {
         Self {
             frame_counter,
@@ -26,9 +26,9 @@ impl PerformanceService {
     }
 }
 
-impl Node for PerformanceService {
+impl Node for SystemService {
     fn node_name(&self) -> NodeName {
-        NodeName::Performance
+        NodeName::System
     }
 
     fn handle_message(&self, _ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
@@ -45,24 +45,27 @@ impl Node for PerformanceService {
                     },
                 );
             }
-            Message::Performance(pm) => {
-                return HandleResult::Finish(Message::Performance(match pm {
-                    PerformanceMessage::GetFreeHeapSizeRequest => {
-                        PerformanceMessage::GetFreeHeapSizeResponse(unsafe {
+            Message::System(pm) => {
+                return HandleResult::Finish(Message::System(match pm {
+                    SystemMessage::GetFreeHeapSizeRequest => {
+                        SystemMessage::GetFreeHeapSizeResponse(unsafe {
                             esp_idf_sys::esp_get_free_heap_size() as usize
                         })
                     }
-                    PerformanceMessage::GetLargestFreeBlock => {
-                        PerformanceMessage::GetLargestFreeBlockResponse(unsafe {
+                    SystemMessage::GetLargestFreeBlock => {
+                        SystemMessage::GetLargestFreeBlockResponse(unsafe {
                             esp_idf_sys::heap_caps_get_largest_free_block(
                                 esp_idf_sys::MALLOC_CAP_8BIT,
                             )
                         })
                     }
-                    PerformanceMessage::GetFpsRequest => {
+                    SystemMessage::GetFpsRequest => {
                         let fps = self.fps.load(Ordering::SeqCst);
-                        PerformanceMessage::GetFpsResponse(fps)
+                        SystemMessage::GetFpsResponse(fps)
                     }
+                    SystemMessage::Restart => unsafe {
+                        esp_idf_sys::esp_restart();
+                    },
                     m => panic!("unexpected message {m:?}"),
                 }));
             }

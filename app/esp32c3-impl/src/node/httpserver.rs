@@ -1,6 +1,5 @@
 use std::{
     cell::RefCell,
-    io::Write,
     rc::Rc,
     sync::mpsc::{self, Receiver, SyncSender},
 };
@@ -12,7 +11,6 @@ use esp_idf_svc::http::{
     server::{Configuration, EspHttpServer},
     Method,
 };
-use esp_idf_sys::{self as _, EspError};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -71,6 +69,15 @@ impl State {
                 Ok(())
             })
             .unwrap();
+        // .ws_handler("/ws", move |mut conn| -> anyhow::Result<()> {
+        //     let mut buf = [0; 4096];
+        //     let (ft, us) = conn.recv(&mut buf)?;
+        //     let s = serde_json::from_slice::<HttpMessage>(&buf[..us])?;
+        //     req_tx.send(s)?;
+        //     req_rx.recv()
+        //     Ok(())
+        // })
+        // .unwrap();
         Self {
             req_rx,
             resp_tx,
@@ -130,14 +137,20 @@ impl Node for HttpServerService {
 
     fn handle_message(&self, ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
         match msg.body {
-            Message::WiFi(WiFiMessage::ConnectedBoardcast) => {
+            Message::Lifecycle(LifecycleMessage::Init) => {
+                ctx.subscribe_topic(TopicName::WiFi);
+            }
+            Message::WiFi(WiFiMessage::ConnectedBroadcast | WiFiMessage::APStartedBroadcast) => {
+                // STA模式已连接或AP模式已启动
                 ctx.subscribe_topic(TopicName::Scheduler);
                 self.state.borrow_mut().replace(State::new());
                 return HandleResult::Finish(Message::Empty);
             }
-            _ => {
+            Message::Empty => {
+                // 调度器消息
                 self.handle_request(ctx.clone());
             }
+            _ => {}
         }
         HandleResult::Discard
     }

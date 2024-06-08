@@ -3,7 +3,7 @@ target = "riscv32imc-esp-espidf"
 
 [target.riscv32imc-esp-espidf]
 linker = "ldproxy"
-runner = "espflash flash --monitor" # Select this runner for espflash v2.x.x
+runner = "espflash flash --monitor --partition-table=partitions.csv -s=4mb" # Select this runner for espflash v2.x.x
 rustflags = [
     "--cfg","espidf_time64", 
     "-C","default-linker-libraries",

@@ -9,6 +9,8 @@ export global MusicPageViewModel {
 export component MusicPage inherits Rectangle {
     width: 240px;
     height: 240px;
+    background: black;
+    
     if MusicPageViewModel.music-list.length == 0: Text {
         text: "No music";
         font-size: 30px;

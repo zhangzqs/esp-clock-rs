@@ -9,6 +9,9 @@ use http_client::HttpClient;
 mod http_server;
 use http_server::HttpServer;
 
+mod midi_player;
+use midi_player::MidiPlayer;
+
 fn main() {
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
@@ -16,7 +19,7 @@ fn main() {
     let sche = get_scheduler();
     sche.register_node(HttpClient::new(4));
     sche.register_node(HttpServer::new());
-
+    sche.register_node(MidiPlayer::new());
     let sche_timer = slint::Timer::default();
     sche_timer.start(
         slint::TimerMode::Repeated,

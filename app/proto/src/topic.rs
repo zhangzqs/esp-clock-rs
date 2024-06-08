@@ -4,4 +4,6 @@ use serde::{Deserialize, Serialize};
 pub enum TopicName {
     OneButton,
     Scheduler,
+    Sntp,
+    WiFi,
 }

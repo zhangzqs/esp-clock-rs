@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, time::Duration};
 
 use crate::proto::*;
 
@@ -17,7 +17,7 @@ impl Node for TimerService {
 
     fn handle_message(&self, ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
         if let Message::Timer(TimerMessage::Request(x)) = msg.body {
-            slint::Timer::single_shot(x, move || {
+            slint::Timer::single_shot(Duration::from_millis(x as _), move || {
                 ctx.async_ready(msg.seq, Message::Timer(TimerMessage::Response));
             });
             return HandleResult::Pending;

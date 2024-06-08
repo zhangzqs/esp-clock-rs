@@ -358,7 +358,7 @@ impl Scheduler {
     pub fn schedule_once(&self) {
         // 广播心跳
         self.broadcast_scheduler_heartbeat();
-        
+
         // 从mq1消费消息
         for item in self.mq_buffer1.borrow_mut().drain(..) {
             match item.message.to.clone() {

@@ -20,7 +20,6 @@ opt-level = "z"
 
 default = ["all", "hal", "esp-idf-sys/native"]
 
-pio = ["esp-idf-sys/pio"]
 all = ["std", "nightly", "experimental"]
 hal = ["esp-idf-hal", "embedded-svc", "esp-idf-svc"]
 std = [
@@ -50,7 +49,9 @@ embedded-hal = "1.0.0-alpha"
 
 slint = { version = "1.6.0", default-features = false }
 embedded-software-slint-backend = { path = "../../libs/embedded-software-slint-backend" }
-app-core = { path = "../app-core", default-features = false, features = ["software-renderer"] }
+app-core = { path = "../app-core", default-features = false, features = [
+    "software-renderer",
+] }
 button-driver = { path = "../../libs/button-driver", features = ["esp", "std"] }
 heapless = "0.7.17"
 embedded-io-adapters = { version = "0.6.1", features = ["std"] }

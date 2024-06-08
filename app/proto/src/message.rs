@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use serde::{Deserialize, Serialize};
 
 mod http;
@@ -20,8 +18,8 @@ pub use weather::*;
 mod storage;
 pub use storage::*;
 
-mod performance;
-pub use performance::*;
+mod system;
+pub use system::*;
 
 mod wifi;
 pub use wifi::*;
@@ -47,6 +45,12 @@ pub use useralarm::*;
 mod bootpage;
 pub use bootpage::*;
 
+mod sntp;
+pub use sntp::*;
+
+mod timer;
+pub use timer::*;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Message {
     /// 空消息
@@ -64,19 +68,14 @@ pub enum Message {
     /// 本地存储相关消息
     Storage(StorageMessage),
     /// 性能相关消息
-    Performance(PerformanceMessage),
+    System(SystemMessage),
     Timer(TimerMessage),
     WiFi(WiFiMessage),
     Buzzer(BuzzerMessage),
     Midi(MidiMessage),
     AlertDialog(AlertDialogMessage),
     BootPage(BootPageMessage),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum TimerMessage {
-    Request(Duration),
-    Response,
+    Sntp(SntpMessage),
 }
 
 impl Message {
@@ -110,7 +109,7 @@ impl Message {
                 HttpMessage::Response(_) => "http/response",
             },
             Message::Storage(_) => "storage",
-            Message::Performance(_) => "performance",
+            Message::System(_) => "system",
             _ => "unknown",
         }
     }

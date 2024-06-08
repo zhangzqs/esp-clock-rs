@@ -18,11 +18,11 @@ impl WeatherService {
     }
 
     fn get_key(ctx: Rc<dyn Context>) -> Result<String> {
-        Ok(ipc::StorageClient(ctx.clone())
+        ipc::StorageClient(ctx.clone())
             .get("weather/key".into())
             .map_err(WeatherError::StorageError)?
             .as_str()
-            .ok_or(WeatherError::MissingKey)?)
+            .ok_or(WeatherError::MissingKey)
     }
 
     fn get_location(ctx: Rc<dyn Context>) -> Result<Location> {
@@ -31,7 +31,7 @@ impl WeatherService {
             .map_err(WeatherError::StorageError)?
             .as_str()
             .ok_or(WeatherError::MissingLocation)?;
-        Ok(serde_json::from_str(&s).map_err(|e| WeatherError::SerdeError(format!("{e:?}")))?)
+        serde_json::from_str(&s).map_err(|e| WeatherError::SerdeError(format!("{e:?}")))
     }
 
     fn get_now_weather(seq: usize, ctx: Rc<dyn Context>) -> Result<HandleResult> {

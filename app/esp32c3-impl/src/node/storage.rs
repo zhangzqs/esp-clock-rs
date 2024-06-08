@@ -1,7 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
-    borrow::Borrow,
     cell::RefCell,
     collections::{HashMap, HashSet},
 };
@@ -42,7 +41,7 @@ impl NvsStorageService {
 
     fn set_raw_blob(&self, k: String, v: &[u8]) -> Result<()> {
         let mut nvs = self.nvs.borrow_mut();
-        nvs.set_blob(&k, v);
+        nvs.set_blob(&k, v)?;
         Ok(())
     }
 
@@ -50,7 +49,7 @@ impl NvsStorageService {
         let nvs = self.nvs.borrow();
         Ok(if let Some(x) = nvs.blob_len(&k)? {
             let mut v = vec![0; x];
-            nvs.get_blob(&k, &mut v);
+            nvs.get_blob(&k, &mut v)?;
             Some(v)
         } else {
             None

@@ -1,5 +1,8 @@
 # Name,   Type, SubType, Offset,  Size, Flags
 # Note: if you have increased the bootloader size, make sure to update the offsets to avoid overlap
-nvs,      data, nvs,     ,        0x6000,
+# 384KB
+nvs,      data, nvs,     ,        0x60000,
+# 4KB
 phy_init, data, phy,     ,        0x1000,
+# 3MB
 factory,  app,  factory, ,        3M,

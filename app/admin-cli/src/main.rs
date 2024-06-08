@@ -49,8 +49,12 @@ impl ContextImpl {
 }
 
 impl Context for ContextImpl {
-    fn boardcast(&self, msg: Message) {
+    fn broadcast_global(&self, msg: Message) {
         self.send_message(MessageTo::Broadcast, msg);
+    }
+
+    fn broadcast_topic(&self, topic: TopicName, msg: Message) {
+        self.send_message(MessageTo::Topic(topic), msg);
     }
 
     fn async_call(&self, node: NodeName, msg: Message, callback: MessageCallbackOnce) {
@@ -61,7 +65,19 @@ impl Context for ContextImpl {
         self.send_message(MessageTo::Point(node), msg)
     }
 
-    fn async_ready(&self, seq: usize, result: Message) {
+    fn async_ready(&self, _seq: usize, _result: Message) {
+        unimplemented!()
+    }
+
+    fn subscribe_topic(&self, _topic: TopicName) {
+        unimplemented!()
+    }
+
+    fn unsubscribe_topic(&self, _topic: TopicName) {
+        unimplemented!()
+    }
+
+    fn create_wait_group(&self) -> Rc<dyn WaitGroup> {
         unimplemented!()
     }
 }

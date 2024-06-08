@@ -6,10 +6,10 @@ use node::*;
 mod adapter;
 mod node;
 mod scheduler;
-mod storage;
 mod ui;
 
 pub use proto;
+pub use proto::storage;
 pub use scheduler::Scheduler;
 pub use ui::get_app_window;
 
@@ -39,9 +39,9 @@ fn register_default_nodes(sche: &Scheduler) {
     sche.register_node(TouchOneButtonAdapterService::new());
     sche.register_node(WeatherService::new());
     sche.register_node(MockStorageService::new());
-    sche.register_node(MockPerformanceService {});
+    sche.register_node(MockSystemService {});
     sche.register_node(TimerService::new());
-    sche.register_node(DevConfigSetter {});
+    // sche.register_node(DevConfigSetter {});
     sche.register_node(MockWiFiService::new());
     sche.register_node(MidiPlayerService::new());
 }

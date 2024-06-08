@@ -1,9 +1,8 @@
 use std::{
-    cell::RefCell,
     collections::HashMap,
     io::Read,
     rc::Rc,
-    sync::{mpsc, Arc, Mutex},
+    sync::{Arc, Mutex},
     thread,
     time::Duration,
 };
@@ -12,8 +11,8 @@ use app_core::proto::*;
 use embedded_io_adapters::std::ToStd;
 use embedded_svc::http::client::Client;
 use esp_idf_svc::http::client::{Configuration, EspHttpConnection};
-use esp_idf_sys::{self as _, EspError};
-use libflate::gzip::{self, Decoder};
+use esp_idf_sys as _;
+use libflate::gzip::{self};
 
 pub struct HttpClientService {
     state: Arc<Mutex<HashMap<usize, (HttpRequest, Option<Message>)>>>,

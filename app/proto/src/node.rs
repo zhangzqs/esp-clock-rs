@@ -25,7 +25,7 @@ pub enum NodeName {
     // MIDI播放器
     Midi,
     // 性能监视
-    Performance,
+    System,
     // 全局Alert对话框
     AlertDialog,
     // 启动页ui与逻辑

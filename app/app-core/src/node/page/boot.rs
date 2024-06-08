@@ -1,9 +1,10 @@
 use std::cell::RefCell;
 use std::{rc::Rc, time::Duration};
 
-use log::info;
+use log::{error, info};
 use proto::TopicName;
 use slint::ComponentHandle;
+use std::fmt::Debug;
 use time::OffsetDateTime;
 
 use crate::proto::*;
@@ -28,7 +29,7 @@ impl BootPage {
         if self.t.borrow().is_some() {
             return;
         }
-        let p = ipc::PerformanceClient(ctx);
+        let p = ipc::SystemClient(ctx);
         self.t
             .borrow_mut()
             .get_or_insert_with(slint::Timer::default)
@@ -68,26 +69,91 @@ impl BootPage {
             .unwrap();
     }
 
+    fn alert_dialog<T: Debug>(ctx: Rc<dyn Context>, e: T) {
+        error!("error: {e:?}");
+        ctx.async_call(
+            NodeName::AlertDialog,
+            Message::AlertDialog(AlertDialogMessage::ShowRequest {
+                duration: Some(3000),
+                content: AlertDialogContent {
+                    text: Some(format!("{e:?}")),
+                    image: None,
+                },
+            }),
+            Box::new(|_| {}),
+        )
+    }
+
     fn connect_wifi(&self, ctx: Rc<dyn Context>) {
         let stg = WiFiStorage(ipc::StorageClient(ctx.clone()));
-        let ssid = stg.get_ssid().unwrap_or_default();
-        let password = stg.get_password().unwrap_or_default();
-        let ctx_ref = ctx.clone();
-        ctx.async_call(
-            NodeName::WiFi,
-            Message::WiFi(WiFiMessage::ConnectRequest(WiFiStorageConfiguration {
-                ssid,
-                password: Some(password),
-            })),
-            Box::new(move |r| {
-                // wifi连接成功
-                info!("wifi连接完成, 跳转路由: {r:?}");
-                ctx_ref.sync_call(
-                    NodeName::Router,
-                    Message::Router(RouterMessage::GotoPage(RoutePage::Home)),
-                );
-            }),
-        );
+        if let Some(ssid) = stg.get_ssid() {
+            let password = stg.get_password().unwrap_or_default();
+            let ctx_ref = ctx.clone();
+            ctx.async_call(
+                NodeName::WiFi,
+                Message::WiFi(WiFiMessage::ConnectRequest(WiFiStorageConfiguration {
+                    ssid,
+                    password: Some(password),
+                })),
+                Box::new(move |r| {
+                    // wifi连接成功
+                    info!("wifi连接完成, 跳转路由: {r:?}");
+                    ctx_ref.sync_call(
+                        NodeName::Router,
+                        Message::Router(RouterMessage::GotoPage(RoutePage::Home)),
+                    );
+                }),
+            );
+        } else {
+            ctx.clone().async_call(
+                NodeName::WiFi,
+                Message::WiFi(WiFiMessage::StartAPRequest),
+                Box::new(move |r| {
+                    match &r {
+                        HandleResult::Finish(Message::WiFi(msg)) => match msg {
+                            WiFiMessage::StartAPResponse => {
+                                ctx.clone().async_call(
+                                    NodeName::WiFi,
+                                    Message::WiFi(WiFiMessage::GetIpInfoRequest),
+                                    Box::new(move |r| {
+                                        match &r {
+                                            HandleResult::Finish(Message::WiFi(
+                                                WiFiMessage::GetIpInfoResponse(netinfo),
+                                            )) => {
+                                                ctx.clone().async_call(
+                                                    NodeName::AlertDialog,
+                                                    Message::AlertDialog(
+                                                        AlertDialogMessage::ShowRequest {
+                                                            duration: None,
+                                                            content: AlertDialogContent {
+                                                                text: Some(format!("Please connect to AP \"ESP-CLOCK-RS\" and open \"http://{}\" to config wifi then click button to restart.", netinfo.ip)),
+                                                                image: None,
+                                                            },
+                                                        },
+                                                    ),
+                                                    Box::new(|_| {}),
+                                                );
+                                                return;
+                                            },
+                                            _ => {}
+                                        }
+                                        panic!("unexpected response {r:?}")
+                                    }),
+                                );
+                                return;
+                            }
+                            WiFiMessage::Error(e) => {
+                                Self::alert_dialog(ctx.clone(), e);
+                                return;
+                            }
+                            _ => {}
+                        },
+                        _ => {}
+                    }
+                    panic!("unexpected response {r:?}")
+                }),
+            );
+        }
     }
 
     fn animate(&self) {
@@ -143,7 +209,7 @@ impl Node for BootPage {
                 self.start_performance_monitor(ctx.clone());
                 return HandleResult::Finish(Message::Empty);
             }
-            Message::BootPage(BootPageMessage::EnablePerformanceMonitor(enable)) => {
+            Message::BootPage(BootPageMessage::EnableSystemMonitor(enable)) => {
                 if enable {
                     self.start_performance_monitor(ctx.clone());
                 } else {

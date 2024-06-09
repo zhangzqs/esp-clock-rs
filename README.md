@@ -1,5 +1,95 @@
 # 基于 Rust + SlintUI 实现的跨全平台的小电视项目
 
+## 简介
+
+这是一个使用 Rust 开发的跨平台，分辨率在 240x240 尺寸大小的彩屏小电视项目。
+
+## 项目展示
+
+TODO
+
+## 编译运行
+
+### ESP32C3
+
+```bash
+cd app/esp32c3-impl
+cargo run -r
+```
+
+### 桌面端
+
+```bash
+cd app/desktop-impl
+cargo run
+```
+
+### 浏览器端
+
+```bash
+cd app/wasm-impl
+make release
+make serve
+```
+
+## 方案说明
+
+### 支持平台
+
+- ESP32C3
+  - **第一优先级**支持
+- 浏览器端(WASM)
+  - **第二优先级**支持
+- 桌面端(Windows/Linux/MacOS)
+  - **第三优先级**支持
+- 桌面端(软件渲染器)
+  - 主要用来做桌面端仿真 ESP32C3 中的运行效果
+  - 预期应当做到和桌面端复用相同的非 ui 相关代码，后续可考虑使用条件编译开关与桌面端合并为一个 crate 实现（TODO）。
+- 移动端
+  - 原先 v1-old 分支中的旧版本支持，新版本未来可能会支持适配(TODO)
+
+### app 中的各个 crate 介绍
+
+- app-core(平台通用实现 lib)
+
+  - 实现了消息调度器框架
+  - 时间，GUI 分别依赖了跨平台的 time 库和 SlintUI 框架，所以平台无关
+  - 部分平台相关的组件的默认实现
+    - storage: 使用内存中的 HashMap 模拟实现
+    - onebutton: 使用 SlintUI 框架的鼠标与键盘事件，结合 button-driver 第三方 crate 实现
+    - system: 该模块用于 ESP32 上的内存调试使用，默认 mock 固定值实现
+
+- esp32c3-impl(ESP32C3 端实现 bin)
+
+  - 平台相关组件实现
+    - httpclient: 基于 esp-idf-svc 的 httpclient 实现
+    - httpserver: 基于 esp-idf-svc 的 httpserver 实现
+    - buzzer: 基于 RMT 驱动蜂鸣器，midiplayer 的默认实现将依赖 buzzer
+    - storage: 基于 ESP NVS 分区实现 KV 存储后端
+
+- desktop-impl(桌面端实现 bin)
+
+  - 平台相关组件实现
+    - httpclient: 基于线程池+阻塞的 reqwest 实现(TODO: 改为 async 实现)
+    - httpserver: 基于 tiny_http 实现
+    - midiplayer: TODO
+
+- wasm-impl(浏览器端实现 bin)
+
+  - 平台相关组件实现
+    - httpclient: 基于浏览器上的异步的 reqwest 支持
+    - storage: 基于 localStorage 支持
+    - midiplayer: MIDI.js 库提供支持
+
+- admin-cli(app 管理后台工具)
+
+  - 向 app 通过 http 发送 json 消息实现基于 RPC 的消息调用可轻易实现很多后台管理功能
+
+- proto(消息包)
+  - 所有消息实体的定义
+  - IPC/RPC client 的封装
+  - 相关抽象 trait 的定义
+
 ## 消息通信机制的设计
 
 整套程序采用消息传递机制完成整个 app 框架的设计，各个组件仅通过消息进行相互耦合实现通信，各个通信节点称为`Node`，通过枚举`NodeName`可以唯一标识一个组件。平台无关的组件放置在 app-core 中，平台相关的组件放置在各个平台的实现中。所有消息均实现了`serde::Serialize`和`serde::Deserialize`，故可天然通过 http 或 mqtt 传输 app 内的任意消息，使得 RPC 调用程序内的任意功能成为一个天然的可能，无需专门编写复杂的接口适配，同时这也为分布式 app 的可能性奠定了基础，app 内的各个组件节点可以分布工作在其他远程机器之上。
@@ -30,7 +120,7 @@ Context 中的 `sync_call(ctx, message) -> HandleResult` 为同步消息调用�
 
 同步调用的优点：
 
-简化组件的使用，可使得编码风格形成更加自然的业务流程的顺序调用。
+1. 简化组件的使用，可使得编码风格形成更加自然的业务流程的顺序调用。
 
 同步调用的缺点：
 
@@ -51,5 +141,5 @@ Context 中的 `async_call(ctx, message, FnOnce(HandleResult))` 为异步消息�
 
 异步调用的缺点：
 
-组件调用将必须以回调的形式接收结果，影响了代码风格。
-当然若将 Rust 的 async 机制对接到调度器，可大大简化异步消息的代码风格(TODO)。
+1. 组件调用将必须以回调的形式接收结果，影响了代码风格。
+   当然若将 Rust 的 async 机制对接到调度器，可大大简化异步消息的代码风格(TODO)。

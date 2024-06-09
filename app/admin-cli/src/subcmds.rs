@@ -55,6 +55,9 @@ pub enum SubCommands {
         #[arg()]
         enable: i8,
     },
+    AlertDialog {
+        text: String,
+    },
 
     #[clap(name = "onebutton")]
     OneButton,
@@ -158,6 +161,17 @@ impl SubCommands {
                     .set_location(location_id, location)
                     .unwrap();
             }
+            SubCommands::AlertDialog { text } => ctx.async_call(
+                NodeName::AlertDialog,
+                Message::AlertDialog(AlertDialogMessage::ShowRequest {
+                    duration: Some(3000),
+                    content: AlertDialogContent {
+                        text: Some(text),
+                        image: None,
+                    },
+                }),
+                Box::new(|r| {}),
+            ),
         }
         anyhow::Ok(())
     }

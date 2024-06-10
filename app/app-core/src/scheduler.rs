@@ -200,6 +200,15 @@ pub struct Scheduler {
 
 impl Scheduler {
     pub(crate) fn new() -> Self {
+        info!("Message size: {}", std::mem::size_of::<Message>());
+        info!(
+            "MessageWithHeader size: {}",
+            std::mem::size_of::<MessageWithHeader>()
+        );
+        info!(
+            "MessageQueueItem size: {}",
+            std::mem::size_of::<MessageQueueItem>()
+        );
         let s = Self::default();
         s.mq_buffer1.borrow_mut().push(MessageQueueItem {
             message: MessageWithHeader {

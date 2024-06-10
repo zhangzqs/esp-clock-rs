@@ -51,9 +51,10 @@ pub use sntp::*;
 mod timer;
 pub use timer::*;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Clone, Deserialize, Default)]
 pub enum Message {
     /// 空消息
+    #[default]
     Empty,
     /// App生命周期消息
     Lifecycle(LifecycleMessage),

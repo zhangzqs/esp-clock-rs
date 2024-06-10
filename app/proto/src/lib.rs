@@ -18,7 +18,7 @@ pub enum MessageTo {
     Topic(TopicName),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Clone, Deserialize)]
 pub struct MessageWithHeader {
     /// 消息来源
     pub from: NodeName,
@@ -64,7 +64,7 @@ pub trait Context {
     fn create_wait_group(&self) -> Rc<dyn WaitGroup>;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum HandleResult {
     // 成功处理消息，发送方收到一个反馈响应回调消息
     Finish(Message),

@@ -37,6 +37,10 @@ impl Node for WeatherPage {
             Message::Lifecycle(msg) => match msg {
                 LifecycleMessage::Hide => {
                     ctx.unsubscribe_topic(TopicName::OneButton);
+                    if let Some(ui) = ui::get_app_window().upgrade() {
+                        let vm = ui.global::<ui::WeatherPageViewModel>();
+                        vm.set_data(Default::default()); // 释放内存占用
+                    }
                 }
                 LifecycleMessage::Show => {
                     ctx.subscribe_topic(TopicName::OneButton);

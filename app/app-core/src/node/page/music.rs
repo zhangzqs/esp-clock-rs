@@ -78,6 +78,11 @@ impl Node for MusicPage {
                 }
                 LifecycleMessage::Hide => {
                     ctx.unsubscribe_topic(TopicName::OneButton);
+                    ipc::MidiPlayerClient(ctx.clone()).off();
+                    if let Some(ui) = ui::get_app_window().upgrade() {
+                        let vm = ui.global::<ui::MusicPageViewModel>();
+                        vm.set_music_list(Default::default());
+                    }
                 }
                 _ => {}
             },

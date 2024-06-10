@@ -168,6 +168,11 @@ impl HomePage {
     fn on_hide(&self) {
         self.time_update_timer.borrow_mut().take();
         self.weather_update_timer.borrow_mut().take();
+        if let Some(ui) = ui::get_app_window().upgrade() {
+            let vm = ui.global::<ui::HomeViewModel>();
+            vm.set_weather(Default::default());
+            vm.set_time(Default::default());
+        }
     }
 }
 

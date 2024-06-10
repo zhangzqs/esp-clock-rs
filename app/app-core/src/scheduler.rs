@@ -260,22 +260,23 @@ impl Scheduler {
         node: Iter,
         message: MessageWithHeader,
     ) {
+        let msg_only_header = MessageWithHeader {
+            seq: message.seq,
+            from: message.from.clone(),
+            to: message.to.clone(),
+            body: Default::default(),
+        };
         for node_name in node {
-            let ret = self.nodes.borrow()[node_name]
-                .handle_message(self.gen_ctx(node_name), message.clone());
-            match ret {
+            match self.nodes.borrow()[node_name]
+                .handle_message(self.gen_ctx(node_name), message.clone())
+            {
                 HandleResult::Finish(_) => {
                     // 目前广播消息不处理Finish状态
                 }
                 HandleResult::Pending => {
                     // 消息没有就绪结果，改写为单点通信，标记is_pending后，继续排队到异步队列
                     self.mq_buffer2.borrow_mut().push(MessageQueueItem {
-                        message: MessageWithHeader {
-                            from: message.from.clone(),
-                            to: MessageTo::Point(node_name.clone()),
-                            seq: message.seq,
-                            body: message.body.clone(),
-                        },
+                        message: msg_only_header.clone(), // poll的时候不需要clone完整的消息body
                         is_pending: true,
                         callback_once: None,
                     });
@@ -328,9 +329,16 @@ impl Scheduler {
                 });
             }
         } else {
+            let msg_only_header = MessageWithHeader {
+                seq: message.seq,
+                from: message.from.clone(),
+                to: message.to.clone(),
+                body: Default::default(),
+            };
+
             info!("dispatch async p2p message {:?}", message);
-            let ret = self.nodes.borrow()[node_name]
-                .handle_message(self.gen_ctx(node_name), message.clone());
+            let ret =
+                self.nodes.borrow()[node_name].handle_message(self.gen_ctx(node_name), message);
             info!("handle async p2p message result: {:?}", ret);
             match ret {
                 HandleResult::Finish(e) => {
@@ -341,7 +349,7 @@ impl Scheduler {
                 HandleResult::Pending => {
                     // 消息没有就绪结果，标记is_pending后，继续排队到异步队列
                     self.mq_buffer2.borrow_mut().push(MessageQueueItem {
-                        message,
+                        message: msg_only_header,
                         is_pending: true,
                         callback_once,
                     });

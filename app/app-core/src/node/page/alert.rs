@@ -32,7 +32,7 @@ impl AlertDialog {
         if let Some(ui) = get_app_window().upgrade() {
             let ad = ui.global::<ui::AlertDialogViewModel>();
             ad.set_show(false);
-            ad.set_text("".into()); // 释放空间
+            ad.set_text(Default::default()); // 释放空间
         }
     }
 

@@ -175,8 +175,10 @@ impl Node for MidiPlayerService {
                 let cli = BuzzerClient(ctx.clone());
                 match msg {
                     MidiMessage::PlayRequest(bs) => {
+                        let series = midi_to_freq_and_dur_series(&bs.0);
+                        drop(bs);
                         cli.tone_series(
-                            midi_to_freq_and_dur_series(&bs.0),
+                            series,
                             Box::new(move |is_finished| {
                                 ctx.async_ready(
                                     seq,

@@ -1,18 +1,15 @@
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
-use crate::proto::*;
+use ipc::WeatherClient;
+use slint::{ComponentHandle, ModelRc, VecModel};
 
-pub struct WeatherPage {
-    is_show: RefCell<bool>,
-    hold_close_once_flag: RefCell<bool>,
-}
+use crate::{proto::*, ui};
+
+pub struct WeatherPage {}
 
 impl WeatherPage {
     pub fn new() -> Self {
-        Self {
-            is_show: RefCell::new(false),
-            hold_close_once_flag: RefCell::new(false),
-        }
+        Self {}
     }
 }
 
@@ -24,35 +21,9 @@ impl Node for WeatherPage {
     fn handle_message(&self, ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
         match msg.body {
             Message::OneButton(msg) => match msg {
-                OneButtonMessage::Click => {
-                    if *self.is_show.borrow() {
-                        // ctx.async_call(
-                        //     NodeName::WeatherClient,
-                        //     Message::Weather(WeatherMessage::GetNextSevenDaysWeatherRequest),
-                        //     Box::new(|r| match r {
-                        //         HandleResult::Finish(msg) => {
-                        //             if let Message::Weather(
-                        //                 WeatherMessage::GetNextSevenDaysWeatherResponse(resp),
-                        //             ) = msg
-                        //             {
-                        //                 info!("weather: {:?}", resp);
-                        //                 if let Some(ui) = get_app_window().upgrade() {
-                        //                     let vm = ui.global::<ui::WeatherViewModel>();
-                        //                     vm.set_text(format!("{resp:?}").into())
-                        //                 }
-                        //             } else {
-                        //                 error!("weather: {:?}", msg);
-                        //             }
-                        //         }
-                        //         _ => {}
-                        //     }),
-                        // );
-                    }
-                }
+                OneButtonMessage::Click => {}
                 OneButtonMessage::LongPressHolding(dur) => {
-                    if !*self.hold_close_once_flag.borrow() && dur > 1000 && *self.is_show.borrow()
-                    {
-                        *self.hold_close_once_flag.borrow_mut() = true;
+                    if dur > 1000 {
                         ctx.sync_call(
                             NodeName::Router,
                             Message::Router(RouterMessage::GotoPage(RoutePage::Home)),
@@ -60,14 +31,42 @@ impl Node for WeatherPage {
                         return HandleResult::Finish(Message::Empty);
                     }
                 }
-                OneButtonMessage::LongPressHeld(_) => {
-                    *self.hold_close_once_flag.borrow_mut() = false
-                }
+                OneButtonMessage::LongPressHeld(_) => {}
                 _ => {}
             },
             Message::Lifecycle(msg) => match msg {
-                LifecycleMessage::Hide => *self.is_show.borrow_mut() = false,
-                LifecycleMessage::Show => *self.is_show.borrow_mut() = true,
+                LifecycleMessage::Hide => {
+                    ctx.unsubscribe_topic(TopicName::OneButton);
+                }
+                LifecycleMessage::Show => {
+                    ctx.subscribe_topic(TopicName::OneButton);
+                    WeatherClient(ctx.clone()).get_forecast_weather(Box::new(|w| {
+                        let data = w
+                            .unwrap()
+                            .daily
+                            .into_iter()
+                            .map(|x| ui::OneDayWeatherViewModel {
+                                title: {
+                                    ["Sun.", "Mon.", "Tue.", "Wed.", "Thu.", "Fri.", "Sat."]
+                                        [x.date.weekday().number_from_sunday() as usize]
+                                        .into()
+                                },
+                                date: format!("{:0>2}-{:0>2}", x.date.month() as u8, x.date.day())
+                                    .into(),
+                                day_icon: x.icon_day as _,
+                                day_temp: x.max_temp as _,
+                                day_text: x.text_day.into(),
+                                night_icon: x.icon_night as _,
+                                night_temp: x.min_temp as _,
+                                night_text: x.text_night.into(),
+                            })
+                            .collect::<Vec<_>>();
+                        if let Some(ui) = ui::get_app_window().upgrade() {
+                            let vm = ui.global::<ui::WeatherPageViewModel>();
+                            vm.set_data(ModelRc::new(VecModel::from(data)));
+                        }
+                    }));
+                }
                 _ => {}
             },
             _ => {}

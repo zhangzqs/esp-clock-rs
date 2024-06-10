@@ -1,15 +1,136 @@
 import { ScrollView } from "std-widgets.slint";
+import { QWeatherIcon } from "../../components/qweather-icon/index.slint";
 
-export global WeatherViewModel {
-    in property <string> text: "点击获取天气";
+struct OneDayWeatherViewModel {
+    title: string,
+    date: string,
+    day-icon: int,
+    day-text: string,
+    day-temp: int,
+    night-icon: int,
+    night-text: string,
+    night-temp: int,
+}
+
+export global WeatherPageViewModel {
+    in property <[OneDayWeatherViewModel]> data;
+}
+
+component OneDayWeather inherits Rectangle {
+    width: 60px;
+    border-color: white;
+    border-width: 2px;
+    border-radius: 16px;
+
+    in property <OneDayWeatherViewModel> model: {
+        title: "Today",
+        date: "06-10",
+        day-icon: 101,
+        day-text: "Cloudy",
+        day-temp: 10,
+        night-icon: 101,
+        night-text: "Cloudy",
+        night-temp: 10,
+    };
+    VerticalLayout {
+        padding: 8px;
+        HorizontalLayout {
+            alignment: center;
+            Text {
+                text: model.title;
+                font-size: 16px;
+                color: white;
+            }
+        }
+
+        HorizontalLayout {
+            alignment: center;
+            Text {
+
+                text: model.date;
+                font-size: 16px;
+                color: white;
+            }
+        }
+
+        HorizontalLayout {
+            alignment: center;
+            QWeatherIcon {
+                icon-id: model.day-icon;
+                width: 40px;
+                height: 40px;
+                colorize: white;
+            }
+        }
+
+        HorizontalLayout {
+            alignment: center;
+
+            Text {
+                text: model.day-text;
+                color: white;
+            }
+        }
+
+        HorizontalLayout {
+            alignment: center;
+            Text {
+                text: "\{model.day-temp}℃";
+                color: white;
+                font-size: 16px;
+            }
+        }
+
+        HorizontalLayout {
+            alignment: center;
+            QWeatherIcon {
+                icon-id: model.night-icon;
+                width: 40px;
+                height: 40px;
+                colorize: white;
+            }
+        }
+
+        HorizontalLayout {
+            alignment: center;
+            Text {
+                text: model.night-text;
+                color: white;
+            }
+        }
+
+        HorizontalLayout {
+            alignment: center;
+
+            Text {
+                text: "\{model.night-temp}℃";
+                color: white;
+                font-size: 16px;
+            }
+        }
+    }
 }
 
 export component WeatherPage inherits Rectangle {
+    width: 240px;
+    height: 240px;
+    background: black;
+
     ScrollView {
-        Text {
-            width: 100px;
-            text: WeatherViewModel.text;
-            wrap: word-wrap;
+        HorizontalLayout {
+            alignment: space-between;
+            padding: 8px;
+            OneDayWeather {
+                model: WeatherPageViewModel.data[0];
+            }
+
+            OneDayWeather {
+                model: WeatherPageViewModel.data[1];
+            }
+
+            OneDayWeather {
+                model: WeatherPageViewModel.data[2];
+            }
         }
     }
 }

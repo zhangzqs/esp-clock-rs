@@ -1,74 +1,65 @@
-use std::{cell::RefCell, rc::Rc, time::Duration};
+use std::{
+    rc::Rc,
+    sync::mpsc::{channel, Receiver, TryRecvError},
+    thread,
+    time::Duration,
+};
 
 use app_core::proto::*;
-use button_driver::Button;
 use esp_idf_hal::gpio::{Input, Pin, PinDriver};
 use esp_idf_sys as _;
 use log::info;
 
-pub struct OneButtonService<'a, P: Pin> {
-    button: Rc<RefCell<Button<PinDriver<'a, P, Input>, button_driver::DefaultPlatform>>>,
-    timer: slint::Timer,
+pub struct OneButtonService {
+    rx: Receiver<OneButtonMessage>,
 }
 
-impl<'a, P: Pin> OneButtonService<'a, P> {
-    pub fn new(pin: PinDriver<'a, P, Input>) -> Self {
-        let button = button_driver::Button::new(pin, Default::default());
-        Self {
-            button: Rc::new(RefCell::new(button)),
-            timer: slint::Timer::default(),
-        }
+impl OneButtonService {
+    pub fn new<P: Pin>(pin: PinDriver<'static, P, Input>) -> Self {
+        let (tx, rx) = channel();
+        let mut button = button_driver::Button::new(pin, Default::default());
+
+        thread::spawn(move || loop {
+            button.tick();
+            if button.clicks() > 0 {
+                let clicks = button.clicks();
+                if clicks == 1 {
+                    tx.send(OneButtonMessage::Click).unwrap();
+                } else {
+                    tx.send(OneButtonMessage::Clicks(clicks)).unwrap();
+                }
+            } else if let Some(dur) = button.current_holding_time() {
+                info!("Held for {dur:?}");
+                tx.send(OneButtonMessage::LongPressHolding(dur.as_millis() as _))
+                    .unwrap();
+            } else if let Some(dur) = button.held_time() {
+                info!("Total holding time {dur:?}");
+                tx.send(OneButtonMessage::LongPressHeld(dur.as_millis() as _))
+                    .unwrap();
+            }
+            button.reset();
+            thread::sleep(Duration::from_millis(10));
+        });
+        Self { rx }
     }
 }
 
-impl<'a: 'static, P: Pin> Node for OneButtonService<'a, P> {
+impl Node for OneButtonService {
     fn node_name(&self) -> NodeName {
         NodeName::Other("EspOneButton".into())
     }
 
     fn handle_message(&self, ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
-        if let Message::Lifecycle(LifecycleMessage::Init) = msg.body {
-            let button = self.button.clone();
-            self.timer.start(
-                slint::TimerMode::Repeated,
-                Duration::from_millis(16),
-                move || {
-                    let mut button = button.borrow_mut();
-                    button.tick();
-
-                    if button.clicks() > 0 {
-                        let clicks = button.clicks();
-                        if clicks == 1 {
-                            ctx.broadcast_topic(
-                                TopicName::OneButton,
-                                Message::OneButton(OneButtonMessage::Click),
-                            );
-                        } else {
-                            ctx.broadcast_topic(
-                                TopicName::OneButton,
-                                Message::OneButton(OneButtonMessage::Clicks(clicks)),
-                            );
-                        }
-                    } else if let Some(dur) = button.current_holding_time() {
-                        info!("Held for {dur:?}");
-                        ctx.broadcast_topic(
-                            TopicName::OneButton,
-                            Message::OneButton(OneButtonMessage::LongPressHolding(
-                                dur.as_millis() as _
-                            )),
-                        );
-                    } else if let Some(dur) = button.held_time() {
-                        info!("Total holding time {dur:?}");
-                        ctx.broadcast_topic(
-                            TopicName::OneButton,
-                            Message::OneButton(OneButtonMessage::LongPressHeld(
-                                dur.as_millis() as _
-                            )),
-                        );
-                    }
-                    button.reset();
-                },
-            );
+        match msg.body {
+            Message::Lifecycle(LifecycleMessage::Init) => {
+                ctx.subscribe_topic(TopicName::Scheduler);
+            }
+            Message::Empty => match self.rx.try_recv() {
+                Ok(x) => ctx.broadcast_topic(TopicName::OneButton, Message::OneButton(x)),
+                Err(TryRecvError::Empty) => {}
+                Err(TryRecvError::Disconnected) => unreachable!(),
+            },
+            _ => {}
         }
         HandleResult::Discard
     }

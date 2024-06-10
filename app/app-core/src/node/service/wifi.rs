@@ -1,4 +1,4 @@
-use std::{rc::Rc, time::Duration};
+use std::{net::Ipv4Addr, rc::Rc, time::Duration};
 
 use crate::proto::*;
 
@@ -24,6 +24,16 @@ impl Node for MockWiFiService {
                         ctx.async_ready(seq, Message::WiFi(WiFiMessage::ConnectResponse));
                     });
                     return HandleResult::Pending;
+                }
+                WiFiMessage::StartAPRequest => {
+                    return HandleResult::Finish(Message::WiFi(WiFiMessage::StartAPResponse));
+                }
+                WiFiMessage::GetIpInfoRequest => {
+                    return HandleResult::Finish(Message::WiFi(WiFiMessage::GetIpInfoResponse(
+                        NetIpInfo {
+                            ip: Ipv4Addr::new(127, 0, 0, 1),
+                        },
+                    )))
                 }
                 m => panic!("unexpected request message: {m:?}"),
             }

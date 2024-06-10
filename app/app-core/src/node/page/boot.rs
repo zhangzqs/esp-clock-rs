@@ -131,7 +131,9 @@ impl BootPage {
                                                             },
                                                         },
                                                     ),
-                                                    Box::new(|_| {}),
+                                                    Box::new(move |_| {
+                                                        ctx.clone().sync_call(NodeName::System, Message::System(SystemMessage::Restart));
+                                                    }),
                                                 );
                                                 return;
                                             },

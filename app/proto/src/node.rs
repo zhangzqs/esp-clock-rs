@@ -28,6 +28,8 @@ pub enum NodeName {
     System,
     // 全局Alert对话框
     AlertDialog,
+    // 画板
+    CanvasView,
     // 启动页ui与逻辑
     BootPage,
     // 首页ui与逻辑

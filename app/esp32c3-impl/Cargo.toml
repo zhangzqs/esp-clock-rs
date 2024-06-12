@@ -49,6 +49,7 @@ embedded-hal = "1.0.0-alpha"
 
 slint = { version = "1.6.0", default-features = false }
 embedded-software-slint-backend = { path = "../../libs/embedded-software-slint-backend" }
+embedded-graphics-mux = { path = "../../libs/embedded-graphics-mux" }
 app-core = { path = "../app-core", default-features = false, features = [
     "software-renderer",
 ] }

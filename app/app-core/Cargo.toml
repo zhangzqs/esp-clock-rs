@@ -17,6 +17,7 @@ embedded-tone = { path = "../../libs/embedded-tone" }
 midly = { version = "0.5.3", default-features = false, features = ["alloc"] }
 base64 = "0.22.1"
 proto = { path = "../proto" }
+embedded-graphics = "0.8.1"
 
 [build-dependencies]
 slint-build = { version = "1.6.0" }

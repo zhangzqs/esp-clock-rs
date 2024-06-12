@@ -51,6 +51,9 @@ pub use sntp::*;
 mod timer;
 pub use timer::*;
 
+mod canvas;
+pub use canvas::*;
+
 #[derive(Debug, Serialize, Clone, Deserialize, Default)]
 pub enum Message {
     /// 空消息
@@ -77,6 +80,7 @@ pub enum Message {
     AlertDialog(AlertDialogMessage),
     BootPage(BootPageMessage),
     Sntp(SntpMessage),
+    Canvas(CanvasMessage),
 }
 
 impl Message {

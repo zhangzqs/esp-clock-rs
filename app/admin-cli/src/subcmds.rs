@@ -7,16 +7,16 @@ use std::{
     time::Duration,
 };
 
-use app_core::proto::*;
 use clap::Subcommand;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use ipc::{StorageClient, SystemClient, WeatherClient};
 use log::{debug, info};
-use storage::{MusicStorage, WeatherStorage, WiFiStorage};
+use proto::ipc::{StorageClient, SystemClient, WeatherClient};
+use proto::storage::{MusicStorage, WeatherStorage, WiFiStorage};
+use proto::*;
 use tui::{
     backend::CrosstermBackend,
     widgets::{Block, Borders},
@@ -61,6 +61,7 @@ pub enum SubCommands {
 
     #[clap(name = "onebutton")]
     OneButton,
+    Restart,
 }
 
 impl SubCommands {
@@ -172,6 +173,9 @@ impl SubCommands {
                 }),
                 Box::new(|r| {}),
             ),
+            SubCommands::Restart => {
+                ctx.sync_call(NodeName::System, Message::System(SystemMessage::Restart));
+            }
         }
         anyhow::Ok(())
     }

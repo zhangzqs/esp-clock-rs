@@ -1,10 +1,12 @@
 use std::cell::RefCell;
 use std::{rc::Rc, time::Duration};
 
+use ipc::StorageClient;
 use log::{error, info};
 use proto::TopicName;
 use slint::ComponentHandle;
 use std::fmt::Debug;
+use storage::SystemStorage;
 use time::OffsetDateTime;
 
 use crate::proto::*;
@@ -25,6 +27,7 @@ impl BootPage {
 
 impl BootPage {
     fn start_performance_monitor(&self, ctx: Rc<dyn Context>) {
+        SystemStorage(StorageClient(ctx.clone())).set_monitor_enable(true);
         // 幂等性
         if self.t.borrow().is_some() {
             return;
@@ -48,7 +51,9 @@ impl BootPage {
             );
     }
 
-    fn stop_performance_monitor(&self) {
+    fn stop_performance_monitor(&self, ctx: Rc<dyn Context>) {
+        SystemStorage(StorageClient(ctx.clone())).set_monitor_enable(false);
+
         // 幂等性
         if self.t.borrow().is_none() {
             return;
@@ -178,6 +183,9 @@ impl BootPage {
     }
 
     fn init(&self, ctx: Rc<dyn Context>) {
+        if SystemStorage(StorageClient(ctx.clone())).get_monitor_enable() {
+            self.start_performance_monitor(ctx.clone());
+        }
         self.animate();
         self.set_boot_time(ctx.clone());
         self.connect_wifi(ctx.clone());
@@ -208,14 +216,18 @@ impl Node for BootPage {
                 }
             },
             Message::OneButton(proto::OneButtonMessage::Clicks(2)) => {
-                self.start_performance_monitor(ctx.clone());
+                if SystemStorage(StorageClient(ctx.clone())).get_monitor_enable() {
+                    self.stop_performance_monitor(ctx.clone());
+                } else {
+                    self.start_performance_monitor(ctx.clone());
+                }
                 return HandleResult::Finish(Message::Empty);
             }
             Message::BootPage(BootPageMessage::EnableSystemMonitor(enable)) => {
                 if enable {
                     self.start_performance_monitor(ctx.clone());
                 } else {
-                    self.stop_performance_monitor();
+                    self.stop_performance_monitor(ctx.clone());
                 }
             }
             _ => {}

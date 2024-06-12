@@ -11,8 +11,9 @@ use std::{
 };
 
 use crate::node::*;
-use app_core::get_scheduler;
+use app_core::{get_scheduler, proto::CanvasMessage};
 use display_interface_spi::SPIInterface;
+use embedded_graphics_mux::{DisplayMux, LogicalDisplay};
 use embedded_hal::spi::MODE_3;
 use esp_idf_hal::{
     delay::FreeRtos,
@@ -91,11 +92,17 @@ fn main() -> anyhow::Result<()> {
         .init(&mut FreeRtos, Some(rst))
         .unwrap();
 
+    let phy_display = Rc::new(RefCell::new(display));
+    let display_mux = Rc::new(RefCell::new(DisplayMux::new(phy_display, 4)));
+    let slint_logic_display = LogicalDisplay::new(display_mux.clone());
+    let slint_logic_display_id = slint_logic_display.borrow().get_id() as isize;
+    display_mux.borrow_mut().switch_to(slint_logic_display_id);
+
     let nvs = EspDefaultNvsPartition::take()?;
 
     let frame_counter = Arc::new(AtomicUsize::new(0));
     let platform = embedded_software_slint_backend::MySoftwarePlatform::new(
-        Rc::new(RefCell::new(display)),
+        slint_logic_display,
         Some({
             let fps_ref = frame_counter.clone();
             move |_| {
@@ -127,6 +134,7 @@ fn main() -> anyhow::Result<()> {
     sche.register_node(NvsStorageService::new(nvs.clone()));
     sche.register_node(BuzzerService::new(beep_tx));
     sche.register_node(HttpServerService::new());
+    sche.register_node(CanvasView::new(display_mux.clone()));
     let sche_timer = slint::Timer::default();
     sche_timer.start(
         slint::TimerMode::Repeated,

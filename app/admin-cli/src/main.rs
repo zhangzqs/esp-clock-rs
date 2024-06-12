@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use app_core::proto::*;
+use proto::*;
 use clap::Parser;
 use reqwest::blocking::Client;
 use serde_json::json;

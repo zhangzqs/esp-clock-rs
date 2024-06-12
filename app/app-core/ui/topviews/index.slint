@@ -1,0 +1,22 @@
+import { AlertDialogView, AlertDialogViewModel } from "alertdialog.slint";
+import { PerformanceView, PerformanceViewModel } from "performance.slint";
+import { CanvasView, CanvasViewModel } from "canvas.slint";
+export component TopView {
+    CanvasView {
+        z: 15;
+    }
+
+    PerformanceView {
+        z: 10;
+    }
+
+    AlertDialogView {
+        z: 5;
+    }
+}
+
+export {
+    AlertDialogViewModel,
+    PerformanceViewModel,
+    CanvasViewModel
+}

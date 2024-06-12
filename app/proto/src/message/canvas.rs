@@ -17,8 +17,8 @@ pub struct DrawRectangleInput {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrawCircleInput {
-    top_left: (u16, u16),
-    size: (u16, u16),
+    center: (u16, u16),
+    radius: (u16, u16),
     color: (u8, u8, u8),
 }
 

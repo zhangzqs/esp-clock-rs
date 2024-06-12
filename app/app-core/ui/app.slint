@@ -1,91 +1,10 @@
 import { PageRouteTable, PageRouter } from "common/route.slint";
 import { RouteView, HomeViewModel, MenuViewModel, WeatherPageViewModel, MusicPageViewModel, BootPageViewModel } from "pages/index.slint";
+import { TopView, AlertDialogViewModel, PerformanceViewModel, CanvasViewModel } from "topviews/index.slint";
 
 export global OneButtenAdapter {
     callback pressed();
     callback release();
-}
-
-export global PerformanceViewModel {
-    in property <bool> is-show;
-    in property <int> fps;
-    in property <int> memory;
-    in property <int> largest-free-block;
-    in property <int> cpu;
-}
-
-component PerformanceView inherits Rectangle {
-    visible: PerformanceViewModel.is-show;
-    in property <int> fps <=> PerformanceViewModel.fps;
-    in property <int> memory <=> PerformanceViewModel.memory;
-    in property <int> largest-free-block <=> PerformanceViewModel.largest-free-block;
-    in property <int> cpu <=> PerformanceViewModel.cpu;
-
-    VerticalLayout {
-        alignment: start;
-        HorizontalLayout {
-            HorizontalLayout {
-                alignment: start;
-                Rectangle {
-                    background: gray.with-alpha(0.5);
-                    Text {
-                        color: #ff2a00;
-                        font-size: 20px;
-                        text: "memory: \{memory}\n" + "free block: \{largest-free-block}";
-                    }
-                }
-            }
-
-            HorizontalLayout {
-                alignment: end;
-                Rectangle {
-                    background: gray.with-alpha(0.5);
-                    Text {
-                        color: #ff2a00;
-                        font-size: 20px;
-                        text: "fps: \{fps}\n" + "cpu: \{cpu}";
-                    }
-                }
-            }
-        }
-    }
-}
-
-export global AlertDialogViewModel {
-    in-out property <percent> width: 80%;
-    in-out property <percent> height: 80%;
-    in-out property <string> text;
-    in-out property <image> image;
-    in-out property <bool> show;
-}
-
-component AlertDialogView inherits Rectangle {
-    visible: AlertDialogViewModel.show;
-    Rectangle {
-        border-color: gray;
-        border-radius: 20px;
-        border-width: 2px;
-        background: black;
-        width: AlertDialogViewModel.width;
-        height: AlertDialogViewModel.height;
-        HorizontalLayout {
-            alignment: center;
-            VerticalLayout {
-                padding: 10px;
-                alignment: center;
-                Text {
-                    text: AlertDialogViewModel.text;
-                    font-size: 20px;
-                    color: red;
-                    wrap: word-wrap;
-                }
-
-                Image {
-                    source: AlertDialogViewModel.image;
-                }
-            }
-        }
-    }
 }
 
 export component AppWindow inherits Window {
@@ -117,12 +36,10 @@ export component AppWindow inherits Window {
         }
     }
 
-    PerformanceView {
-        z: 10;
-    }
-
-    AlertDialogView {
-        z: 5;
+    TopView {
+        z: 1;
+        width: 100%;
+        height: 100%;
     }
 
     RouteView {
@@ -138,5 +55,8 @@ export {
     PageRouter,
     WeatherPageViewModel, 
     MusicPageViewModel,
-    BootPageViewModel
+    BootPageViewModel,
+    AlertDialogViewModel, 
+    PerformanceViewModel, 
+    CanvasViewModel
 }

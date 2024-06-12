@@ -1,0 +1,13 @@
+export global CanvasViewModel {
+    in-out property <image> image;
+    in-out property <bool> show;
+}
+
+export component CanvasView inherits Rectangle {
+    visible: CanvasViewModel.show;
+    Image {
+        width: 100%;
+        height: 100%;
+        source: CanvasViewModel.image;
+    }
+}

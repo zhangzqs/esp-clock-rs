@@ -94,7 +94,7 @@ impl Node for MusicPage {
                             NodeName::Router,
                             Message::Router(RouterMessage::GotoPage(RoutePage::Home)),
                         );
-                        return HandleResult::Block;
+                        return HandleResult::Finish(Message::Empty);
                     }
                 }
                 _ => {}

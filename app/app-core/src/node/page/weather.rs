@@ -52,7 +52,7 @@ impl Node for WeatherPage {
                             .map(|x| ui::OneDayWeatherViewModel {
                                 title: {
                                     ["Sun.", "Mon.", "Tue.", "Wed.", "Thu.", "Fri.", "Sat."]
-                                        [x.date.weekday().number_from_sunday() as usize]
+                                        [x.date.weekday().number_days_from_sunday() as usize]
                                         .into()
                                 },
                                 date: format!("{:0>2}-{:0>2}", x.date.month() as u8, x.date.day())

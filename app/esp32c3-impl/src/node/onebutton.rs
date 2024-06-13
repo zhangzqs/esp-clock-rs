@@ -1,6 +1,6 @@
 use std::{
     rc::Rc,
-    sync::mpsc::{channel, Receiver, TryRecvError},
+    sync::mpsc::{channel, sync_channel, Receiver, TryRecvError},
     thread,
     time::Duration,
 };
@@ -16,7 +16,7 @@ pub struct OneButtonService {
 
 impl OneButtonService {
     pub fn new<P: Pin>(pin: PinDriver<'static, P, Input>) -> Self {
-        let (tx, rx) = channel();
+        let (tx, rx) = sync_channel(1);
         let mut button = button_driver::Button::new(pin, Default::default());
 
         thread::spawn(move || loop {

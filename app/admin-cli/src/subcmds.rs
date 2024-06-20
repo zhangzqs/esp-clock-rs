@@ -62,6 +62,7 @@ pub enum SubCommands {
     #[clap(name = "onebutton")]
     OneButton,
     Restart,
+    PlayDefaultAlarm,
 }
 
 impl SubCommands {
@@ -175,6 +176,35 @@ impl SubCommands {
             ),
             SubCommands::Restart => {
                 ctx.sync_call(NodeName::System, Message::System(SystemMessage::Restart));
+            }
+            SubCommands::PlayDefaultAlarm => {
+                let cli = ipc::BuzzerClient(ctx.clone());
+                let freq = 2000;
+                let d1 = 100;
+                let d2 = 50;
+                cli.tone_series(
+                    ToneSeries(vec![
+                        (freq, ToneDuration(d1)),
+                        (0, ToneDuration(d2)),
+                        (freq, ToneDuration(d1)),
+                        (0, ToneDuration(d2)),
+                        (freq, ToneDuration(d1)),
+                        (0, ToneDuration(d2)),
+                        (freq, ToneDuration(d1)),
+                        (0, ToneDuration(500)),
+
+                        (freq, ToneDuration(d1)),
+                        (0, ToneDuration(d2)),
+                        (freq, ToneDuration(d1)),
+                        (0, ToneDuration(d2)),
+                        (freq, ToneDuration(d1)),
+                        (0, ToneDuration(d2)),
+                        (freq, ToneDuration(d1)),
+                        (0, ToneDuration(d2)),
+                    ]),
+                    Box::new(|r| {}),
+                );
+                cli.off();
             }
         }
         anyhow::Ok(())

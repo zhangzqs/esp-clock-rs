@@ -1,7 +1,8 @@
 use std::rc::Rc;
 
-use proto::*;
 use clap::Parser;
+use log::info;
+use proto::*;
 use reqwest::blocking::Client;
 use serde_json::json;
 
@@ -34,15 +35,12 @@ impl ContextImpl {
     }
 
     fn send_message(&self, to: MessageTo, body: Message) -> HandleResult {
-        let req = self
-            .client
-            .post(&self.url)
-            .json(&json!({
-                "to": to,
-                "body": body,
-            }))
-            .build()
-            .unwrap();
+        let msg = json!({
+            "to": to,
+            "body": body,
+        });
+        info!("send msg: {}", msg);
+        let req = self.client.post(&self.url).json(&msg).build().unwrap();
         let resp = self.client.execute(req).unwrap();
         resp.json().unwrap()
     }

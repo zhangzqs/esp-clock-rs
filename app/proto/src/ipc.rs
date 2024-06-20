@@ -4,11 +4,12 @@ type AsyncResultCallback<T, E> = Box<dyn FnOnce(Result<T, E>)>;
 mod buzzer;
 mod httpclient;
 mod midi;
-mod system;
 mod storage;
+mod system;
+mod useralarm;
 mod weather;
 
 pub use {
-    buzzer::BuzzerClient, httpclient::HttpClient, midi::MidiPlayerClient,
-    system::SystemClient, storage::StorageClient, weather::WeatherClient,
+    buzzer::BuzzerClient, httpclient::HttpClient, midi::MidiPlayerClient, storage::StorageClient,
+    system::SystemClient, useralarm::UserAlarmClient, weather::WeatherClient,
 };

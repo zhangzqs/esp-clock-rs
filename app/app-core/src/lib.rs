@@ -45,6 +45,7 @@ fn register_default_nodes(sche: &Scheduler) {
     sche.register_node(MockWiFiService::new());
     sche.register_node(MidiPlayerService::new());
     sche.register_node(CanvasView::new());
+    sche.register_node(UserAlarmService::new());
 }
 
 mod dev {

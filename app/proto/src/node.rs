@@ -30,6 +30,8 @@ pub enum NodeName {
     AlertDialog,
     // 画板
     CanvasView,
+    // 闹钟
+    Alarm,
     // 启动页ui与逻辑
     BootPage,
     // 首页ui与逻辑

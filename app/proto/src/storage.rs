@@ -1,6 +1,10 @@
 mod music;
-mod wifi;
-mod weather;
 mod system;
+mod useralarm;
+mod weather;
+mod wifi;
 
-pub use {music::MusicStorage, wifi::WiFiStorage, weather::WeatherStorage, system::SystemStorage};
+pub use {music::MusicStorage, system::SystemStorage, weather::WeatherStorage, wifi::WiFiStorage, useralarm::UserAlarmStorage};
+
+use crate::StorageError;
+pub(self) type Result<T> = std::result::Result<T, StorageError>;

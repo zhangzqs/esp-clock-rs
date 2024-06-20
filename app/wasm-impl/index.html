@@ -1,22 +1,24 @@
 <html>
-    <head>
-        <meta charset="utf-8" />
-        <title>clock</title>
-    </head>
-    <body>
-        <!-- canvas required by the Slint runtime -->
-        <canvas id="canvas"></canvas>
-        <script src="js/midi.min.js"></script>
-        <script type="module">
-            // import the generated file.
-            import init from "./pkg/wasm_impl.js";
-            init();
-        </script>
-        <p>
-            首页单击进入菜单 </br>
-            菜单单击滚动切换app </br>
-            菜单双击进入对应app </br>
-            天气app长按进入首页 </br>
-        </p>
-    </body>
+  <head>
+    <meta charset="utf-8" />
+    <title>clock</title>
+  </head>
+  <body>
+    <!-- canvas required by the Slint runtime -->
+    <canvas id="canvas"></canvas>
+
+    <div>
+      <textarea id="msg-input"></textarea>
+      <button id="msg-send-btn">Send</button>
+    </div>
+
+    <script src="js/midi.min.js"></script>
+    <script type="module" src="index.module.js"></script>
+    <p>
+      首页单击进入菜单 <br />
+      菜单单击滚动切换app <br />
+      菜单双击进入对应app <br />
+      天气app长按进入首页 <br />
+    </p>
+  </body>
 </html>

@@ -1,6 +1,6 @@
 use crate::StorageError;
 
-use super::HttpError;
+use super::{HttpError, Rgb888Color};
 use serde::{Deserialize, Serialize};
 use time::serde::rfc3339;
 use time::OffsetDateTime;
@@ -89,7 +89,7 @@ pub struct NowAirQuality {
     pub updated_time: OffsetDateTime,
     pub value: u16,
     pub category: String,
-    pub color: (u8, u8, u8),
+    pub color: Rgb888Color,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

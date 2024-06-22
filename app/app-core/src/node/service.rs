@@ -1,14 +1,14 @@
 mod midiplayer;
 mod onebutton;
-mod system;
 mod router;
 mod storage;
+mod system;
 mod timer;
 mod weather;
 mod wifi;
 
 pub use {
-    midiplayer::MidiPlayerService, onebutton::TouchOneButtonAdapterService,
-    system::MockSystemService, router::RouterService, storage::MockStorageService,
-    timer::TimerService, weather::WeatherService, wifi::MockWiFiService,
+    midiplayer::MidiPlayerService, onebutton::TouchOneButtonAdapterService, router::RouterService,
+    storage::MockStorageService, system::MockSystemService, timer::TimerService,
+    weather::WeatherService, wifi::MockWiFiService,
 };

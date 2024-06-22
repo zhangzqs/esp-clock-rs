@@ -32,22 +32,20 @@ impl MusicPage {
             let vm = ui.global::<ui::MusicPageViewModel>();
             let len = vm.get_music_list().row_count();
             if len == 0 {
-                ctx.clone().async_call(
-                    NodeName::AlertDialog,
-                    Message::AlertDialog(AlertDialogMessage::ShowRequest {
-                        duration: Some(3000),
-                        content: AlertDialogContent {
-                            text: Some("No music, exit...".into()),
-                            image: None,
-                        },
-                    }),
-                    Box::new(move |_| {
+                ipc::NotifactionClient(ctx.clone()).show(
+                    3000,
+                    NotifactionContent {
+                        title: Some("No music".into()),
+                        text: Some("No music, exit...".into()),
+                        icon: None,
+                    },
+                    Box::new(move |()| {
                         ctx.sync_call(
                             NodeName::Router,
                             Message::Router(RouterMessage::GotoPage(RoutePage::Menu)),
                         );
                     }),
-                )
+                );
             } else {
                 let idx = (vm.get_select_id() + 1) % len as i32;
                 vm.set_select_id(idx);
@@ -84,7 +82,6 @@ impl Node for MusicPage {
                         vm.set_music_list(Default::default());
                     }
                 }
-                _ => {}
             },
             Message::OneButton(msg) => match msg {
                 OneButtonMessage::Click => Self::on_click(ctx),

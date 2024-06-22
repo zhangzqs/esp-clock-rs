@@ -1,16 +1,12 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::default;
 use std::{rc::Rc, time::Duration};
 
 use ipc::StorageClient;
-use proto::TopicName;
-use slint::ComponentHandle;
 use storage::UserAlarmStorage;
-use time::{UtcOffset, Weekday};
+use time::UtcOffset;
 
 use crate::proto::*;
-use crate::{get_app_window, ui};
 
 type Result<T> = std::result::Result<T, UserAlarmError>;
 
@@ -43,11 +39,9 @@ impl UserAlarmService {
         let stg = UserAlarmStorage(StorageClient(ctx.clone()));
         let ret = stg.get(id).map_err(UserAlarmError::StorageError).unwrap();
 
-        let t = slint::Timer::default();
-        t.start(slint::TimerMode::Repeated, Duration::from_secs(2), {
-            let ctx = ctx.clone();
-            move || {
-                let cli = ipc::BuzzerClient(ctx.clone());
+        let play_tone = {
+            let cli = ipc::BuzzerClient(ctx.clone());
+            let f = move || {
                 let freq = 2000;
                 let d1 = 100;
                 let d2 = 50;
@@ -68,26 +62,35 @@ impl UserAlarmService {
                         (freq, ToneDuration(d1)),
                         (0, ToneDuration(d2)),
                         (freq, ToneDuration(d1)),
-                        (0, ToneDuration(d2)),
+                        (0, ToneDuration(1000)),
                     ]),
-                    Box::new(|r| {}),
+                    Box::new(|_| {}),
                 );
+            };
+            Rc::new(f)
+        };
+        play_tone();
+        let t = slint::Timer::default();
+        t.start(slint::TimerMode::Repeated, Duration::ZERO, {
+            let play_tone = play_tone.clone();
+            move || {
+                play_tone();
             }
         });
-        ctx.async_call(
-            NodeName::AlertDialog,
-            Message::AlertDialog(AlertDialogMessage::ShowRequest {
-                duration: Some(2 * 60 * 1000), // 持续2分钟
-                content: AlertDialogContent {
-                    text: Some(format!("闹铃！！！{ret:?}")),
-                    image: None,
-                },
-            }),
-            Box::new(move |r| {
-                // off play
+        ipc::NotifactionClient(ctx).show(
+            2 * 60 * 1000,
+            NotifactionContent {
+                text: Some(format!(
+                    "{:0>2}:{:0>2}\n{}",
+                    ret.time.0, ret.time.1, ret.comment
+                )),
+                title: None,
+                icon: None,
+            },
+            Box::new(move |()| {
                 t.stop();
             }),
-        );
+        )
     }
 
     fn on_timer_check(ctx: Rc<dyn Context>, state: Rc<State>) {

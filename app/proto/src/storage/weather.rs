@@ -1,9 +1,4 @@
-use std::rc::Rc;
-
-use crate::{
-    ipc::{self, StorageClient},
-    Context, Location, StorageValue, WeatherError,
-};
+use crate::{ipc::StorageClient, Location, StorageValue, WeatherError};
 
 type Result<T> = std::result::Result<T, WeatherError>;
 

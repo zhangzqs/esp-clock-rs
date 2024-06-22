@@ -44,17 +44,15 @@ impl HomePage {
 
     fn alert_dialog<T: Debug>(ctx: Rc<dyn Context>, e: T) {
         error!("error: {e:?}");
-        ctx.async_call(
-            NodeName::AlertDialog,
-            Message::AlertDialog(AlertDialogMessage::ShowRequest {
-                duration: Some(3000),
-                content: AlertDialogContent {
-                    text: Some(format!("{e:?}")),
-                    image: None,
-                },
-            }),
-            Box::new(|_| {}),
-        )
+        ipc::NotifactionClient(ctx).show(
+            3000,
+            NotifactionContent {
+                title: Some("ERROR".into()),
+                text: Some(format!("{e:?}")),
+                icon: None,
+            },
+            Box::new(|()| {}),
+        );
     }
 
     fn update_weather(ctx: Rc<dyn Context>) {

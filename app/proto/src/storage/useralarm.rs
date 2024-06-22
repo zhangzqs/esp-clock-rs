@@ -44,7 +44,7 @@ impl UserAlarmStorage {
     pub fn add(&self, body: UserAlarmBody) -> Result<usize> {
         // 申请一个id
         let mut id_list = self.get_id_list()?;
-        let id = id_list.iter().map(|x| *x).max().unwrap_or(0) + 1;
+        let id = id_list.iter().copied().max().unwrap_or(0) + 1;
 
         // 设置数据
         self.0.set(

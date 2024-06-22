@@ -11,7 +11,7 @@ use std::{
 };
 
 use crate::node::*;
-use app_core::{get_scheduler, proto::CanvasMessage};
+use app_core::get_scheduler;
 use display_interface_spi::SPIInterface;
 use embedded_graphics_mux::{DisplayMux, LogicalDisplay};
 use embedded_hal::spi::MODE_3;

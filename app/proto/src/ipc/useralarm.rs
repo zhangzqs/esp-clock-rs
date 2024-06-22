@@ -43,12 +43,12 @@ impl UserAlarmClient {
             m => panic!("unexcepted msg: {m:?}"),
         }
     }
-    pub fn get(&self) -> Result<UserAlarmBody> {
+    pub fn get(&self, id: usize) -> Result<UserAlarmBody> {
         match self
             .0
             .sync_call(
                 NodeName::Alarm,
-                Message::UserAlarm(UserAlarmMessage::ListRequest),
+                Message::UserAlarm(UserAlarmMessage::GetRequest(id)),
             )
             .unwrap()
         {

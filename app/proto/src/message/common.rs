@@ -55,3 +55,20 @@ impl fmt::Debug for Bytes {
         }
     }
 }
+
+pub type Rgb888Color = (u8, u8, u8);
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum ImageColorMode {
+    BinaryColor { on: Rgb888Color, off: Rgb888Color },
+    Rgb565,
+    Rgb888,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Image {
+    pub width: u16,
+    pub height: u16,
+    pub color_mode: ImageColorMode,
+    pub data: Bytes,
+}

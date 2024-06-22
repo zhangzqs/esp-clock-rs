@@ -19,7 +19,7 @@ impl WeatherClient {
         callback: AsyncResultCallback<Vec<CityLookUpItem>, WeatherError>,
     ) {
         self.0.async_call(
-            NodeName::WeatherClient,
+            NodeName::Weather,
             Message::Weather(WeatherMessage::CityLookUpRequest(query)),
             Box::new(|r| {
                 callback(match r.unwrap() {
@@ -36,7 +36,7 @@ impl WeatherClient {
         callback: AsyncResultCallback<ForecastWeather, WeatherError>,
     ) {
         self.0.async_call(
-            NodeName::WeatherClient,
+            NodeName::Weather,
             Message::Weather(WeatherMessage::GetForecastWeatherRequest),
             Box::new(|r| {
                 callback(match r.unwrap() {
@@ -50,7 +50,7 @@ impl WeatherClient {
 
     pub fn get_now_weather(&self, callback: AsyncResultCallback<NowWeather, WeatherError>) {
         self.0.async_call(
-            NodeName::WeatherClient,
+            NodeName::Weather,
             Message::Weather(WeatherMessage::GetNowWeatherRequest),
             Box::new(|r| {
                 callback(match r.unwrap() {
@@ -64,7 +64,7 @@ impl WeatherClient {
 
     pub fn get_now_air_quality(&self, callback: AsyncResultCallback<NowAirQuality, WeatherError>) {
         self.0.async_call(
-            NodeName::WeatherClient,
+            NodeName::Weather,
             Message::Weather(WeatherMessage::GetNowAirQualityRequest),
             Box::new(|r| {
                 callback(match r.unwrap() {
@@ -80,7 +80,7 @@ impl WeatherClient {
         match self
             .0
             .sync_call(
-                NodeName::WeatherClient,
+                NodeName::Weather,
                 Message::Weather(WeatherMessage::SetLocationRequest(loc)),
             )
             .unwrap()
@@ -95,7 +95,7 @@ impl WeatherClient {
         match self
             .0
             .sync_call(
-                NodeName::WeatherClient,
+                NodeName::Weather,
                 Message::Weather(WeatherMessage::GetLocationRequest),
             )
             .unwrap()

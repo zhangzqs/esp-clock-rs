@@ -7,9 +7,7 @@ pub enum NodeName {
     // Http客户端
     HttpClient,
     // 天气查询器
-    WeatherClient,
-    // 获取时间的客户端
-    TimestampClient,
+    Weather,
     // 定时器服务
     Timer,
     // 单个操作按钮事件产生器，可产生一些按键事件
@@ -23,13 +21,13 @@ pub enum NodeName {
     // 蜂鸣器
     Buzzer,
     // MIDI播放器
-    Midi,
-    // 性能监视
+    MidiPlayer,
+    // 系统相关
     System,
     // 全局Alert对话框
-    AlertDialog,
+    Notifaction,
     // 画板
-    CanvasView,
+    Canvas,
     // 闹钟
     Alarm,
     // 启动页ui与逻辑

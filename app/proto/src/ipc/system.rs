@@ -41,7 +41,7 @@ impl SystemClient {
         }
     }
 
-    pub fn restart(&self) -> () {
+    pub fn restart(&self) {
         self.0
             .sync_call(NodeName::System, Message::System(SystemMessage::Restart));
     }

@@ -38,7 +38,7 @@ where
     E: Debug,
 {
     fn node_name(&self) -> NodeName {
-        NodeName::CanvasView
+        NodeName::Canvas
     }
 
     fn handle_message(&self, _ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {

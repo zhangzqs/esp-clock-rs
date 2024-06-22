@@ -13,15 +13,16 @@ impl AlertDialog {
         Self {}
     }
 
-    fn show(ctx: Rc<dyn Context>, content: AlertDialogContent) {
+    fn show(ctx: Rc<dyn Context>, content: NotifactionContent) {
         ctx.subscribe_topic(TopicName::OneButton);
         if let Some(ui) = get_app_window().upgrade() {
             let ad = ui.global::<ui::AlertDialogViewModel>();
             ad.set_show(true);
+            if let Some(_x) = content.title {}
             if let Some(x) = content.text {
                 ad.set_text(x.into());
             }
-            if let Some(Bytes(_)) = content.image {
+            if let Some(_x) = content.icon {
                 unimplemented!("unsupported");
             }
         }
@@ -47,7 +48,7 @@ impl AlertDialog {
 
 impl Node for AlertDialog {
     fn node_name(&self) -> NodeName {
-        NodeName::AlertDialog
+        NodeName::Notifaction
     }
 
     fn poll(&self, ctx: Rc<dyn Context>, seq: usize) {
@@ -58,17 +59,20 @@ impl Node for AlertDialog {
 
     fn handle_message(&self, ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {
         match msg.body {
-            Message::AlertDialog(msg) => match msg {
-                AlertDialogMessage::ShowRequest { duration, content } => {
+            Message::Notifaction(msg) => match msg {
+                NotifactionMessage::ShowRequest { duration, content } => {
                     Self::show(ctx.clone(), content);
-                    if let Some(x) = duration {
-                        slint::Timer::single_shot(Duration::from_millis(x as _), move || {
-                            Self::close(ctx.clone());
-                        });
+                    if duration != 0 {
+                        slint::Timer::single_shot(
+                            Duration::from_millis(duration as _),
+                            move || {
+                                Self::close(ctx.clone());
+                            },
+                        );
                     }
                     return HandleResult::Pending;
                 }
-                AlertDialogMessage::Close => {
+                NotifactionMessage::Close => {
                     Self::close(ctx.clone());
                     return HandleResult::Finish(Message::Empty);
                 }

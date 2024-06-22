@@ -76,17 +76,15 @@ impl BootPage {
 
     fn alert_dialog<T: Debug>(ctx: Rc<dyn Context>, e: T) {
         error!("error: {e:?}");
-        ctx.async_call(
-            NodeName::AlertDialog,
-            Message::AlertDialog(AlertDialogMessage::ShowRequest {
-                duration: Some(3000),
-                content: AlertDialogContent {
-                    text: Some(format!("{e:?}")),
-                    image: None,
-                },
-            }),
-            Box::new(|_| {}),
-        )
+        ipc::NotifactionClient(ctx).show(
+            3000,
+            NotifactionContent {
+                title: Some("ERROR".into()),
+                text: Some(format!("{e:?}")),
+                icon: None,
+            },
+            Box::new(|()| {}),
+        );
     }
 
     fn connect_wifi(&self, ctx: Rc<dyn Context>) {
@@ -125,21 +123,10 @@ impl BootPage {
                                             HandleResult::Finish(Message::WiFi(
                                                 WiFiMessage::GetIpInfoResponse(netinfo),
                                             )) => {
-                                                ctx.clone().async_call(
-                                                    NodeName::AlertDialog,
-                                                    Message::AlertDialog(
-                                                        AlertDialogMessage::ShowRequest {
-                                                            duration: None,
-                                                            content: AlertDialogContent {
-                                                                text: Some(format!("Please connect to AP \"ESP-CLOCK-RS\" and open \"http://{}\" to config wifi then click button to restart.", netinfo.ip)),
-                                                                image: None,
-                                                            },
-                                                        },
-                                                    ),
-                                                    Box::new(move |_| {
-                                                        ctx.clone().sync_call(NodeName::System, Message::System(SystemMessage::Restart));
-                                                    }),
-                                                );
+                                                let msg = format!("Please connect to AP \"ESP-CLOCK-RS\" and open \"http://{}\" to config wifi then click button to restart.", netinfo.ip);
+                                                ipc::NotifactionClient(ctx.clone()).show(0, NotifactionContent { title: Some("Config".into()), text: Some(msg), icon: None }, Box::new(move |()|{
+                                                    ctx.sync_call(NodeName::System, Message::System(SystemMessage::Restart));
+                                                }));
                                                 return;
                                             },
                                             _ => {}

@@ -1,6 +1,6 @@
 use std::{
     rc::Rc,
-    sync::mpsc::{channel, sync_channel, Receiver, TryRecvError},
+    sync::mpsc::{sync_channel, Receiver, TryRecvError},
     thread,
     time::Duration,
 };

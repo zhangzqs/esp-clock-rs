@@ -12,7 +12,7 @@ pub struct MidiPlayerClient(pub Rc<dyn Context>);
 impl MidiPlayerClient {
     pub fn play(&self, mid: Vec<u8>, callback: AsyncResultCallback<bool, MidiError>) {
         self.0.async_call(
-            NodeName::Midi,
+            NodeName::MidiPlayer,
             Message::Midi(MidiMessage::PlayRequest(Bytes(mid))),
             Box::new(|r| {
                 callback(match r.unwrap() {
@@ -29,6 +29,6 @@ impl MidiPlayerClient {
 
     pub fn off(&self) {
         self.0
-            .sync_call(NodeName::Midi, Message::Midi(MidiMessage::Off));
+            .sync_call(NodeName::MidiPlayer, Message::Midi(MidiMessage::Off));
     }
 }

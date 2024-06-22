@@ -1,7 +1,7 @@
-mod alert;
-mod canvas;
 mod alarm;
+mod canvas;
+mod notication;
 
-pub use alert::AlertDialog;
-pub use canvas::CanvasView;
 pub use alarm::UserAlarmService;
+pub use canvas::CanvasView;
+pub use notication::AlertDialog;

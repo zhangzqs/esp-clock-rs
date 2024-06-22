@@ -165,7 +165,7 @@ impl MidiPlayerService {
 
 impl Node for MidiPlayerService {
     fn node_name(&self) -> NodeName {
-        NodeName::Midi
+        NodeName::MidiPlayer
     }
 
     fn handle_message(&self, ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {

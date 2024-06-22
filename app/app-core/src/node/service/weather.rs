@@ -223,7 +223,7 @@ impl WeatherService {
 
 impl Node for WeatherService {
     fn node_name(&self) -> NodeName {
-        NodeName::WeatherClient
+        NodeName::Weather
     }
 
     fn handle_message(

@@ -33,8 +33,8 @@ pub use midi::*;
 mod common;
 pub use common::*;
 
-mod alertdialog;
-pub use alertdialog::*;
+mod notifaction;
+pub use notifaction::*;
 
 mod useralarm;
 pub use useralarm::*;
@@ -74,7 +74,7 @@ pub enum Message {
     WiFi(WiFiMessage),
     Buzzer(BuzzerMessage),
     Midi(MidiMessage),
-    AlertDialog(AlertDialogMessage),
+    Notifaction(NotifactionMessage),
     BootPage(BootPageMessage),
     Sntp(SntpMessage),
     Canvas(CanvasMessage),

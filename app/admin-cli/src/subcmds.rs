@@ -63,6 +63,8 @@ pub enum SubCommands {
     OneButton,
     Restart,
     PlayDefaultAlarm,
+    AddUserAlarm,
+    ListUserAlarm,
 }
 
 impl SubCommands {
@@ -192,7 +194,6 @@ impl SubCommands {
                         (0, ToneDuration(d2)),
                         (freq, ToneDuration(d1)),
                         (0, ToneDuration(500)),
-
                         (freq, ToneDuration(d1)),
                         (0, ToneDuration(d2)),
                         (freq, ToneDuration(d1)),
@@ -205,6 +206,24 @@ impl SubCommands {
                     Box::new(|r| {}),
                 );
                 cli.off();
+            }
+            SubCommands::AddUserAlarm => {
+                let cli = ipc::UserAlarmClient(ctx);
+                cli.add(UserAlarmBody {
+                    ring_tone: UserAlarmRingTone::Default,
+                    repeat_mode: UserAlarmRepeatMode::MonToFri,
+                    time: (9, 0),
+                    comment: "Work!!!".into(),
+                })
+                .unwrap();
+            }
+            SubCommands::ListUserAlarm => {
+                let cli = ipc::UserAlarmClient(ctx);
+                let id_list = cli.list();
+                for id in id_list.into_iter() {
+                    let body = cli.get(id).unwrap();
+                    println!("{}\t{:?}", id, body)
+                }
             }
         }
         anyhow::Ok(())

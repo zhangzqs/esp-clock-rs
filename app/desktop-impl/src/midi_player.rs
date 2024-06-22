@@ -10,7 +10,7 @@ impl MidiPlayer {
 
 impl Node for MidiPlayer {
     fn node_name(&self) -> NodeName {
-        NodeName::Midi
+        NodeName::MidiPlayer
     }
 
     fn handle_message(&self, _ctx: Rc<dyn Context>, msg: MessageWithHeader) -> HandleResult {

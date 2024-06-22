@@ -53,7 +53,7 @@ impl Node for AlertDialog {
 
     fn poll(&self, ctx: Rc<dyn Context>, seq: usize) {
         if !Self::is_show() {
-            ctx.async_ready(seq, Message::Empty);
+            ctx.async_ready(seq, Message::Notifaction(NotifactionMessage::ShowResponse));
         }
     }
 

@@ -38,4 +38,5 @@ pub enum CanvasMessage {
     DrawCircle(DrawCircleInput),
     DrawRectangle(DrawRectangleInput),
     DrawPixels(DrawPixelsInput),
+    BatchCommand(Vec<CanvasMessage>),
 }

@@ -67,6 +67,7 @@ impl Node for CanvasView {
                 CanvasMessage::DrawCircle(_) => todo!(),
                 CanvasMessage::DrawRectangle(_) => todo!(),
                 CanvasMessage::DrawPixels(_) => todo!(),
+                CanvasMessage::BatchCommand(_) => todo!(),
             },
             _ => {}
         }

@@ -26,3 +26,4 @@ cfg-if = "1.0.0"
 [features]
 default = ["slint/default"]
 software-renderer = ["slint/compat-1-2", "slint/unsafe-single-threaded"]
+dec-config = []

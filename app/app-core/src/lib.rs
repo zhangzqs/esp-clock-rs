@@ -41,7 +41,10 @@ fn register_default_nodes(sche: &Scheduler) {
     sche.register_node(MockStorageService::new());
     sche.register_node(MockSystemService {});
     sche.register_node(TimerService::new());
+
+    #[cfg(dev_config)]
     sche.register_node(DevConfigSetter {});
+
     sche.register_node(MockWiFiService::new());
     sche.register_node(MidiPlayerService::new());
     sche.register_node(CanvasView::new());

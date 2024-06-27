@@ -65,6 +65,7 @@ impl Node for SystemService {
                     }
                     SystemMessage::Restart => unsafe {
                         esp_idf_sys::esp_restart();
+                        unreachable!()
                     },
                     m => panic!("unexpected message {m:?}"),
                 }));

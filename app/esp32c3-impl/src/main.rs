@@ -14,7 +14,6 @@ use crate::node::*;
 use app_core::get_scheduler;
 use display_interface_spi::SPIInterface;
 use embedded_graphics_mux::{DisplayMux, LogicalDisplay};
-use embedded_hal::spi::MODE_3;
 use esp_idf_hal::{
     delay::FreeRtos,
     gpio::{AnyIOPin, PinDriver},
@@ -29,8 +28,10 @@ use esp_idf_hal::{
 use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition};
 use esp_idf_sys as _;
 use mipidsi::{Builder, ColorInversion, Orientation};
+use peripherals::SystemPeripherals;
 
 mod node;
+mod peripherals;
 
 fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();
@@ -38,50 +39,24 @@ fn main() -> anyhow::Result<()> {
     esp_idf_svc::log::set_target_level("esp32c3_impl", log::LevelFilter::Debug)?;
     esp_idf_svc::log::set_target_level("app_core", log::LevelFilter::Debug)?;
 
-    let peripherals = Peripherals::take().unwrap();
     // 所有引脚定义
-    let cs = PinDriver::output(peripherals.pins.gpio5)?;
-    let dc = PinDriver::output(peripherals.pins.gpio4)?;
-    let rst = PinDriver::output(peripherals.pins.gpio8)?;
+    let peripherals = SystemPeripherals::take();
+    let cs = PinDriver::output(peripherals.display.cs)?;
+    let dc = PinDriver::output(peripherals.display.control.dc)?;
+    let rst = PinDriver::output(peripherals.display.control.rst)?;
 
     // 初始化SPI引脚
     let spi = SpiDeviceDriver::new_single(
-        peripherals.spi2,
-        peripherals.pins.gpio6,
-        peripherals.pins.gpio7,
+        peripherals.display.spi,
+        peripherals.display.sclk,
+        peripherals.display.sdo,
         Option::<AnyIOPin>::None,
         Option::<AnyIOPin>::None,
         &SpiDriverConfig::default().dma(Dma::Auto(4096)),
         &Config::default()
-            .baudrate(80.MHz().into())
-            .data_mode(MODE_3),
+            .baudrate(60.MHz().into())
+            .data_mode(esp_idf_hal::spi::config::MODE_3),
     )?;
-
-    // 设置底部灯为关闭
-    let mut blue_led = LedcDriver::new(
-        peripherals.ledc.channel0,
-        LedcTimerDriver::new(
-            peripherals.ledc.timer0,
-            &TimerConfig::new().frequency(25.kHz().into()),
-        )
-        .unwrap(),
-        peripherals.pins.gpio2,
-    )
-    .unwrap();
-    blue_led.set_duty(0).unwrap();
-
-    // 设置屏幕背光亮度为100%
-    let mut screen_ledc = LedcDriver::new(
-        peripherals.ledc.channel1,
-        LedcTimerDriver::new(
-            peripherals.ledc.timer1,
-            &TimerConfig::new().frequency(25.kHz().into()),
-        )
-        .unwrap(),
-        peripherals.pins.gpio10,
-    )
-    .unwrap();
-    screen_ledc.set_duty(screen_ledc.get_max_duty()).unwrap();
 
     // 初始化显示屏驱动
     let display = Builder::st7789(SPIInterface::new(spi, dc, cs))
@@ -92,6 +67,35 @@ fn main() -> anyhow::Result<()> {
         .init(&mut FreeRtos, Some(rst))
         .unwrap();
 
+    // 设置底部灯为关闭
+    if let Some(ledc) = peripherals.board_led {
+        let mut ledc_driver = LedcDriver::new(
+            ledc.ledc_channel,
+            LedcTimerDriver::new(
+                ledc.ledc_timer,
+                &TimerConfig::new().frequency(25.kHz().into()),
+            )
+            .unwrap(),
+            ledc.pin,
+        )
+        .unwrap();
+        ledc_driver.set_duty(0).unwrap();
+    }
+
+    // 设置屏幕背光亮度为100%
+    if let Some(ledc) = peripherals.display.control.backlight {
+        let mut ledc_driver = LedcDriver::new(
+            ledc.ledc_channel,
+            LedcTimerDriver::new(
+                ledc.ledc_timer,
+                &TimerConfig::new().frequency(25.kHz().into()),
+            )
+            .unwrap(),
+            ledc.pin,
+        )
+        .unwrap();
+        ledc_driver.set_duty(ledc_driver.get_max_duty()).unwrap();
+    }
     let phy_display = Rc::new(RefCell::new(display));
     let display_mux = Rc::new(RefCell::new(DisplayMux::new(phy_display, 4)));
     let slint_logic_display = LogicalDisplay::new(display_mux.clone());
@@ -113,16 +117,21 @@ fn main() -> anyhow::Result<()> {
     );
     slint::platform::set_platform(Box::new(platform)).map_err(|e| anyhow::anyhow!("{:?}", e))?;
 
-    let btn_pin = PinDriver::input(peripherals.pins.gpio9)?;
-    let beep_tx = TxRmtDriver::new(
-        peripherals.rmt.channel0,
-        peripherals.pins.gpio0,
-        &TransmitConfig::new().looping(Loop::Endless),
-    )
-    .unwrap();
-
     let sche = get_scheduler();
-    sche.register_node(OneButtonService::new(btn_pin));
+    if let Some(btn) = peripherals.button {
+        let btn_pin = PinDriver::input(btn)?;
+        sche.register_node(OneButtonService::new(btn_pin));
+    }
+    if let Some(buzzer) = peripherals.buzzer {
+        let beep_tx = TxRmtDriver::new(
+            buzzer.rmt_channel,
+            buzzer.pin,
+            &TransmitConfig::new().looping(Loop::Endless),
+        )
+        .unwrap();
+        sche.register_node(BuzzerService::new(beep_tx));
+    }
+
     sche.register_node(SystemService::new(frame_counter));
     sche.register_node(WiFiService::new(
         nvs.clone(),
@@ -132,7 +141,6 @@ fn main() -> anyhow::Result<()> {
     sche.register_node(SntpService::new());
     sche.register_node(HttpClientService::new());
     sche.register_node(NvsStorageService::new(nvs.clone()));
-    sche.register_node(BuzzerService::new(beep_tx));
     sche.register_node(HttpServerService::new());
     sche.register_node(CanvasView::new(display_mux.clone()));
     let sche_timer = slint::Timer::default();

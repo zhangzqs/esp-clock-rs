@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     rc::Rc,
+    str::FromStr,
     sync::{
         mpsc::{channel, Receiver, Sender},
         Arc, Mutex,
@@ -65,7 +66,10 @@ impl WiFiService {
         let w = match ap_infos.iter().find(|ap| ap.ssid == cfg.ssid.as_str()) {
             Some(x) => {
                 info!("Success found AP {:?}", x);
-                if x.auth_method != AuthMethod::None && cfg.password.is_none() {
+                if x.auth_method.is_some()
+                    && x.auth_method.unwrap() != AuthMethod::None
+                    && cfg.password.is_none()
+                {
                     error!("Missing password for AP {}", cfg.ssid);
                     return Err(WiFiError::ApNeedPassword);
                 }
@@ -76,10 +80,11 @@ impl WiFiService {
                 return Err(WiFiError::NotFoundAP);
             }
         };
+
         wifi.set_configuration(&Configuration::Client(ClientConfiguration {
-            ssid: cfg.ssid.as_str().into(),
-            password: cfg.password.map(|x| x.as_str().into()).unwrap_or_default(),
-            auth_method: w.auth_method,
+            ssid: w.ssid.clone(),
+            password: heapless::String::<64>::from_str(&cfg.password.unwrap_or_default()).unwrap(),
+            auth_method: w.auth_method.unwrap_or(AuthMethod::None),
             channel: Some(w.channel),
             ..Default::default()
         }))
@@ -102,7 +107,7 @@ impl WiFiService {
 
     fn handle_ap(wifi: &mut BlockingWifi<&mut EspWifi>) -> Result<(), WiFiError> {
         wifi.set_configuration(&Configuration::AccessPoint(AccessPointConfiguration {
-            ssid: "ESP-CLOCK-RS".into(),
+            ssid: "ESP-CLOCK-RS".try_into().unwrap(),
             ..Default::default()
         }))
         .map_err(|x| WiFiError::Other(format!("{x:?}")))?;
@@ -154,39 +159,42 @@ impl WiFiService {
         ready_resp: Arc<Mutex<HashMap<usize, WiFiMessage>>>,
         msg_receiver: Receiver<(usize, WiFiMessage)>,
     ) {
-        thread::spawn(move || {
-            let mut wifi = EspWifi::new(modem, sysloop.clone(), Some(nvs)).unwrap();
-            let mut wifi = BlockingWifi::wrap(&mut wifi, sysloop.clone()).unwrap();
+        thread::Builder::new()
+            .stack_size(8192)
+            .spawn(move || {
+                let mut wifi = EspWifi::new(modem, sysloop.clone(), Some(nvs)).unwrap();
+                let mut wifi = BlockingWifi::wrap(&mut wifi, sysloop.clone()).unwrap();
 
-            let mut mode = WiFiMode::None;
-            for (seq, msg) in msg_receiver.iter() {
-                let r = || -> Result<WiFiMessage, WiFiError> {
-                    match msg {
-                        WiFiMessage::ConnectRequest(cfg) => {
-                            Self::handle_sta(cfg, &mut wifi)?;
-                            mode = WiFiMode::STA;
-                            Ok(WiFiMessage::ConnectResponse)
+                let mut mode = WiFiMode::None;
+                for (seq, msg) in msg_receiver.iter() {
+                    let r = || -> Result<WiFiMessage, WiFiError> {
+                        match msg {
+                            WiFiMessage::ConnectRequest(cfg) => {
+                                Self::handle_sta(cfg, &mut wifi)?;
+                                mode = WiFiMode::STA;
+                                Ok(WiFiMessage::ConnectResponse)
+                            }
+                            WiFiMessage::StartAPRequest => {
+                                Self::handle_ap(&mut wifi)?;
+                                mode = WiFiMode::AP;
+                                Ok(WiFiMessage::StartAPResponse)
+                            }
+                            WiFiMessage::GetIpInfoRequest => Ok(WiFiMessage::GetIpInfoResponse(
+                                Self::handle_ip_info(&mut wifi, &mode)?,
+                            )),
+                            m => panic!("unsupported message {m:?}"),
                         }
-                        WiFiMessage::StartAPRequest => {
-                            Self::handle_ap(&mut wifi)?;
-                            mode = WiFiMode::AP;
-                            Ok(WiFiMessage::StartAPResponse)
-                        }
-                        WiFiMessage::GetIpInfoRequest => Ok(WiFiMessage::GetIpInfoResponse(
-                            Self::handle_ip_info(&mut wifi, &mode)?,
-                        )),
-                        m => panic!("unsupported message {m:?}"),
-                    }
-                }();
-                ready_resp.lock().unwrap().insert(
-                    seq,
-                    match r {
-                        Ok(x) => x,
-                        Err(e) => WiFiMessage::Error(e),
-                    },
-                );
-            }
-        });
+                    }();
+                    ready_resp.lock().unwrap().insert(
+                        seq,
+                        match r {
+                            Ok(x) => x,
+                            Err(e) => WiFiMessage::Error(e),
+                        },
+                    );
+                }
+            })
+            .unwrap();
     }
 }
 

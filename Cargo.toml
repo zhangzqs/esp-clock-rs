@@ -1,0 +1,18 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "app/proto",
+    "app/app-core",
+    "libs/button-driver",
+    "app/admin-cli",
+    "app/wasm-impl",
+]
+exclude = ["app/esp32c3-impl"]
+
+[profile.release]
+opt-level = "s"
+
+[profile.dev]
+debug = true
+opt-level = "z"

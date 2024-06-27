@@ -19,7 +19,7 @@ fn start_scheduler() -> Rc<Scheduler> {
     sche
 }
 
-#[cfg(not(software_renderer))]
+#[cfg(not(feature = "software-renderer"))]
 fn main() {
     use app_core::{get_app_window, get_scheduler};
     use slint::ComponentHandle;
@@ -27,6 +27,7 @@ fn main() {
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
 
+    log::info!("hardware renderer mode");
     let app = get_app_window();
     let sche = start_scheduler();
     let sche_timer = slint::Timer::default();
@@ -42,7 +43,7 @@ fn main() {
     }
 }
 
-#[cfg(software_renderer)]
+#[cfg(feature = "software-renderer")]
 fn main() {
     use std::cell::RefCell;
 
@@ -59,7 +60,8 @@ fn main() {
 
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
-    info!("Starting desktop simulator");
+    log::info!("software renderer mode");
+
     let display = Rc::new(RefCell::new(SimulatorDisplay::<Rgb888>::new(Size::new(
         240, 240,
     ))));

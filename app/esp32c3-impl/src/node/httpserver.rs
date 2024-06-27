@@ -42,7 +42,7 @@ impl State {
         server
             .fn_handler("/", Method::Get, |req| {
                 req.into_ok_response()?.write_all(b"not found index.html")?;
-                Ok(())
+                anyhow::Ok(())
             })
             .unwrap()
             .fn_handler("/", Method::Post, move |mut req| {
@@ -66,7 +66,7 @@ impl State {
                         )?;
                     }
                 }
-                Ok(())
+                anyhow::Ok(())
             })
             .unwrap();
         // .ws_handler("/ws", move |mut conn| -> anyhow::Result<()> {

@@ -166,12 +166,13 @@ impl SubCommands {
                     .unwrap();
             }
             SubCommands::AlertDialog { text } => ctx.async_call(
-                NodeName::AlertDialog,
-                Message::AlertDialog(AlertDialogMessage::ShowRequest {
-                    duration: Some(3000),
-                    content: AlertDialogContent {
+                NodeName::Notifaction,
+                Message::Notifaction(NotifactionMessage::ShowRequest {
+                    duration: 3000,
+                    content: NotifactionContent {
+                        title: Some("".into()),
                         text: Some(text),
-                        image: None,
+                        icon: None,
                     },
                 }),
                 Box::new(|r| {}),

@@ -5,6 +5,7 @@ members = [
     "app/proto",
     "app/app-core",
     "libs/button-driver",
+    "app/desktop-impl",
     "app/admin-cli",
     "app/wasm-impl",
 ]

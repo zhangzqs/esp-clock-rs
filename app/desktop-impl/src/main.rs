@@ -38,7 +38,7 @@ fn main() {
             sche.schedule_once();
         },
     );
-    if let Some(x) = get_app_window().upgrade() {
+    if let Some(x) = app.upgrade() {
         x.run().unwrap();
     }
 }

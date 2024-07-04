@@ -1,5 +1,6 @@
 use std::{
     cell::RefCell,
+    collections::VecDeque,
     rc::Rc,
     sync::{Arc, Mutex},
     thread,
@@ -55,7 +56,7 @@ pub struct MySoftwarePlatform<DrawTarget, Callback> {
     display: Rc<RefCell<DrawTarget>>,
     window: Rc<MinimalSoftwareWindow>,
     start_time: std::time::Instant,
-    event_loop_queue: Arc<Mutex<Vec<EventQueueElement>>>,
+    event_loop_queue: Arc<Mutex<VecDeque<EventQueueElement>>>,
     redraw_callback: Option<Rc<RefCell<Callback>>>,
 }
 
@@ -66,7 +67,7 @@ impl<DrawTarget, Callback> MySoftwarePlatform<DrawTarget, Callback> {
             window: MinimalSoftwareWindow::new(Default::default()),
             redraw_callback: redraw_callback.map(|x| Rc::new(RefCell::new(x))),
             start_time: std::time::Instant::now(),
-            event_loop_queue: Arc::new(Mutex::new(Vec::new())),
+            event_loop_queue: Arc::new(Mutex::new(VecDeque::new())),
         }
     }
 
@@ -122,20 +123,19 @@ where
                 }
             }
 
-            // 动画没处理完优先处理动画
-            if window.has_active_animations() {
-                continue;
-            }
-
             // process event in event loop from event queue
-            let mut queue = self.event_loop_queue.lock().unwrap();
-            for event in queue.drain(..) {
+            if let Some(event) = self.event_loop_queue.lock().unwrap().pop_back() {
                 match event {
                     EventQueueElement::Quit => {
                         return Ok(());
                     }
                     EventQueueElement::Invoke(f) => f(),
                 }
+            }
+
+            // 动画没处理完继续处理动画
+            if window.has_active_animations() {
+                continue;
             }
         }
     }
@@ -147,12 +147,15 @@ enum EventQueueElement {
 }
 
 struct MyEventLoopProxy {
-    pub queue: Arc<Mutex<Vec<EventQueueElement>>>,
+    pub queue: Arc<Mutex<VecDeque<EventQueueElement>>>,
 }
 
 impl EventLoopProxy for MyEventLoopProxy {
     fn quit_event_loop(&self) -> Result<(), EventLoopError> {
-        self.queue.lock().unwrap().push(EventQueueElement::Quit);
+        self.queue
+            .lock()
+            .unwrap()
+            .push_front(EventQueueElement::Quit);
         Ok(())
     }
 
@@ -163,7 +166,7 @@ impl EventLoopProxy for MyEventLoopProxy {
         self.queue
             .lock()
             .unwrap()
-            .push(EventQueueElement::Invoke(event));
+            .push_front(EventQueueElement::Invoke(event));
         Ok(())
     }
 }

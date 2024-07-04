@@ -1,4 +1,5 @@
 use app_core::{get_app_window, get_scheduler, Scheduler};
+use log::info;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -19,15 +20,16 @@ fn start_scheduler() -> Rc<Scheduler> {
     sche
 }
 
-#[cfg(not(feature = "software-renderer"))]
-fn main() {
-    use app_core::{get_app_window, get_scheduler};
-    use slint::ComponentHandle;
-
+fn common_init() {
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
+}
 
-    log::info!("hardware renderer mode");
+fn _hardware_main() {
+    use slint::ComponentHandle;
+
+    common_init();
+    info!("hardware renderer mode");
     let app = get_app_window();
     let sche = start_scheduler();
     let sche_timer = slint::Timer::default();
@@ -43,8 +45,7 @@ fn main() {
     }
 }
 
-#[cfg(feature = "software-renderer")]
-fn main() {
+fn _software_main() {
     use std::cell::RefCell;
 
     use embedded_graphics::{geometry::Size, pixelcolor::Rgb888};
@@ -52,14 +53,12 @@ fn main() {
         sdl2::MouseButton, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
     };
     use embedded_software_slint_backend::MySoftwarePlatform;
-    use log::info;
     use slint::{
         platform::{PointerEventButton, WindowEvent},
         LogicalPosition, PlatformError,
     };
 
-    std::env::set_var("RUST_LOG", "debug");
-    env_logger::init();
+    common_init();
     log::info!("software renderer mode");
 
     let display = Rc::new(RefCell::new(SimulatorDisplay::<Rgb888>::new(Size::new(
@@ -138,4 +137,11 @@ fn main() {
         },
     );
     slint::run_event_loop_until_quit().unwrap();
+}
+
+fn main() {
+    #[cfg(not(feature = "software-renderer"))]
+    _hardware_main();
+    #[cfg(feature = "software-renderer")]
+    _software_main();
 }

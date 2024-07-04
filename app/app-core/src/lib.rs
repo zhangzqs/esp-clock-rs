@@ -1,6 +1,5 @@
 use std::rc::Rc;
 
-use dev::DevConfigSetter;
 use node::*;
 
 mod adapter;
@@ -42,49 +41,8 @@ fn register_default_nodes(sche: &Scheduler) {
     sche.register_node(MockSystemService {});
     sche.register_node(TimerService::new());
 
-    // #[cfg(dev_config)]
-    sche.register_node(DevConfigSetter {});
-
     sche.register_node(MockWiFiService::new());
     sche.register_node(MidiPlayerService::new());
     sche.register_node(CanvasView::new());
     sche.register_node(UserAlarmService::new());
-}
-
-mod dev {
-    use std::collections::HashMap;
-
-    use super::proto::*;
-
-    pub struct DevConfigSetter {}
-
-    impl Node for DevConfigSetter {
-        fn priority(&self) -> usize {
-            999
-        }
-        fn node_name(&self) -> NodeName {
-            NodeName::Other("DevConfigSetter".into())
-        }
-
-        fn handle_message(
-            &self,
-            ctx: std::rc::Rc<dyn Context>,
-            msg: MessageWithHeader,
-        ) -> HandleResult {
-            match msg.body {
-                Message::Lifecycle(LifecycleMessage::Init) => {
-                    let cfg = serde_json::from_slice::<HashMap<String, String>>(include_bytes!(
-                        "../config.json"
-                    ))
-                    .unwrap();
-                    let stg = ipc::StorageClient(ctx);
-                    for (k, v) in cfg.into_iter() {
-                        stg.set(k, StorageValue::String(v)).unwrap();
-                    }
-                }
-                _ => {}
-            }
-            HandleResult::Discard
-        }
-    }
 }

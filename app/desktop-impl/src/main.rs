@@ -109,7 +109,6 @@ fn _software_main() {
                         }
                         _ => {}
                     },
-
                     SimulatorEvent::MouseButtonDown { mouse_btn, point } => match mouse_btn {
                         MouseButton::Left => {
                             slint_window.dispatch_event(WindowEvent::PointerPressed {
@@ -119,7 +118,16 @@ fn _software_main() {
                         }
                         _ => {}
                     },
-
+                    SimulatorEvent::KeyDown { keycode, .. } => {
+                        slint_window.dispatch_event(WindowEvent::KeyPressed {
+                            text: keycode.name().into(),
+                        });
+                    }
+                    SimulatorEvent::KeyUp { keycode, .. } => {
+                        slint_window.dispatch_event(WindowEvent::KeyReleased {
+                            text: keycode.name().into(),
+                        });
+                    }
                     SimulatorEvent::Quit => slint::quit_event_loop().unwrap(),
                     _ => {}
                 }

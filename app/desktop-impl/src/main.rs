@@ -12,8 +12,17 @@ use http_server::HttpServer;
 mod midi_player;
 use midi_player::MidiPlayer;
 
+mod json_storage;
+use json_storage::JsonStorageService;
+
 fn start_scheduler() -> Rc<Scheduler> {
+    let config_path = std::env::args()
+        .skip(1)
+        .next()
+        .unwrap_or("config.json".into());
+    log::info!("Load config: {}", config_path);
     let sche = get_scheduler();
+    sche.register_node(JsonStorageService::new(&config_path));
     sche.register_node(HttpClient::new(4));
     sche.register_node(HttpServer::new());
     sche.register_node(MidiPlayer::new());

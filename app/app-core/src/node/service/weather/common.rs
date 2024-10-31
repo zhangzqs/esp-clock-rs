@@ -65,37 +65,10 @@ impl ErrorCode {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize)]
-pub struct RgbColor(u8, u8, u8);
-
-impl<'de> Deserialize<'de> for RgbColor {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: ::serde::Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        let mut rgb_str = s.split(',');
-        let r = rgb_str
-            .next()
-            .ok_or(serde::de::Error::custom("no red component"))?
-            .parse()
-            .map_err(serde::de::Error::custom)?;
-        let g = rgb_str
-            .next()
-            .ok_or(serde::de::Error::custom("no green component"))?
-            .parse()
-            .map_err(serde::de::Error::custom)?;
-        let b = rgb_str
-            .next()
-            .ok_or(serde::de::Error::custom("no blue component"))?
-            .parse()
-            .map_err(serde::de::Error::custom)?;
-        Ok(Self(r, g, b))
-    }
-}
-
-impl From<RgbColor> for (u8, u8, u8) {
-    fn from(val: RgbColor) -> Self {
-        (val.0, val.1, val.2)
-    }
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct RgbColor {
+    pub red: u8,
+    pub green: u8,
+    pub blue: u8,
+    pub alpha: u8,
 }

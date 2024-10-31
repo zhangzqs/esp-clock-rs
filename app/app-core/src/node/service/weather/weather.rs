@@ -160,7 +160,7 @@ impl TryInto<proto::NowAirQuality> for AirQualityNowOutput {
             updated_time: updated_time.into(),
             value: aq.value,
             category: aq.category,
-            color: aq.color.into(),
+            color: (aq.color.red, aq.color.green, aq.color.blue),
         })
     }
 }
